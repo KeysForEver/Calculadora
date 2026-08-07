@@ -1,0 +1,110 @@
+@import "tailwindcss";
+
+@layer utilities {
+  .font-sans {
+    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
+  .font-poppins {
+    font-family: 'Poppins', sans-serif;
+  }
+  .font-mono {
+    font-family: 'JetBrains Mono', monospace;
+  }
+}
+
+/* Markdown and Report Custom Styling */
+.report-content h2 {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #1e293b;
+  margin-top: 1.25rem;
+  margin-bottom: 0.75rem;
+  padding-bottom: 0.35rem;
+  border-bottom: 2px solid #e2e8f0;
+}
+
+.report-content p, .report-content li {
+  color: #334155;
+  font-size: 0.95rem;
+  line-height: 1.6;
+}
+
+.report-content ul {
+  list-style-type: disc;
+  padding-left: 1.25rem;
+  margin-top: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.report-content table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 1rem;
+  margin-bottom: 1rem;
+  background-color: #ffffff;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.report-content th {
+  background-color: #0f172a;
+  color: #ffffff;
+  font-weight: 600;
+  text-align: center;
+  padding: 10px 14px;
+  font-size: 0.875rem;
+}
+
+.report-content td {
+  border-top: 1px solid #e2e8f0;
+  padding: 10px 14px;
+  text-align: center;
+  color: #1e293b;
+  font-size: 0.9rem;
+}
+
+.report-content tr:nth-child(even) {
+  background-color: #f8fafc;
+}
+
+.report-content tr:hover {
+  background-color: #f1f5f9;
+}
+
+.report-content hr {
+  border: 0;
+  border-top: 1px dashed #cbd5e1;
+  margin: 1.5rem 0;
+}
+
+.report-content .katex-display {
+  background-color: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-left: 4px solid #2563eb;
+  border-radius: 6px;
+  padding: 10px 16px;
+  margin: 10px 0;
+  overflow-x: auto;
+}
+
+/* Print optimizations */
+@media print {
+  body {
+    background-color: #ffffff !important;
+    color: #000000 !important;
+  }
+  .no-print {
+    display: none !important;
+  }
+  .print-only {
+    display: block !important;
+  }
+  .report-card {
+    box-shadow: none !important;
+    border: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+}
+
