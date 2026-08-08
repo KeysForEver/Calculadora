@@ -44,16 +44,18 @@
   background-color: #ffffff;
   border-radius: 8px;
   overflow: hidden;
+  border: 1px solid #e2e8f0;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
 .report-content th {
-  background-color: #0f172a;
-  color: #ffffff;
-  font-weight: 600;
+  background-color: #f1f5f9;
+  color: #1e293b;
+  font-weight: 700;
   text-align: center;
   padding: 10px 14px;
   font-size: 0.875rem;
+  border-bottom: 2px solid #cbd5e1;
 }
 
 .report-content td {
@@ -88,11 +90,23 @@
   overflow-x: auto;
 }
 
+/* Page break helper for section 4 */
+.page-break-before-always, .break-before-page {
+  break-before: page;
+  page-break-before: always;
+}
+
 /* Print optimizations */
 @media print {
+  @page {
+    size: A4 portrait;
+    margin: 10mm;
+  }
   body {
     background-color: #ffffff !important;
     color: #000000 !important;
+    margin: 0 !important;
+    padding: 0 !important;
   }
   .no-print {
     display: none !important;
@@ -105,6 +119,20 @@
     border: none !important;
     padding: 0 !important;
     margin: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+  .pdf-page {
+    padding: 0 !important;
+    min-height: 270mm !important;
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: space-between !important;
+    box-sizing: border-box !important;
+  }
+  .page-break-before-always, .break-before-page {
+    break-before: page !important;
+    page-break-before: always !important;
   }
 }
 

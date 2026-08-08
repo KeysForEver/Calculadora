@@ -96,18 +96,16 @@ export default function App() {
 
       setIsProcessing(false);
       setIsGeneratingPDF(true);
-      setStatusMessage('Processando...');
+      setStatusMessage('Gerando relatório...');
 
       // Allow DOM to render reportRef
       await new Promise((resolve) => setTimeout(resolve, 300));
 
       if (reportRef.current) {
         const fileName = `Relatorio_Metalon_${numLargura.toFixed(2)}x${numAltura.toFixed(2)}m.pdf`;
-        const success = await generatePDFFromElement(reportRef.current, fileName);
-        if (success) {
-          setPdfDownloaded(true);
-          setTimeout(() => setPdfDownloaded(false), 5000);
-        }
+        await generatePDFFromElement(reportRef.current, fileName);
+        setPdfDownloaded(true);
+        setTimeout(() => setPdfDownloaded(false), 5000);
       }
     } catch (err: any) {
       console.error(err);
@@ -136,7 +134,7 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-100/80 text-slate-900 pb-16">
+    <div className="min-h-screen flex flex-col bg-slate-100/80 text-slate-900 pb-16">
       {/* Top Navbar Header */}
       <header className="no-print bg-slate-900 text-white border-b border-slate-800 shadow-md">
         <div className="max-w-5xl mx-auto px-4 py-4 grid grid-cols-1 sm:grid-cols-3 items-center gap-3">
@@ -160,9 +158,9 @@ export default function App() {
       </header>
 
       {/* Main Content Area */}
-      <main className="max-w-4xl mx-auto px-4 pt-8">
+      <main className={`max-w-6xl w-full mx-auto px-4 py-8 flex-1 flex flex-col ${!currentResult ? 'justify-center' : ''}`}>
         {/* Input Form Card */}
-        <section className="no-print bg-white rounded-2xl p-6 sm:p-8 shadow-xl border border-slate-200/80 mb-8">
+        <section className="no-print bg-white rounded-2xl p-6 sm:p-8 shadow-xl border border-slate-200/80 mb-8 md:w-2/3 mx-auto w-full">
           <div className="flex items-center justify-between border-b border-slate-100 pb-4 mb-6">
             <div>
               <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
@@ -173,10 +171,6 @@ export default function App() {
                 Preencha as dimensões e o perfil para calcular a quantidade de barras de 6 metros.
               </p>
             </div>
-            <span className="hidden sm:inline-flex items-center gap-1 text-[11px] font-medium bg-slate-100 text-slate-600 px-2.5 py-1 rounded-full border border-slate-200">
-              <Info className="w-3.5 h-3.5 text-[#707579]" />
-              Espaçamento Máx: 80 cm
-            </span>
           </div>
 
           <form onSubmit={handleGeneratePDF} className="space-y-6">
@@ -307,26 +301,6 @@ export default function App() {
         {/* Results / PDF Report Display Section */}
         {currentResult && (
           <section className="space-y-4">
-            {/* Action Bar for On-Screen Report */}
-            <div className="no-print bg-white p-4 rounded-xl shadow-md border border-slate-200 flex items-center justify-end gap-2">
-              <button
-                onClick={handleManualPDFDownload}
-                disabled={isGeneratingPDF}
-                className="flex items-center gap-1.5 text-xs font-bold bg-[#707579] hover:bg-[#5d6266] text-white px-3.5 py-2 rounded-lg shadow transition cursor-pointer"
-              >
-                <FileDown className="w-4 h-4" />
-                <span>Baixar PDF Novamente</span>
-              </button>
-
-              <button
-                onClick={handlePrint}
-                className="flex items-center gap-1.5 text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-2 rounded-lg border border-slate-200 transition cursor-pointer"
-              >
-                <Printer className="w-4 h-4 text-slate-600" />
-                <span>Imprimir</span>
-              </button>
-            </div>
-
             {/* Document Report Viewer */}
             <ReportViewer
               markdown={currentResult.markdown}

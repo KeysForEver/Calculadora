@@ -113,11 +113,7 @@ Consumo de barras verticais:
 | Tipo        | Horizontal | Vertical | Total |
 | :---------: | :--------: | :------: | :---: |
 | Sem emenda  | ${barrasHorizSemEmenda} | ${barrasVertSemEmenda} | ${totalSemEmenda} |
-| Com emenda  | ${barrasHorizComEmenda} | ${barrasVertComEmenda} | ${totalComEmenda} |
-
----
-
-Data: ${dateStr}`;
+| Com emenda  | ${barrasHorizComEmenda} | ${barrasVertComEmenda} | ${totalComEmenda} |`;
 }
 
 app.post("/api/calculate", async (req, res) => {
@@ -197,10 +193,6 @@ Consumo de barras verticais:
 | :---------: | :--------: | :------: | :---: |
 | Sem emenda  | [valor]    | [valor]  | [total] |
 | Com emenda  | [valor]    | [valor]  | [total] |
-
----
-
-Data: ${dateFormatted}
 `;
 
     // Attempt Gemini call if GEMINI_API_KEY is defined
