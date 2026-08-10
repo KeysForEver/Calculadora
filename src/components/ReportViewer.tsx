@@ -17,7 +17,7 @@ interface ReportViewerProps {
 const ReportHeader: React.FC<{ dateStr?: string }> = ({ dateStr }) => (
   <div className="border-b-2 border-slate-900 pb-3 mb-6 flex items-end justify-between">
     <h1 className="text-3xl sm:text-4xl font-extrabold text-slate-900 font-poppins tracking-tight">
-      SkyMídia
+      SKYMÍDIA
     </h1>
     {dateStr && (
       <div className="text-right">

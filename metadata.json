@@ -1,5 +1,5 @@
 {
-  "name": "Calculadora de Metalon",
+  "name": "SkyCalc",
   "description": "Cálculo de quantidade de barras de metalon para estruturas metálicas com geração automática de relatório em PDF via IA.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
