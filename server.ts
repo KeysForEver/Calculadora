@@ -1,6 +1,7 @@
 import express from "express";
 import path from "path";
 import dotenv from "dotenv";
+import os from "os";
 import { GoogleGenAI } from "@google/genai";
 import { createServer as createViteServer } from "vite";
 
@@ -250,7 +251,29 @@ async function startServer() {
   }
 
   app.listen(PORT, "0.0.0.0", () => {
-    console.log(`Server running on http://0.0.0.0:${PORT}`);
+    const interfaces = os.networkInterfaces();
+    const networkIps: string[] = [];
+
+    for (const name of Object.keys(interfaces)) {
+      for (const iface of interfaces[name] || []) {
+        if (iface.family === "IPv4" && !iface.internal) {
+          networkIps.push(iface.address);
+        }
+      }
+    }
+
+    console.log("\n==================================================");
+    console.log("  🚀 Servidor da Calculadora de Metalon Iniciado!");
+    console.log("==================================================");
+    console.log(`  > Local:       http://localhost:${PORT}/`);
+    if (networkIps.length > 0) {
+      networkIps.forEach((ip) => {
+        console.log(`  > Na sua rede: http://${ip}:${PORT}/`);
+      });
+    } else {
+      console.log(`  > Na sua rede: http://<SEU_IP_LOCAL>:${PORT}/`);
+    }
+    console.log("==================================================\n");
   });
 }
 
