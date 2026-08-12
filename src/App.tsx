@@ -22,8 +22,10 @@ export default function App() {
   // Input states
   const [altura, setAltura] = useState<string>('');
   const [largura, setLargura] = useState<string>('');
-  const [perfil, setPerfil] = useState<string>('');
-  const [vaoMaximo, setVaoMaximo] = useState<string>('80');
+  const [perfilExterno, setPerfilExterno] = useState<string>('');
+  const [perfilInterno, setPerfilInterno] = useState<string>('');
+  const [vaoMaxHoriz, setVaoMaxHoriz] = useState<string>('80');
+  const [vaoMaxVert, setVaoMaxVert] = useState<string>('80');
 
   // Status & loading states
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
@@ -46,7 +48,8 @@ export default function App() {
     // Validation
     const numAltura = parseFloat(altura.replace(',', '.'));
     const numLargura = parseFloat(largura.replace(',', '.'));
-    const numVaoMax = parseFloat(vaoMaximo.replace(',', '.'));
+    const numVaoHoriz = parseFloat(vaoMaxHoriz.replace(',', '.'));
+    const numVaoVert = parseFloat(vaoMaxVert.replace(',', '.'));
 
     if (isNaN(numAltura) || numAltura <= 0) {
       setErrorMsg('Por favor, informe uma altura válida em metros (número maior que zero).');
@@ -58,21 +61,32 @@ export default function App() {
       return;
     }
 
-    if (!perfil.trim()) {
-      setErrorMsg('Por favor, informe o perfil de metalon (ex: 30 x 30 mm).');
+    if (!perfilExterno.trim()) {
+      setErrorMsg('Por favor, informe o perfil de metalon externo/borda (ex: 50 x 30 mm).');
       return;
     }
 
-    if (isNaN(numVaoMax) || numVaoMax <= 0) {
-      setErrorMsg('Por favor, informe um vão máximo válido em centímetros (ex: 80).');
+    const finalPerfilInterno = perfilInterno.trim() || perfilExterno.trim();
+
+    if (isNaN(numVaoHoriz) || numVaoHoriz <= 0) {
+      setErrorMsg('Por favor, informe um vão máximo horizontal válido em centímetros (ex: 80).');
+      return;
+    }
+
+    if (isNaN(numVaoVert) || numVaoVert <= 0) {
+      setErrorMsg('Por favor, informe um vão máximo vertical válido em centímetros (ex: 80).');
       return;
     }
 
     const inputData: MetalonInput = {
       altura: numAltura,
       largura: numLargura,
-      perfil: perfil.trim(),
-      vaoMaximo: numVaoMax,
+      perfilExterno: perfilExterno.trim(),
+      perfilInterno: finalPerfilInterno,
+      perfil: perfilExterno.trim(), // retrocompatibilidade
+      vaoMaxHoriz: numVaoHoriz,
+      vaoMaxVert: numVaoVert,
+      vaoMaximo: numVaoHoriz, // fallback retrocompatível
     };
 
     try {
@@ -230,27 +244,42 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Perfil Metalon */}
+              {/* Perfil Metalon Externo */}
               <div>
                 <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2 flex items-center gap-1.5">
                   <Square className="w-4 h-4 text-[#707579]" />
-                  Perfil Metalon
+                  Perfil Metalon Externo (Borda)
                 </label>
                 <input
                   type="text"
-                  placeholder="Ex: 30 x 30 mm"
-                  value={perfil}
-                  onChange={(e) => setPerfil(e.target.value)}
+                  placeholder="Ex: 50 x 30 mm"
+                  value={perfilExterno}
+                  onChange={(e) => setPerfilExterno(e.target.value)}
                   className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-slate-900 font-semibold focus:outline-none focus:ring-2 focus:ring-[#707579] focus:bg-white transition"
                   required
                 />
               </div>
 
-              {/* Vão Máximo (cm) */}
+              {/* Perfil Metalon Interno */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                  <Square className="w-4 h-4 text-[#707579]" />
+                  Perfil Metalon Interno (Travessas)
+                </label>
+                <input
+                  type="text"
+                  placeholder="Ex: 30 x 30 mm"
+                  value={perfilInterno}
+                  onChange={(e) => setPerfilInterno(e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-slate-900 font-semibold focus:outline-none focus:ring-2 focus:ring-[#707579] focus:bg-white transition"
+                />
+              </div>
+
+              {/* Vão Máximo Horizontal (cm) */}
               <div>
                 <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2 flex items-center gap-1.5">
                   <Sliders className="w-4 h-4 text-[#707579]" />
-                  Vão Máximo (centímetros)
+                  Vão Máx. Horizontal (Colunas)
                 </label>
                 <div className="relative">
                   <input
@@ -258,8 +287,31 @@ export default function App() {
                     step="1"
                     min="1"
                     placeholder="Ex: 80"
-                    value={vaoMaximo}
-                    onChange={(e) => setVaoMaximo(e.target.value)}
+                    value={vaoMaxHoriz}
+                    onChange={(e) => setVaoMaxHoriz(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-slate-900 font-semibold focus:outline-none focus:ring-2 focus:ring-[#707579] focus:bg-white transition"
+                    required
+                  />
+                  <span className="absolute right-3 top-2.5 text-xs font-bold text-slate-400 bg-slate-200/70 px-2 py-0.5 rounded">
+                    cm
+                  </span>
+                </div>
+              </div>
+
+              {/* Vão Máximo Vertical (cm) */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                  <Sliders className="w-4 h-4 text-[#707579]" />
+                  Vão Máx. Vertical (Linhas)
+                </label>
+                <div className="relative">
+                  <input
+                    type="number"
+                    step="1"
+                    min="1"
+                    placeholder="Ex: 80"
+                    value={vaoMaxVert}
+                    onChange={(e) => setVaoMaxVert(e.target.value)}
                     className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-slate-900 font-semibold focus:outline-none focus:ring-2 focus:ring-[#707579] focus:bg-white transition"
                     required
                   />

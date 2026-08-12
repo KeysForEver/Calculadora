@@ -6,12 +6,23 @@ interface VisualizerProps {
 }
 
 export const StructureVisualizer: React.FC<VisualizerProps> = ({ input }) => {
-  const { largura, altura, perfil } = input;
+  const { largura, altura, perfilExterno, perfilInterno, perfil, vaoMaximo, vaoMaxHoriz, vaoMaxVert } = input;
 
-  const vaosVerticais = Math.ceil(altura / 0.80);
+  const extProfile = perfilExterno || perfil || '';
+  const intProfile = perfilInterno || perfilExterno || perfil || '';
+
+  const vaoHorizCm = vaoMaxHoriz || vaoMaximo || 80;
+  const vaoVertCm = vaoMaxVert || vaoMaximo || 80;
+
+  const vaoHorizM = vaoHorizCm / 100;
+  const vaoVertM = vaoVertCm / 100;
+
+  // Vertical spans (rows down the height)
+  const vaosVerticais = Math.ceil(altura / vaoVertM) || 1;
   const linhasHorizontais = vaosVerticais + 1;
 
-  const vaosHorizontais = Math.ceil(largura / 0.80);
+  // Horizontal spans (columns across the width)
+  const vaosHorizontais = Math.ceil(largura / vaoHorizM) || 1;
   const colunasVerticais = vaosHorizontais + 1;
 
   // Calculate actual spacing in cm
@@ -43,19 +54,19 @@ export const StructureVisualizer: React.FC<VisualizerProps> = ({ input }) => {
       {/* Section Title */}
       <div className="border-b border-slate-200 pb-2">
         <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-          <span className="text-[#707579]">4.</span>
-          Visualização da Estrutura Metálica
+          <span className="text-[#707579]">5.</span>
+          Esquemas Estruturais Individuais
         </h3>
       </div>
 
       <div className="flex flex-col gap-6">
-        {/* 4.1 Desenho da Estrutura Horizontal */}
+        {/* 5.1 Desenho da Estrutura Horizontal */}
         <div className="bg-slate-50 text-slate-800 rounded-xl p-4 border border-slate-200 shadow-sm flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between mb-3">
               <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
                 <span className="w-2 h-2 rounded-full bg-slate-700"></span>
-                4.1 Estrutura Horizontal
+                5.1 Estrutura Horizontal
               </h4>
               <span className="text-[11px] font-medium text-slate-500">
                 {linhasHorizontais} linhas
@@ -137,13 +148,13 @@ export const StructureVisualizer: React.FC<VisualizerProps> = ({ input }) => {
           </div>
         </div>
 
-        {/* 4.2 Desenho da Estrutura Vertical */}
+        {/* 5.2 Desenho da Estrutura Vertical */}
         <div className="bg-slate-50 text-slate-800 rounded-xl p-4 border border-slate-200 shadow-sm flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between mb-3">
               <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
                 <span className="w-2 h-2 rounded-full bg-amber-600"></span>
-                4.2 Estrutura Vertical
+                5.2 Estrutura Vertical
               </h4>
               <span className="text-[11px] font-medium text-amber-700">
                 {colunasVerticais} colunas
