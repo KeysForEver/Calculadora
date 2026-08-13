@@ -405,15 +405,15 @@ ${planoDeCorteTexto}
 
 ${
   isSameProfile
-    ? `| Cenário / Método de Corte | Total de Barras (6m) | Pontos de Solda / Emendas | Avaliação de Custo x Mão de Obra |
-| :------------------------ | :------------------: | :-----------------------: | :------------------------------- |
-| **1. Sem Emenda e Sem Otimização** | **${totalSemEmendaSemOpt} barra(s)** | ${weldsCountScenario1} solda(s) | Compra direta por peça isolada |
-| **2. Sem Emenda com Otimização** | **${totalSemEmendaComOpt} barra(s)** | ${weldsCountScenario2} solda(s) | ${recomendacaoCenario2} |
-| **3. Com Emenda e Otimização Total** | **${totalComEmendaComOpt} barra(s)** | ${weldsCountScenario3} solda(s) | ${recomendacaoCenario3} |`
-    : `| Cenário / Método de Corte | Perfil Externo (${profileExt.name}) | Perfil Interno (${profileInt.name}) | Total de Barras (6m) | Pontos de Solda / Emendas | Avaliação de Custo x Mão de Obra |
-| :------------------------ | :---------------------------------: | :---------------------------------: | :------------------: | :-----------------------: | :------------------------------- |
-| **1. Sem Emenda e Sem Otimização** | ${extScenario1} barra(s) | ${intScenario1} barra(s) | **${totalSemEmendaSemOpt} barra(s)** | ${weldsCountScenario1} solda(s) | Compra direta por peça isolada |
-| **2. Sem Emenda com Otimização** | ${extScenario2} barra(s) | ${intScenario2} barra(s) | **${totalSemEmendaComOpt} barra(s)** | ${weldsCountScenario2} solda(s) | ${recomendacaoCenario2} |
-| **3. Com Emenda e Otimização Total** | ${extScenario3} barra(s) | ${intScenario3} barra(s) | **${totalComEmendaComOpt} barra(s)** | ${weldsCountScenario3} solda(s) | ${recomendacaoCenario3} |`
-}${tablaProducaoTexto}`;
+    ? `| Cenário / Método de Corte | Pontos de Solda / Emendas | Total de Barras (6m) |
+| :------------------------ | :-----------------------: | :------------------: |
+| **1. Sem Emenda e Sem Otimização** | ${weldsCountScenario1} solda(s) | **${totalSemEmendaSemOpt} barra(s)** |
+| **2. Sem Emenda com Otimização** | ${weldsCountScenario2} solda(s) | **${totalSemEmendaComOpt} barra(s)** |
+| **3. Com Emenda e Otimização Total** | ${weldsCountScenario3} solda(s) | **${totalComEmendaComOpt} barra(s)** |`
+    : `| Cenário / Método de Corte | Perfil Externo (${profileExt.name}) | Perfil Interno (${profileInt.name}) | Total de Barras (6m) |
+| :------------------------ | :---------------------------------: | :---------------------------------: | :------------------: |
+| **1. Sem Emenda e Sem Otimização** | ${extScenario1} barra(s) | ${intScenario1} barra(s) | **${totalSemEmendaSemOpt} barra(s)** |
+| **2. Sem Emenda com Otimização** | ${extScenario2} barra(s) | ${intScenario2} barra(s) | **${totalSemEmendaComOpt} barra(s)** |
+| **3. Com Emenda e Otimização Total** | ${extScenario3} barra(s) | ${intScenario3} barra(s) | **${totalComEmendaComOpt} barra(s)** |`
+}`;
 }

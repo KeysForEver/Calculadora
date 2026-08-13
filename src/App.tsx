@@ -18,6 +18,7 @@ import { MetalonInput, CalculationResult } from './types';
 import { ReportViewer } from './components/ReportViewer';
 import { generatePDFFromElement } from './utils/pdfGenerator';
 import { Analytics } from '@vercel/analytics/react';
+import { SpeedInsights } from '@vercel/speed-insights/react';
 import { generateReportMarkdown, getPortugueseDate } from './utils/calculator';
 
 export default function App() {
@@ -425,6 +426,7 @@ export default function App() {
         )}
       </main>
       <Analytics />
+      <SpeedInsights />
     </div>
   );
 }

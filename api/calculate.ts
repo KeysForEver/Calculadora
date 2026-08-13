@@ -1,13 +1,15 @@
 import { GoogleGenAI } from "@google/genai";
 import { generateReportMarkdown, getPortugueseDate, parseProfileInfo } from "../src/utils/calculator";
 
-function getGeminiClient(): GoogleGenAI | null {
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey || apiKey === "MY_GEMINI_API_KEY") {
+function getGeminiClient(): { client: GoogleGenAI; key: string } | null {
+  const rawKey = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY || "";
+  const apiKey = rawKey.trim().replace(/^["']|["']$/g, "");
+  
+  if (!apiKey || apiKey === "MY_GEMINI_API_KEY" || apiKey.length < 10) {
     return null;
   }
   try {
-    return new GoogleGenAI({
+    const client = new GoogleGenAI({
       apiKey,
       httpOptions: {
         headers: {
@@ -15,6 +17,7 @@ function getGeminiClient(): GoogleGenAI | null {
         }
       }
     });
+    return { client, key: apiKey };
   } catch (err) {
     console.warn("Could not initialize GoogleGenAI client:", err);
     return null;
@@ -35,23 +38,52 @@ export default async function handler(req: any, res: any) {
     return res.status(200).end();
   }
 
+  // GET route for diagnostics / status check on Vercel
+  if (req.method === 'GET') {
+    const geminiInfo = getGeminiClient();
+    const hasKey = Boolean(geminiInfo);
+    return res.status(200).json({
+      status: 'online',
+      geminiConfigured: hasKey,
+      keyPrefix: hasKey && geminiInfo ? `${geminiInfo.key.substring(0, 5)}...` : null,
+      message: hasKey
+        ? 'API do Gemini configurada e ativa no ambiente Vercel!'
+        : 'Variável GEMINI_API_KEY não foi encontrada ou é inválida no Vercel. Lembre-se de fazer um Redeploy após adicionar a variável.'
+    });
+  }
+
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method Not Allowed' });
   }
 
   try {
-    const { altura, largura, perfilExterno, perfilInterno, perfil, vaoMaximo, vaoMaxHoriz, vaoMaxVert } = req.body || {};
+    let body = req.body;
+    if (typeof body === 'string') {
+      try {
+        body = JSON.parse(body);
+      } catch (parseErr) {
+        console.warn("Error parsing req.body string:", parseErr);
+      }
+    }
 
-    const numAltura = parseFloat(altura);
-    const numLargura = parseFloat(largura);
-    const perfilExt = perfilExterno || perfil || "30 x 30 mm";
-    const perfilInt = perfilInterno || perfilExterno || perfil || "30 x 30 mm";
+    const { altura, largura, perfilExterno, perfilInterno, perfil, vaoMaximo, vaoMaxHoriz, vaoMaxVert } = body || {};
 
-    const vaoMaxHorizCm = parseFloat(vaoMaxHoriz) || parseFloat(vaoMaximo) || 80;
-    const vaoMaxVertCm = parseFloat(vaoMaxVert) || parseFloat(vaoMaximo) || 80;
+    const numAltura = parseFloat(String(altura || "").replace(",", "."));
+    const numLargura = parseFloat(String(largura || "").replace(",", "."));
+    const perfilExt = String(perfilExterno || perfil || "30 x 30 mm").trim();
+    const perfilInt = String(perfilInterno || perfilExterno || perfil || "30 x 30 mm").trim();
+
+    const rawVaoHoriz = vaoMaxHoriz !== undefined ? parseFloat(String(vaoMaxHoriz).replace(",", ".")) : (vaoMaximo ? parseFloat(String(vaoMaximo).replace(",", ".")) : 80);
+    const rawVaoVert = vaoMaxVert !== undefined ? parseFloat(String(vaoMaxVert).replace(",", ".")) : (vaoMaximo ? parseFloat(String(vaoMaximo).replace(",", ".")) : 80);
+
+    const vaoMaxHorizCm = (isNaN(rawVaoHoriz) || rawVaoHoriz <= 0) ? 80 : rawVaoHoriz;
+    const vaoMaxVertCm = (isNaN(rawVaoVert) || rawVaoVert <= 0) ? 80 : rawVaoVert;
+
+    const vaoHorizM = vaoMaxHorizCm / 100;
+    const vaoVertM = vaoMaxVertCm / 100;
 
     if (isNaN(numAltura) || isNaN(numLargura) || numAltura <= 0 || numLargura <= 0) {
-      return res.status(400).json({ error: "Dimensões inválidas informadas." });
+      return res.status(400).json({ error: "Dimensões inválidas informadas. Largura e altura devem ser números positivos." });
     }
 
     const isSameProfile = perfilExt.toLowerCase().replace(/\s+/g, '') === perfilInt.toLowerCase().replace(/\s+/g, '');
@@ -59,9 +91,9 @@ export default async function handler(req: any, res: any) {
     const profileIntInfo = parseProfileInfo(perfilInt);
     const dateFormatted = getPortugueseDate();
 
-    const gemini = getGeminiClient();
+    const geminiInfo = getGeminiClient();
 
-    if (gemini) {
+    if (geminiInfo) {
       const prompt = `Você é um engenheiro calculista e especialista em serralheria e corte de estruturas metálicas de metalon.
 Gere um relatório técnico formal, ultra-preciso, profissional e detalhado para a fabricação de uma estrutura metálica retangular em metalon.
 
@@ -86,34 +118,54 @@ REGRAS DE PROJETO OBRIGATÓRIAS:
 Dimensões: Largura ${numLargura.toString().replace(".", ",")} m × Altura ${numAltura.toString().replace(".", ",")} m.
 Vão máx horiz: ${vaoMaxHorizCm} cm | Vão máx vert: ${vaoMaxVertCm} cm.
 
-Responda em formato Markdown estruturado com:
+Responda em formato Markdown estruturado contendo estritamente:
 ## Considerações Técnicas do Perfil
 ## 1. Estrutura Horizontal
 ## 2. Estrutura Vertical (Com Desconto do Perfil Externo)
 ## 3. Plano de Corte Otimizado (Reaproveitamento de Sobras)
 ## 4. Resultado e Quadro Comparativo de Consumo
-## 7. Tabela de Corte de Barras para a Produção
+(Na Seção 4, exiba apenas as 3 colunas principais: se mesmo perfil -> | Cenário / Método de Corte | Pontos de Solda / Emendas | Total de Barras (6m) |; se perfis diferentes -> | Cenário / Método de Corte | Perfil Externo | Perfil Interno | Total de Barras (6m) |. Não inclua nenhuma coluna de Avaliação de Custo nem Metragem Comprada. Finalize o relatório após a Seção 4).
 `;
 
-      try {
-        const response = await gemini.models.generateContent({
-          model: "gemini-2.5-flash",
-          contents: prompt,
-          config: {
-            temperature: 0.1,
-            systemInstruction: `Você é um especialista em serralheria e cálculo de metalon. Calcule rigorosamente o projeto respeitando as dimensões. Na Seção 4, exiba APENAS a tabela comparativa dos 3 cenários sem a coluna Metragem Comprada.`,
-          },
-        });
+      const candidateModels = ["gemini-3.7-flash", "gemini-flash-latest"];
+      let geminiSuccess = false;
+      let cleanedText = "";
+      let lastError: any = null;
 
-        let cleanedText = response.text || "";
-        cleanedText = cleanedText.replace(/\|\s*Metragem Comprada[^\n|]*/gi, '');
+      for (const modelName of candidateModels) {
+        try {
+          const response = await geminiInfo.client.models.generateContent({
+            model: modelName,
+            contents: prompt,
+            config: {
+              temperature: 0.1,
+              systemInstruction: `Você é um especialista em serralheria e cálculo de metalon. Calcule rigorosamente o projeto respeitando as dimensões. O relatório em texto deve conter exclusivamente até a Seção 4 (Quadro Comparativo de Consumo). Na Seção 4, exiba APENAS a tabela comparativa dos 3 cenários com as colunas de corte e barras, sem nenhuma coluna de 'Avaliação de Custo' ou 'Metragem Comprada'.`,
+            },
+          });
+
+          if (response && response.text) {
+            cleanedText = response.text;
+            cleanedText = cleanedText.replace(/\|\s*Metragem Comprada[^\n|]*/gi, '');
+            cleanedText = cleanedText.replace(/\|\s*Avalia[çc][ãa]o de Custo[^\n|]*/gi, '');
+            cleanedText = cleanedText.replace(/(?:---|##)\s*#*\s*[567]\..*$/si, '').trim();
+            geminiSuccess = true;
+            break;
+          }
+        } catch (mErr) {
+          lastError = mErr;
+          console.warn(`Model ${modelName} failed on Vercel:`, mErr);
+        }
+      }
+
+      if (geminiSuccess && cleanedText) {
         return res.status(200).json({
           markdown: cleanedText,
           source: "gemini",
-          date: dateFormatted
+          date: dateFormatted,
+          geminiStatus: "success"
         });
-      } catch (geminiError) {
-        console.warn("Gemini generation failed, using local deterministic calculation:", geminiError);
+      } else {
+        console.warn("Gemini models failed on Vercel, falling back to algorithmic engine. Error:", lastError);
       }
     }
 
@@ -129,7 +181,8 @@ Responda em formato Markdown estruturado com:
     return res.status(200).json({
       markdown: fallbackMarkdown,
       source: "calculator",
-      date: dateFormatted
+      date: dateFormatted,
+      geminiStatus: geminiInfo ? "model_error_fallback" : "no_key_fallback"
     });
   } catch (err: any) {
     console.error("Calculation handler error:", err);

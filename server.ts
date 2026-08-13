@@ -14,13 +14,14 @@ const PORT = 3000;
 app.use(express.json());
 
 // Lazy initialization helper for Gemini AI
-function getGeminiClient(): GoogleGenAI | null {
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey || apiKey === "MY_GEMINI_API_KEY") {
+function getGeminiClient(): { client: GoogleGenAI; key: string } | null {
+  const rawKey = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY || "";
+  const apiKey = rawKey.trim().replace(/^["']|["']$/g, "");
+  if (!apiKey || apiKey === "MY_GEMINI_API_KEY" || apiKey.length < 10) {
     return null;
   }
   try {
-    return new GoogleGenAI({
+    const client = new GoogleGenAI({
       apiKey,
       httpOptions: {
         headers: {
@@ -28,11 +29,25 @@ function getGeminiClient(): GoogleGenAI | null {
         }
       }
     });
+    return { client, key: apiKey };
   } catch (err) {
     console.warn("Could not initialize GoogleGenAI client:", err);
     return null;
   }
 }
+
+app.get("/api/calculate", (req, res) => {
+  const geminiInfo = getGeminiClient();
+  const hasKey = Boolean(geminiInfo);
+  return res.status(200).json({
+    status: 'online',
+    geminiConfigured: hasKey,
+    keyPrefix: hasKey && geminiInfo ? `${geminiInfo.key.substring(0, 5)}...` : null,
+    message: hasKey
+      ? 'API do Gemini configurada e ativa no ambiente!'
+      : 'GEMINI_API_KEY não foi encontrada ou é inválida nas variáveis de ambiente.'
+  });
+});
 
 app.post("/api/calculate", async (req, res) => {
   try {
@@ -129,41 +144,41 @@ Formato da resposta (obrigatório em Markdown):
 ---
 
 ## 4. Resultado e Quadro Comparativo de Consumo
-[Apresente a tabela comparativa exibindo OBRIGATORIAMENTE as linhas para os 3 Cenários e as colunas: Perfil Externo | Perfil Interno | Total de Barras (6m) | Pontos de Solda / Emendas | Avaliação de Custo x Soldagem].
-CRÍTICO: NÃO INCLUA NENHUMA COLUNA CHAMADA 'Metragem Comprada' OU SIMILAR NA TABELA DA SEÇÃO 4. As colunas devem focar exclusivamente no consumo de barras de 6m, pontos de solda e na recomendação técnica.
-OBRIGATÓRIO: Na Seção 4, exiba APENAS a tabela comparativa dos 3 cenários, sem nenhum texto ou marcador abaixo dela.
-
----
-
-## 7. Tabela de Corte de Barras para a Produção
-[Apresente a tabela detalhada de cada barra do Plano de Corte Otimizado com as colunas: | Barra N° | Perfil Metalon | Tamanho Inicial | Peças a Cortar (Gabarito de Corte) | Sobra Restante |]
+[Apresente a tabela comparativa exibindo OBRIGATORIAMENTE as linhas para os 3 Cenários. Se os perfis forem diferentes, exiba as colunas: | Cenário / Método de Corte | Perfil Externo | Perfil Interno | Total de Barras (6m) |. Se o perfil for único, exiba as 3 colunas: | Cenário / Método de Corte | Pontos de Solda / Emendas | Total de Barras (6m) |].
+CRÍTICO: NÃO INCLUA NENHUMA COLUNA CHAMADA 'Metragem Comprada' OU 'Avaliação de Custo'. As colunas devem focar exclusivamente nas 3 colunas de consumo e cortes.
+OBRIGATÓRIO: Na Seção 4, exiba APENAS a tabela comparativa dos 3 cenários, sem nenhum texto ou marcador abaixo dela. Finalize o relatório após a Seção 4.
 `;
 
     // Attempt Gemini call if GEMINI_API_KEY is defined
-    const aiClient = getGeminiClient();
-    if (aiClient) {
-      try {
-        const response = await aiClient.models.generateContent({
-          model: "gemini-3.6-flash",
-          contents: prompt,
-          config: {
-            temperature: 0.1, // low temperature for precise mathematical calculations
-            systemInstruction: `Você é um especialista em serralheria e cálculo de estruturas de metalon. Calcule com extrema precisão os vãos, linhas, colunas, metragens lineares e barras de 6 metros respeitando estritamente o vão máximo horizontal de ${vaoMaxHorizCm} cm (colunas) e vão máximo vertical de ${vaoMaxVertCm} cm (linhas) configurados pelo usuário. CRÍTICO E OBRIGATÓRIO: Na tabela da Seção 4, NUNCA INCLUA a coluna 'Metragem Comprada' ou qualquer coluna em metros comprados. A hierarquia de otimização prioriza primeiro o menor número de barras de 6m e em segundo lugar o menor número de pontos de solda. Se o Cenário 2 usar o mesmo número de barras que o Cenário 3, recomende o Cenário 2 por ter zero soldas intermediárias. Exiba APENAS a tabela comparativa sem nenhum texto ou marcador abaixo dela na Seção 4. Responda rigorosamente no formato especificado em Markdown.`,
-          },
-        });
-
-        if (response.text) {
-          // Sanitizer function to strip any "Metragem Comprada" column from markdown tables if generated
-          let cleanedText = response.text;
-          cleanedText = cleanedText.replace(/\|\s*Metragem Comprada[^\n|]*/gi, '');
-          return res.json({
-            markdown: cleanedText,
-            source: "gemini",
-            date: dateFormatted
+    const geminiInfo = getGeminiClient();
+    if (geminiInfo) {
+      const candidateModels = ["gemini-3.7-flash", "gemini-flash-latest"];
+      for (const modelName of candidateModels) {
+        try {
+          const response = await geminiInfo.client.models.generateContent({
+            model: modelName,
+            contents: prompt,
+            config: {
+              temperature: 0.1,
+              systemInstruction: `Você é um especialista em serralheria e cálculo de estruturas de metalon. Calcule com extrema precisão os vãos, linhas, colunas, metragens lineares e barras de 6 metros respeitando estritamente o vão máximo horizontal de ${vaoMaxHorizCm} cm (colunas) e vão máximo vertical de ${vaoMaxVertCm} cm (linhas) configurados pelo usuário. CRÍTICO E OBRIGATÓRIO: Na tabela da Seção 4, NUNCA INCLUA a coluna 'Metragem Comprada' nem 'Avaliação de Custo'. O relatório de texto termina rigorosamente após a Seção 4. Responda rigorosamente no formato especificado em Markdown.`,
+            },
           });
+
+          if (response && response.text) {
+            let cleanedText = response.text;
+            cleanedText = cleanedText.replace(/\|\s*Metragem Comprada[^\n|]*/gi, '');
+            cleanedText = cleanedText.replace(/\|\s*Avalia[çc][ãa]o de Custo[^\n|]*/gi, '');
+            cleanedText = cleanedText.replace(/(?:---|##)\s*#*\s*[567]\..*$/si, '').trim();
+            return res.json({
+              markdown: cleanedText,
+              source: "gemini",
+              date: dateFormatted,
+              geminiStatus: "success"
+            });
+          }
+        } catch (geminiErr) {
+          console.warn(`Gemini model ${modelName} warning:`, geminiErr);
         }
-      } catch (geminiErr) {
-        console.warn("Gemini API call warning, using fallback calculation:", geminiErr);
       }
     }
 

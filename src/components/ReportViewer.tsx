@@ -72,11 +72,14 @@ export const ReportViewer: React.FC<ReportViewerProps> = ({
 
     if (matchIndex > 0) {
       const part1 = cleaned.slice(0, matchIndex).trim().replace(/---\s*$/, '').trim();
-      const part2 = cleaned.slice(matchIndex).trim();
+      let part2 = cleaned.slice(matchIndex).trim();
+      // Ensure part2 doesn't contain duplicated Sections 5, 6 or 7 since they are rendered as dedicated components on subsequent pages
+      part2 = part2.replace(/(?:---|##)\s*#*\s*[567]\..*$/si, '').trim();
       return [part1, part2];
     }
 
-    return [cleaned, ''];
+    const sanitizedCleaned = cleaned.replace(/(?:---|##)\s*#*\s*[567]\..*$/si, '').trim();
+    return [sanitizedCleaned, ''];
   }, [markdown]);
 
   return (
@@ -160,19 +163,8 @@ export const ReportViewer: React.FC<ReportViewerProps> = ({
         <ReportFooter />
       </div>
 
-      {/* Page 5: Header + Section 7 (Tabela de Corte de Barras para a Produção) + Footer */}
-      <div
-        className="pdf-page bg-white pt-8 mt-10 border-t border-slate-200 flex flex-col justify-between min-h-[960px] sm:min-h-[1000px] break-before-page page-break-before-always"
-        style={{ pageBreakBefore: 'always', breakBefore: 'page' }}
-      >
-        <div>
-          <ReportHeader dateStr={dateStr} />
-          <div className="my-2">
-            <ProductionCutTable input={input} />
-          </div>
-        </div>
-        <ReportFooter />
-      </div>
+      {/* Page 5+: Section 7 (Tabela de Corte de Barras para a Produção) - Auto-paginated */}
+      <ProductionCutTable input={input} dateStr={dateStr} />
     </div>
   );
 };
