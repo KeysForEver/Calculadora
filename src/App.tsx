@@ -17,6 +17,8 @@ import {
 import { MetalonInput, CalculationResult } from './types';
 import { ReportViewer } from './components/ReportViewer';
 import { generatePDFFromElement } from './utils/pdfGenerator';
+import { Analytics } from '@vercel/analytics/react';
+import { generateReportMarkdown, getPortugueseDate } from './utils/calculator';
 
 export default function App() {
   // Input states
@@ -93,26 +95,49 @@ export default function App() {
       setIsProcessing(true);
       setStatusMessage('Processando...');
 
-      const response = await fetch('/api/calculate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(inputData),
-      });
+      let markdownData = '';
+      let dateString = getPortugueseDate();
+      let sourceTag: 'gemini' | 'calculator' = 'calculator';
 
-      if (!response.ok) {
-        const errorJson = await response.json().catch(() => ({}));
-        throw new Error(errorJson.error || 'Erro na resposta do servidor.');
+      try {
+        const response = await fetch('/api/calculate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(inputData),
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          markdownData = data.markdown;
+          if (data.date) dateString = data.date;
+          if (data.source) sourceTag = data.source;
+        } else {
+          console.warn(`API returned status ${response.status}, utilizing local high-precision calculation engine.`);
+        }
+      } catch (networkOrApiErr) {
+        console.warn('API endpoint unreachable, utilizing local high-precision calculation engine:', networkOrApiErr);
       }
 
-      const data = await response.json();
+      // If API did not return markdown (e.g. 404 on static Vercel build or offline), generate via local calculator
+      if (!markdownData) {
+        markdownData = generateReportMarkdown(
+          numLargura,
+          numAltura,
+          perfilExterno.trim(),
+          finalPerfilInterno,
+          numVaoHoriz,
+          numVaoVert
+        );
+        sourceTag = 'calculator';
+      }
 
       const newResult: CalculationResult = {
         id: Date.now().toString(),
         input: inputData,
-        markdown: data.markdown,
+        markdown: markdownData,
         createdAt: new Date().toISOString(),
-        dateStr: data.date,
-        source: data.source,
+        dateStr: dateString,
+        source: sourceTag,
       };
 
       setCurrentResult(newResult);
@@ -399,6 +424,7 @@ export default function App() {
           </section>
         )}
       </main>
+      <Analytics />
     </div>
   );
 }
