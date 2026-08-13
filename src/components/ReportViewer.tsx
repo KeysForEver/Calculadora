@@ -6,6 +6,7 @@ import rehypeKatex from 'rehype-katex';
 import { MetalonInput } from '../types';
 import { StructureVisualizer } from './StructureVisualizer';
 import { TechnicalProjectDrawing } from './TechnicalProjectDrawing';
+import { ProductionCutTable } from './ProductionCutTable';
 
 interface ReportViewerProps {
   markdown: string;
@@ -154,6 +155,20 @@ export const ReportViewer: React.FC<ReportViewerProps> = ({
           <ReportHeader dateStr={dateStr} />
           <div className="my-2">
             <TechnicalProjectDrawing input={input} />
+          </div>
+        </div>
+        <ReportFooter />
+      </div>
+
+      {/* Page 5: Header + Section 7 (Tabela de Corte de Barras para a Produção) + Footer */}
+      <div
+        className="pdf-page bg-white pt-8 mt-10 border-t border-slate-200 flex flex-col justify-between min-h-[960px] sm:min-h-[1000px] break-before-page page-break-before-always"
+        style={{ pageBreakBefore: 'always', breakBefore: 'page' }}
+      >
+        <div>
+          <ReportHeader dateStr={dateStr} />
+          <div className="my-2">
+            <ProductionCutTable input={input} />
           </div>
         </div>
         <ReportFooter />

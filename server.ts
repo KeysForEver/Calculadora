@@ -345,6 +345,82 @@ function generateFallbackMarkdown(
     ? `- **Perfil Metalon Selecionado:** ${profileExt.name} (Face: ${extFaceMm} mm)`
     : `- **Perfil Metalon Externo (Borda):** ${profileExt.name} (Face: ${extFaceMm} mm)\n- **Perfil Metalon Interno (Travessas):** ${profileInt.name} (Face: ${intFaceMm} mm)`;
 
+  // Section 7 Table for Production
+  let tablaProducaoTexto = `\n\n---\n\n## 7. Tabela de Corte de Barras para a Produção\n\n| Barra N° | Perfil Metalon | Tamanho Inicial | Peças a Cortar (Gabarito de Corte) | Sobra Restante |\n| :---: | :--- | :---: | :--- | :---: |\n`;
+
+  let barIndexGlobal = 1;
+
+  if (isSameProfile) {
+    const allPieces: PieceToCut[] = [
+      ...Array(linhasHorizontais).fill(0).map((_, i) => ({ type: 'Horizontal' as const, length: largura, description: `Linha Horiz. ${i + 1}` })),
+      ...Array(colunasVerticais).fill(0).map((_, i) => ({ type: 'Vertical' as const, length: vertCutLength, description: `Coluna Vert. ${i + 1}` })),
+    ];
+    const optSpliceUnified = optimizePiecesPlan(allPieces);
+
+    for (let f = 0; f < optSpliceUnified.full6mBarsCount; f++) {
+      tablaProducaoTexto += `| Barra ${String(barIndexGlobal++).padStart(2, '0')} | ${profileExt.name} | 6,00 m | 1x Peça Inteira (6,00 m) | 0,00 m (Sem sobra) |\n`;
+    }
+    optSpliceUnified.allocatedBars.forEach((bar) => {
+      const pecasDesc = bar.pieces.map((p) => `1x ${p.description} (${p.length.toLocaleString('pt-BR')} m)`).join(' + ');
+      const sobraStr = bar.remainingLength > 0 ? `${bar.remainingLength.toLocaleString('pt-BR')} m` : '0,00 m (Sem sobra)';
+      tablaProducaoTexto += `| Barra ${String(barIndexGlobal++).padStart(2, '0')} | ${profileExt.name} | 6,00 m | ${pecasDesc} | ${sobraStr} |\n`;
+    });
+  } else {
+    const piecesExt: PieceToCut[] = [
+      ...Array(horizExtCount).fill(0).map((_, i) => ({ type: 'Horizontal' as const, length: largura, description: `Horiz. Borda ${i + 1}` })),
+      ...Array(vertExtCount).fill(0).map((_, i) => ({ type: 'Vertical' as const, length: vertCutLength, description: `Vert. Borda ${i + 1}` })),
+    ];
+    const piecesInt: PieceToCut[] = [
+      ...Array(horizIntCount).fill(0).map((_, i) => ({ type: 'Horizontal' as const, length: largura, description: `Horiz. Interna ${i + 1}` })),
+      ...Array(vertIntCount).fill(0).map((_, i) => ({ type: 'Vertical' as const, length: vertCutLength, description: `Vert. Interna ${i + 1}` })),
+    ];
+
+    const optExtResult = optimizePiecesPlan(piecesExt);
+    const optIntResult = optimizePiecesPlan(piecesInt);
+
+    for (let f = 0; f < optExtResult.full6mBarsCount; f++) {
+      tablaProducaoTexto += `| Barra ${String(barIndexGlobal++).padStart(2, '0')} | ${profileExt.name} (Borda) | 6,00 m | 1x Peça Inteira (6,00 m) | 0,00 m (Sem sobra) |\n`;
+    }
+    optExtResult.allocatedBars.forEach((bar) => {
+      const pecasDesc = bar.pieces.map((p) => `1x ${p.description} (${p.length.toLocaleString('pt-BR')} m)`).join(' + ');
+      const sobraStr = bar.remainingLength > 0 ? `${bar.remainingLength.toLocaleString('pt-BR')} m` : '0,00 m (Sem sobra)';
+      tablaProducaoTexto += `| Barra ${String(barIndexGlobal++).padStart(2, '0')} | ${profileExt.name} (Borda) | 6,00 m | ${pecasDesc} | ${sobraStr} |\n`;
+    });
+
+    for (let f = 0; f < optIntResult.full6mBarsCount; f++) {
+      tablaProducaoTexto += `| Barra ${String(barIndexGlobal++).padStart(2, '0')} | ${profileInt.name} (Interno) | 6,00 m | 1x Peça Inteira (6,00 m) | 0,00 m (Sem sobra) |\n`;
+    }
+    optIntResult.allocatedBars.forEach((bar) => {
+      const pecasDesc = bar.pieces.map((p) => `1x ${p.description} (${p.length.toLocaleString('pt-BR')} m)`).join(' + ');
+      const sobraStr = bar.remainingLength > 0 ? `${bar.remainingLength.toLocaleString('pt-BR')} m` : '0,00 m (Sem sobra)';
+      tablaProducaoTexto += `| Barra ${String(barIndexGlobal++).padStart(2, '0')} | ${profileInt.name} (Interno) | 6,00 m | ${pecasDesc} | ${sobraStr} |\n`;
+    });
+  }
+
+    // Calculate welds/splices logic:
+  // Primary goal: Minimize 6m bar count.
+  // Secondary goal: Minimize welding/splice points (pontos de solda).
+  const horizSplicesPerPiece = Math.floor(largura / 6.0);
+  const vertSplicesPerPiece = Math.floor(vertCutLength / 6.0);
+  const baseLongPieceWelds = (linhasHorizontais * horizSplicesPerPiece) + (colunasVerticais * vertSplicesPerPiece);
+
+  const weldsCountScenario1 = baseLongPieceWelds;
+  const weldsCountScenario2 = baseLongPieceWelds;
+
+  // In Scenario 3, additional welds occur if remnants are joined to save bars
+  const barsSavedScenario3 = Math.max(0, totalSemEmendaComOpt - totalComEmendaComOpt);
+  const weldsCountScenario3 = baseLongPieceWelds + (barsSavedScenario3 > 0 ? barsSavedScenario3 * 1 : 0);
+
+  let recomendacaoCenario2 = "0 soldas adicionais";
+  let recomendacaoCenario3 = weldsCountScenario3 > 0 ? `${weldsCountScenario3} ponto(s) de solda` : "0 soldas adicionais";
+
+  if (totalComEmendaComOpt === totalSemEmendaComOpt) {
+    recomendacaoCenario2 = "⭐ **RECOMENDADO (Mesmo consumo de barras sem soldas extras)**";
+    recomendacaoCenario3 = `${weldsCountScenario3} solda(s) (Não vale a pena por não economizar barras)`;
+  } else {
+    recomendacaoCenario3 = `⭐ **Economiza ${barsSavedScenario3} barra(s) com ${weldsCountScenario3} ponto(s) de solda**`;
+  }
+
   return `## Considerações Técnicas do Perfil
 - **Dimensões da Estrutura:** ${widthFormatted} m × ${heightFormatted} m
 ${profileHeader}
@@ -378,17 +454,17 @@ ${planoDeCorteTexto}
 
 ${
   isSameProfile
-    ? `| Cenário / Método de Corte | Horizontais | Verticais | Aplicação / Característica | Total de Barras (6m) |
-| :------------------------ | :---------: | :-------: | :------------------------- | :------------------: |
-| **1. Sem Emenda e Sem Otimização** | ${linhasHorizontais * Math.ceil(largura / 6.0)} | ${colunasVerticais * Math.ceil(vertCutLength / 6.0)} | Compra direta por peça isolada | **${totalSemEmendaSemOpt} barra(s)** |
-| **2. Sem Emenda com Otimização** | - | - | Aproveita sobras com peças inteiras (sem soldas) | **${totalSemEmendaComOpt} barra(s)** |
-| **3. Com Emenda e Otimização Total** | - | - | Otimização máxima (permite emenda de sobras) | **${totalComEmendaComOpt} barra(s)** |`
-    : `| Cenário / Método de Corte | Perfil Externo (${profileExt.name}) | Perfil Interno (${profileInt.name}) | TOTAL GERAL DO PROJETO |
-| :------------------------ | :---------------------------------: | :---------------------------------: | :--------------------: |
-| **1. Sem Emenda e Sem Otimização** | ${extScenario1} barra(s) | ${intScenario1} barra(s) | **${totalSemEmendaSemOpt} barra(s)** |
-| **2. Sem Emenda com Otimização** | ${extScenario2} barra(s) | ${intScenario2} barra(s) | **${totalSemEmendaComOpt} barra(s)** |
-| **3. Com Emenda e Otimização Total** | ${extScenario3} barra(s) | ${intScenario3} barra(s) | **${totalComEmendaComOpt} barra(s)** |`
-}`;
+    ? `| Cenário / Método de Corte | Total de Barras (6m) | Pontos de Solda / Emendas | Avaliação de Custo x Mão de Obra |
+| :------------------------ | :------------------: | :-----------------------: | :------------------------------- |
+| **1. Sem Emenda e Sem Otimização** | **${totalSemEmendaSemOpt} barra(s)** | ${weldsCountScenario1} solda(s) | Compra direta por peça isolada |
+| **2. Sem Emenda com Otimização** | **${totalSemEmendaComOpt} barra(s)** | ${weldsCountScenario2} solda(s) | ${recomendacaoCenario2} |
+| **3. Com Emenda e Otimização Total** | **${totalComEmendaComOpt} barra(s)** | ${weldsCountScenario3} solda(s) | ${recomendacaoCenario3} |`
+    : `| Cenário / Método de Corte | Perfil Externo (${profileExt.name}) | Perfil Interno (${profileInt.name}) | Total de Barras (6m) | Pontos de Solda / Emendas | Avaliação de Custo x Mão de Obra |
+| :------------------------ | :---------------------------------: | :---------------------------------: | :------------------: | :-----------------------: | :------------------------------- |
+| **1. Sem Emenda e Sem Otimização** | ${extScenario1} barra(s) | ${intScenario1} barra(s) | **${totalSemEmendaSemOpt} barra(s)** | ${weldsCountScenario1} solda(s) | Compra direta por peça isolada |
+| **2. Sem Emenda com Otimização** | ${extScenario2} barra(s) | ${intScenario2} barra(s) | **${totalSemEmendaComOpt} barra(s)** | ${weldsCountScenario2} solda(s) | ${recomendacaoCenario2} |
+| **3. Com Emenda e Otimização Total** | ${extScenario3} barra(s) | ${intScenario3} barra(s) | **${totalComEmendaComOpt} barra(s)** | ${weldsCountScenario3} solda(s) | ${recomendacaoCenario3} |`
+}${tablaProducaoTexto}`;
 }
 
 app.post("/api/calculate", async (req, res) => {
@@ -438,10 +514,14 @@ Regras fundamentais de cálculo e otimização:
 4. DESCONTO DAS DIMENSÕES DO PERFIL NAS COLUNAS VERTICAIS:
    - Todas as colunas verticais se encaixam entre as barras horizontais superior e inferior da borda externa.
    - Portanto, o comprimento de corte real de cada coluna vertical DEVE descontar 2x a largura da face do Perfil Externo: Comprimento Corte Vert = Altura - (2 × ${profileExtInfo.faceSizeM} m) = ${(numAltura - 2 * profileExtInfo.faceSizeM).toFixed(3)} m.
-5. OS 3 CENÁRIOS OBRIGATÓRIOS PARA A SEÇÃO 4:
-   - Cenário 1: "Sem Emenda e Sem Otimização" -> Compra direta onde cada peça é cortada individualmente de suas próprias barras de 6m sem compartilhar sobras entre peças.
-   - Cenário 2: "Sem Emenda com Otimização de Corte" -> Peças inteiras (sem nenhuma solda/emenda individual em barras), mas otimizando o plano de corte para encaixar peças inteiras nas sobras das barras de 6m.
-   - Cenário 3: "Com Emenda e Otimização Total" -> Otimização máxima permitindo emendas/soldas estruturais de retalhos para obter o menor consumo total absoluto de barras de 6m.
+5. HIERARQUIA DE OTIMIZAÇÃO DE CUSTO E SOLDAGEM:
+   - PRIORIDADE 1 (Mais importante): Menor número total de barras de 6m a comprar (redução do custo de matéria-prima).
+   - PRIORIDADE 2 (Secundária): Menor número de pontos de solda / emendas adicionais nas barras. Quanto mais soldas forem necessárias, mais complexo e caro é o processo de fabricação no chão de fábrica.
+   - REGRA DE DECISÃO: Se o Cenário 2 (Sem Emenda com Otimização) atingir a MESMA quantidade total de barras de 6m que o Cenário 3 (Com Emenda e Otimização Total), o Cenário 2 DEVE ser apontado como OTIMIZADO E RECOMENDADO, pois atinge a compra mínima SEM gastar tempo ou mão de obra em soldas intermediárias.
+6. OS 3 CENÁRIOS OBRIGATÓRIOS PARA A SEÇÃO 4:
+   - Cenário 1: "Sem Emenda e Sem Otimização" -> Compra direta por peça isolada. (0 soldas intermediárias)
+   - Cenário 2: "Sem Emenda com Otimização de Corte" -> Peças inteiras sem soldas intermediárias, aproveitando sobras com outras peças inteiras do projeto. (0 soldas intermediárias)
+   - Cenário 3: "Com Emenda e Otimização Total" -> Otimização máxima permitindo emendas de retalhos para tentar reduzir barras. Indica os pontos de solda necessários.
 
 Dimensões da estrutura:
 - Largura: [${numLargura.toString().replace(".", ",")} metros]
@@ -482,9 +562,14 @@ Formato da resposta (obrigatório em Markdown):
 ---
 
 ## 4. Resultado e Quadro Comparativo de Consumo
-[Apresente a tabela comparativa exibindo OBRIGATORIAMENTE as linhas para os 3 Cenários: 1. Sem Emenda e Sem Otimização, 2. Sem Emenda com Otimização, 3. Com Emenda e Otimização Total].
-CRÍTICO: NÃO INCLUA NENHUMA COLUNA CHAMADA 'Metragem Comprada' OU SIMILAR NA TABELA DA SEÇÃO 4. As colunas devem focar exclusivamente no consumo em barras de 6m por perfil/cenário e total de barras.
+[Apresente a tabela comparativa exibindo OBRIGATORIAMENTE as linhas para os 3 Cenários e as colunas: Perfil Externo | Perfil Interno | Total de Barras (6m) | Pontos de Solda / Emendas | Avaliação de Custo x Soldagem].
+CRÍTICO: NÃO INCLUA NENHUMA COLUNA CHAMADA 'Metragem Comprada' OU SIMILAR NA TABELA DA SEÇÃO 4. As colunas devem focar exclusivamente no consumo de barras de 6m, pontos de solda e na recomendação técnica.
 OBRIGATÓRIO: Na Seção 4, exiba APENAS a tabela comparativa dos 3 cenários, sem nenhum texto ou marcador abaixo dela.
+
+---
+
+## 7. Tabela de Corte de Barras para a Produção
+[Apresente a tabela detalhada de cada barra do Plano de Corte Otimizado com as colunas: | Barra N° | Perfil Metalon | Tamanho Inicial | Peças a Cortar (Gabarito de Corte) | Sobra Restante |]
 `;
 
     // Attempt Gemini call if GEMINI_API_KEY is defined
@@ -496,7 +581,7 @@ OBRIGATÓRIO: Na Seção 4, exiba APENAS a tabela comparativa dos 3 cenários, s
           contents: prompt,
           config: {
             temperature: 0.1, // low temperature for precise mathematical calculations
-            systemInstruction: `Você é um especialista em serralheria e cálculo de estruturas de metalon. Calcule com extrema precisão os vãos, linhas, colunas, metragens lineares e barras de 6 metros respeitando estritamente o vão máximo horizontal de ${vaoMaxHorizCm} cm (colunas) e vão máximo vertical de ${vaoMaxVertCm} cm (linhas) configurados pelo usuário. CRÍTICO E OBRIGATÓRIO: Na tabela da Seção 4, NUNCA INCLUA a coluna 'Metragem Comprada' ou qualquer coluna em metros comprados. Exiba APENAS a quantidade de barras de 6m por perfil e o total de barras do projeto. Exiba APENAS a tabela comparativa sem nenhum texto ou marcador abaixo dela na Seção 4. Responda rigorosamente no formato especificado em Markdown.`,
+            systemInstruction: `Você é um especialista em serralheria e cálculo de estruturas de metalon. Calcule com extrema precisão os vãos, linhas, colunas, metragens lineares e barras de 6 metros respeitando estritamente o vão máximo horizontal de ${vaoMaxHorizCm} cm (colunas) e vão máximo vertical de ${vaoMaxVertCm} cm (linhas) configurados pelo usuário. CRÍTICO E OBRIGATÓRIO: Na tabela da Seção 4, NUNCA INCLUA a coluna 'Metragem Comprada' ou qualquer coluna em metros comprados. A hierarquia de otimização prioriza primeiro o menor número de barras de 6m e em segundo lugar o menor número de pontos de solda. Se o Cenário 2 usar o mesmo número de barras que o Cenário 3, recomende o Cenário 2 por ter zero soldas intermediárias. Exiba APENAS a tabela comparativa sem nenhum texto ou marcador abaixo dela na Seção 4. Responda rigorosamente no formato especificado em Markdown.`,
           },
         });
 
