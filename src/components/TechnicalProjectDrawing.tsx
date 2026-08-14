@@ -54,12 +54,12 @@ export const TechnicalProjectDrawing: React.FC<TechnicalProjectDrawingProps> = (
 
   // Canvas setup for drawing
   const svgWidth = 540;
-  const svgHeight = 175;
+  const svgHeight = 125;
 
-  const padLeft = 60;
-  const padRight = 30;
-  const padTop = 28;
-  const padBottom = 22;
+  const padLeft = 48;
+  const padRight = 24;
+  const padTop = 22;
+  const padBottom = 16;
 
   const availWidth = svgWidth - padLeft - padRight;
   const availHeight = svgHeight - padTop - padBottom;

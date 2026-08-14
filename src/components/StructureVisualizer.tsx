@@ -30,9 +30,9 @@ export const StructureVisualizer: React.FC<VisualizerProps> = ({ input }) => {
   const espacamentoVertCm = ((altura / vaosVerticais) * 100).toFixed(1);
 
   // SVG dimensions for each diagram
-  const padding = 36;
+  const padding = 28;
   const svgWidth = 520;
-  const svgHeight = 220;
+  const svgHeight = 160;
 
   const availWidth = svgWidth - padding * 2;
   const availHeight = svgHeight - padding * 2;
