@@ -11,7 +11,9 @@ import {
   CheckCircle2,
   Loader2,
   Info,
-  Sliders
+  Sliders,
+  Calculator,
+  RefreshCw
 } from 'lucide-react';
 
 import { MetalonInput, CalculationResult } from './types';
@@ -134,20 +136,16 @@ export default function App() {
       };
 
       setCurrentResult(newResult);
-
       setIsProcessing(false);
-      setIsGeneratingPDF(true);
-      setStatusMessage('Gerando relatório...');
+      setStatusMessage('');
 
-      // Allow DOM to render reportRef
-      await new Promise((resolve) => setTimeout(resolve, 300));
-
-      if (reportRef.current) {
-        const fileName = `Relatorio_Metalon_${numLargura.toFixed(2)}x${numAltura.toFixed(2)}m.pdf`;
-        await generatePDFFromElement(reportRef.current, fileName);
-        setPdfDownloaded(true);
-        setTimeout(() => setPdfDownloaded(false), 3000);
-      }
+      // Smooth scroll to the result view
+      setTimeout(() => {
+        const resultElement = document.getElementById('report-container');
+        if (resultElement) {
+          resultElement.scrollIntoView({ behavior: 'smooth' });
+        }
+      }, 100);
     } catch (err: any) {
       console.error(err);
       setErrorMsg(err?.message || 'Falha ao processar o cálculo. Tente novamente.');
@@ -160,19 +158,26 @@ export default function App() {
 
   const handleManualPDFDownload = async () => {
     if (!reportRef.current || !currentResult) return;
-    setIsGeneratingPDF(true);
-    const fileName = `Relatorio_Metalon_${currentResult.input.largura.toFixed(2)}x${currentResult.input.altura.toFixed(2)}m.pdf`;
-    const success = await generatePDFFromElement(reportRef.current, fileName);
-    setIsGeneratingPDF(false);
-    if (success) {
-      setPdfDownloaded(true);
-      setTimeout(() => setPdfDownloaded(false), 3000);
+    try {
+      setIsGeneratingPDF(true);
+      const fileName = `Relatorio_Metalon_${currentResult.input.largura.toFixed(2)}x${currentResult.input.altura.toFixed(2)}m.pdf`;
+      const success = await generatePDFFromElement(reportRef.current, fileName);
+      if (success) {
+        setPdfDownloaded(true);
+        setTimeout(() => setPdfDownloaded(false), 3000);
+      }
+    } catch (e) {
+      console.error('Erro ao baixar PDF:', e);
+    } finally {
+      setIsGeneratingPDF(false);
     }
   };
 
-  const handlePrint = () => {
-    window.print();
+  const handleNewCalculation = () => {
+    setCurrentResult(null);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
+
 
   return (
     <div className="min-h-screen flex flex-col bg-slate-100/80 text-slate-900 pb-16">
@@ -356,15 +361,15 @@ export default function App() {
                 disabled={isProcessing || isGeneratingPDF}
                 className="w-full bg-slate-900 hover:bg-[#707579] disabled:bg-slate-400 text-white font-bold py-3.5 px-6 rounded-xl shadow-lg hover:shadow-slate-500/20 transition-all flex items-center justify-center gap-2 text-base cursor-pointer"
               >
-                {isProcessing || isGeneratingPDF ? (
+                {isProcessing ? (
                   <>
                     <Loader2 className="w-5 h-5 animate-spin text-slate-300" />
-                    <span>{statusMessage || 'Processando...'}</span>
+                    <span>{statusMessage || 'Calculando estrutura...'}</span>
                   </>
                 ) : (
                   <>
-                    <FileDown className="w-5 h-5 text-slate-300" />
-                    <span>Gerar PDF</span>
+                    <Calculator className="w-5 h-5 text-slate-300" />
+                    <span>Calcular e Gerar Relatório</span>
                   </>
                 )}
               </button>
@@ -372,7 +377,7 @@ export default function App() {
           </form>
         </section>
 
-        {/* Toast / Modal when PDF is auto-downloaded */}
+        {/* Toast / Modal when PDF is downloaded */}
         <AnimatePresence>
           {pdfDownloaded && (
             <motion.div
@@ -388,7 +393,7 @@ export default function App() {
                   <div>
                     <h4 className="font-bold text-base">PDF Gerado com Sucesso!</h4>
                     <p className="text-xs text-emerald-100 mt-0.5">
-                      O download do relatório em PDF foi iniciado no seu navegador.
+                      O download do relatório foi concluído com sucesso.
                     </p>
                   </div>
                 </div>
@@ -405,7 +410,55 @@ export default function App() {
 
         {/* Results / PDF Report Display Section */}
         {currentResult && (
-          <section className="space-y-4">
+          <section id="report-container" className="space-y-6 pt-4">
+            {/* Top Results Action Bar */}
+            <div className="no-print bg-white rounded-2xl p-4 sm:p-5 shadow-lg border border-slate-200/80 max-w-4xl mx-auto flex flex-wrap items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-slate-900 text-white flex items-center justify-center font-bold">
+                  <CheckCircle2 className="w-5 h-5 text-emerald-400" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-slate-900 text-sm sm:text-base">
+                    Relatório Técnico Concluído
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    Estrutura de {currentResult.input.largura.toFixed(2)}m × {currentResult.input.altura.toFixed(2)}m calculada com sucesso.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2.5 w-full sm:w-auto">
+                <button
+                  type="button"
+                  onClick={handleManualPDFDownload}
+                  disabled={isGeneratingPDF}
+                  className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-2 bg-slate-900 hover:bg-[#707579] disabled:bg-slate-400 text-white font-bold py-2.5 px-5 rounded-xl shadow transition cursor-pointer text-sm"
+                >
+                  {isGeneratingPDF ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin text-slate-300" />
+                      <span>Gerando PDF...</span>
+                    </>
+                  ) : (
+                    <>
+                      <FileDown className="w-4 h-4 text-slate-300" />
+                      <span>Gerar / Baixar PDF</span>
+                    </>
+                  )}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleNewCalculation}
+                  className="inline-flex items-center justify-center gap-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold py-2.5 px-4 rounded-xl transition cursor-pointer text-sm border border-slate-200"
+                  title="Novo Cálculo"
+                >
+                  <RefreshCw className="w-4 h-4" />
+                  <span className="hidden sm:inline">Novo Cálculo</span>
+                </button>
+              </div>
+            </div>
+
             {/* Document Report Viewer */}
             <ReportViewer
               markdown={currentResult.markdown}
@@ -416,6 +469,7 @@ export default function App() {
             />
           </section>
         )}
+
       </main>
       <Analytics />
       <SpeedInsights />

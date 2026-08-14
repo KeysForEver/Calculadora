@@ -3,20 +3,21 @@ import html2canvas from "html2canvas-pro";
 
 export async function generatePDFFromElement(element: HTMLElement, filename: string): Promise<boolean> {
   try {
-    // Wait for images/fonts if any
-    await new Promise((r) => setTimeout(r, 150));
+    // Wait for DOM layout, SVGs and fonts to settle
+    await new Promise((r) => setTimeout(r, 250));
 
     const pdf = new jsPDF({
       orientation: "portrait",
       unit: "mm",
       format: "a4",
+      compress: true,
     });
 
     const pdfWidth = pdf.internal.pageSize.getWidth(); // 210mm
     const pdfHeight = pdf.internal.pageSize.getHeight(); // 297mm
     const margin = 10; // 10mm margin
     const contentWidth = pdfWidth - margin * 2; // 190mm
-    const pageContentHeight = pdfHeight - margin * 2; // 277mm
+    const maxContentHeight = pdfHeight - margin * 2; // 277mm
 
     const pageElements = element.querySelectorAll<HTMLElement>(".pdf-page");
     const pagesToRender = pageElements.length > 0 ? Array.from(pageElements) : [element];
@@ -27,18 +28,25 @@ export async function generatePDFFromElement(element: HTMLElement, filename: str
       }
       const pageEl = pagesToRender[i];
 
-      // 1. Render high-DPI canvas background
+      // 1. Render high-DPI canvas background with crisp fidelity
       const canvas = await html2canvas(pageEl, {
-        scale: 2,
+        scale: 2.5,
         useCORS: true,
         logging: false,
         backgroundColor: "#ffffff",
         scrollX: 0,
         scrollY: 0,
+        windowWidth: pageEl.scrollWidth || 1024,
       });
 
+      // Calculate exact proportional height so pages never distort or squeeze
+      const imgWidthPx = canvas.width;
+      const imgHeightPx = canvas.height;
+      const calculatedHeightMm = (imgHeightPx * contentWidth) / imgWidthPx;
+      const finalRenderHeightMm = Math.min(calculatedHeightMm, maxContentHeight);
+
       const imgData = canvas.toDataURL("image/jpeg", 0.98);
-      pdf.addImage(imgData, "JPEG", margin, margin, contentWidth, pageContentHeight);
+      pdf.addImage(imgData, "JPEG", margin, margin, contentWidth, finalRenderHeightMm);
 
       // 2. Add clickable link annotations for <a> tags
       const pageRect = pageEl.getBoundingClientRect();
@@ -52,47 +60,11 @@ export async function generatePDFFromElement(element: HTMLElement, filename: str
             const relTop = rect.top - pageRect.top;
 
             const xMm = margin + (relLeft / pageRect.width) * contentWidth;
-            const yMm = margin + (relTop / pageRect.height) * pageContentHeight;
+            const yMm = margin + (relTop / pageRect.height) * finalRenderHeightMm;
             const wMm = (rect.width / pageRect.width) * contentWidth;
-            const hMm = (rect.height / pageRect.height) * pageContentHeight;
+            const hMm = (rect.height / pageRect.height) * finalRenderHeightMm;
 
             pdf.link(xMm, yMm, wMm, hMm, { url: href });
-          }
-        });
-
-        // 3. Add invisible vector text layer overlay for selectable text
-        const textElements = pageEl.querySelectorAll<HTMLElement>(
-          "h1, h2, h3, h4, p, span, td, th, li, a, code, strong, em, b, i"
-        );
-
-        pdf.setFontSize(9);
-        // Set transparent text rendering mode so text is selectable/copyable over the canvas image
-        pdf.setTextColor(0, 0, 0);
-
-        textElements.forEach((el) => {
-          // Only process leaf text containers or direct text nodes to avoid duplicate text layers
-          if (el.children.length === 0 || Array.from(el.childNodes).some((n) => n.nodeType === Node.TEXT_NODE && n.textContent?.trim())) {
-            const text = el.innerText?.trim();
-            if (text && text.length > 0) {
-              const rect = el.getBoundingClientRect();
-              if (rect.width > 0 && rect.height > 0) {
-                const relLeft = rect.left - pageRect.left;
-                const relTop = rect.top - pageRect.top;
-
-                const xMm = margin + (relLeft / pageRect.width) * contentWidth;
-                const yMm = margin + (relTop / pageRect.height) * pageContentHeight + (rect.height / pageRect.height) * pageContentHeight * 0.75;
-
-                try {
-                  // jsPDF invisible text mode (renderingMode 3 = Neither fill nor stroke text / invisible)
-                  pdf.text(text, xMm, yMm, {
-                    renderingMode: "invisible",
-                    maxWidth: (rect.width / pageRect.width) * contentWidth,
-                  });
-                } catch {
-                  // Ignore font rendering edge cases silently
-                }
-              }
-            }
           }
         });
       }
@@ -105,4 +77,5 @@ export async function generatePDFFromElement(element: HTMLElement, filename: str
     return false;
   }
 }
+
 
