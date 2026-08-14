@@ -16,14 +16,19 @@ import {
   RefreshCw
 } from 'lucide-react';
 
-import { MetalonInput, CalculationResult } from './types';
+import { MetalonInput, CalculationResult, CalculatorPage } from './types';
 import { ReportViewer } from './components/ReportViewer';
+import { LedCalculatorPlaceholder } from './components/LedCalculatorPlaceholder';
+import { MdfCalculatorPlaceholder } from './components/MdfCalculatorPlaceholder';
 import { generatePDFFromElement } from './utils/pdfGenerator';
 import { Analytics } from '@vercel/analytics/react';
 import { SpeedInsights } from '@vercel/speed-insights/react';
-import { generateReportMarkdown, getPortugueseDate } from './utils/calculator';
+import { generateReportMarkdown, getPortugueseDate, extractProfileDimensions } from './utils/calculator';
 
 export default function App() {
+  // Navigation state
+  const [activePage, setActivePage] = useState<CalculatorPage>('painel');
+
   // Input states
   const [altura, setAltura] = useState<string>('');
   const [largura, setLargura] = useState<string>('');
@@ -31,6 +36,10 @@ export default function App() {
   const [perfilInterno, setPerfilInterno] = useState<string>('');
   const [vaoMaxHoriz, setVaoMaxHoriz] = useState<string>('80');
   const [vaoMaxVert, setVaoMaxVert] = useState<string>('80');
+
+  // Orientation states (when profile is rectangular)
+  const [faceExternoChoice, setFaceExternoChoice] = useState<number | null>(null);
+  const [faceInternoChoice, setFaceInternoChoice] = useState<number | null>(null);
 
   // Status & loading states
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
@@ -43,6 +52,24 @@ export default function App() {
   const [currentResult, setCurrentResult] = useState<CalculationResult | null>(null);
 
   const reportRef = useRef<HTMLDivElement>(null);
+
+  // Derived dimensions for profile orientation
+  const extDims = extractProfileDimensions(perfilExterno);
+  const intDims = extractProfileDimensions(perfilInterno || perfilExterno);
+
+  const effectiveFaceExt = (!extDims.isSquare && extDims.isValid)
+    ? (faceExternoChoice === extDims.dim1 || faceExternoChoice === extDims.dim2 ? faceExternoChoice : extDims.dim1)
+    : extDims.dim1;
+  const effectiveProfExt = (!extDims.isSquare && extDims.isValid)
+    ? (effectiveFaceExt === extDims.dim1 ? extDims.dim2 : extDims.dim1)
+    : extDims.dim2;
+
+  const effectiveFaceInt = (!intDims.isSquare && intDims.isValid)
+    ? (faceInternoChoice === intDims.dim1 || faceInternoChoice === intDims.dim2 ? faceInternoChoice : intDims.dim1)
+    : intDims.dim1;
+  const effectiveProfInt = (!intDims.isSquare && intDims.isValid)
+    ? (effectiveFaceInt === intDims.dim1 ? intDims.dim2 : intDims.dim1)
+    : intDims.dim2;
 
   const handleGeneratePDF = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -83,12 +110,26 @@ export default function App() {
       return;
     }
 
+    const posicaoExtDesc = extDims.isSquare
+      ? `Perfil Quadrado (${extDims.dim1} × ${extDims.dim2} mm)`
+      : `Face ${effectiveFaceExt} mm (Frente) × ${effectiveProfExt} mm (Profundidade)`;
+
+    const posicaoIntDesc = intDims.isSquare
+      ? `Perfil Quadrado (${intDims.dim1} × ${intDims.dim2} mm)`
+      : `Face ${effectiveFaceInt} mm (Frente) × ${effectiveProfInt} mm (Profundidade)`;
+
     const inputData: MetalonInput = {
       altura: numAltura,
       largura: numLargura,
       perfilExterno: perfilExterno.trim(),
       perfilInterno: finalPerfilInterno,
       perfil: perfilExterno.trim(), // retrocompatibilidade
+      posicaoExterno: posicaoExtDesc,
+      posicaoInterno: posicaoIntDesc,
+      faceExternoMm: effectiveFaceExt,
+      profundidadeExternoMm: effectiveProfExt,
+      faceInternoMm: effectiveFaceInt,
+      profundidadeInternoMm: effectiveProfInt,
       vaoMaxHoriz: numVaoHoriz,
       vaoMaxVert: numVaoVert,
       vaoMaximo: numVaoHoriz, // fallback retrocompatível
@@ -183,41 +224,98 @@ export default function App() {
     <div className="min-h-screen flex flex-col bg-slate-100/80 text-slate-900 pb-16">
       {/* Top Navbar Header */}
       <header className="no-print bg-slate-900 text-white border-b border-slate-800 shadow-md">
-        <div className="max-w-5xl mx-auto px-4 py-4 grid grid-cols-1 sm:grid-cols-3 items-center gap-3">
+        <div className="max-w-6xl mx-auto px-4 py-3 flex flex-col md:flex-row items-center justify-between gap-3">
           {/* Esquerda: Nome da Empresa */}
-          <div className="flex items-center justify-center sm:justify-start">
+          <div className="flex items-center">
             <span className="text-2xl font-extrabold text-white font-poppins tracking-tight">
               SKYMÍDIA
             </span>
           </div>
 
-          {/* Centro: Nome da ferramenta */}
-          <div className="text-center">
-            <h1 className="text-lg sm:text-xl font-bold tracking-tight text-white">
-              Calculadora de Metalon
-            </h1>
+          {/* Centro: Abas de Navegação das Calculadoras Centralizadas sem Ícones e sem Barra de Rolagem */}
+          <div className="flex items-center justify-center">
+            <nav className="flex items-center gap-1 p-1 bg-slate-800/90 rounded-xl border border-slate-700/70">
+              <button
+                type="button"
+                onClick={() => setActivePage('painel')}
+                className={`px-3.5 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition whitespace-nowrap cursor-pointer ${
+                  activePage === 'painel'
+                    ? 'bg-white text-slate-900 shadow-sm font-bold'
+                    : 'text-slate-300 hover:text-white hover:bg-slate-700/50'
+                }`}
+              >
+                Painel &amp; Front Light
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActivePage('led')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition whitespace-nowrap cursor-pointer ${
+                  activePage === 'led'
+                    ? 'bg-white text-slate-900 shadow-sm font-bold'
+                    : 'text-slate-300 hover:text-white hover:bg-slate-700/50'
+                }`}
+              >
+                <span>LED</span>
+                <span className={`text-[9px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded ${
+                  activePage === 'led' ? 'bg-amber-100 text-amber-800' : 'bg-amber-500/20 text-amber-300'
+                }`}>
+                  Em breve
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActivePage('mdf')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition whitespace-nowrap cursor-pointer ${
+                  activePage === 'mdf'
+                    ? 'bg-white text-slate-900 shadow-sm font-bold'
+                    : 'text-slate-300 hover:text-white hover:bg-slate-700/50'
+                }`}
+              >
+                <span>MDF</span>
+                <span className={`text-[9px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded ${
+                  activePage === 'mdf' ? 'bg-emerald-100 text-emerald-800' : 'bg-emerald-500/20 text-emerald-300'
+                }`}>
+                  Em breve
+                </span>
+              </button>
+            </nav>
           </div>
 
-          {/* Direita: Espaço reservado para balancear a grid de 3 colunas */}
-          <div className="hidden sm:block"></div>
+          {/* Direita: Elemento de compensação para manter o nav perfeitamente centralizado */}
+          <div className="hidden md:block w-32"></div>
         </div>
       </header>
 
       {/* Main Content Area */}
-      <main className={`max-w-6xl w-full mx-auto px-4 py-8 flex-1 flex flex-col ${!currentResult ? 'justify-center' : ''}`}>
-        {/* Input Form Card */}
-        <section className="no-print bg-white rounded-2xl p-6 sm:p-8 shadow-xl border border-slate-200/80 mb-8 md:w-2/3 mx-auto w-full">
-          <div className="flex items-center justify-between border-b border-slate-100 pb-4 mb-6">
-            <div>
-              <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-                <Ruler className="w-5 h-5 text-[#707579]" />
-                Dados da Estrutura
-              </h2>
-              <p className="text-xs text-slate-500 mt-0.5">
-                Preencha as dimensões e o perfil para calcular a quantidade de barras de 6 metros.
-              </p>
-            </div>
-          </div>
+      <main className={`max-w-6xl w-full mx-auto px-4 py-8 flex-1 flex flex-col ${(!currentResult || activePage !== 'painel') ? 'justify-center' : ''}`}>
+        {/* Render LED Page Placeholder */}
+        {activePage === 'led' && (
+          <LedCalculatorPlaceholder onBackToPainel={() => setActivePage('painel')} />
+        )}
+
+        {/* Render MDF Page Placeholder */}
+        {activePage === 'mdf' && (
+          <MdfCalculatorPlaceholder onBackToPainel={() => setActivePage('painel')} />
+        )}
+
+        {/* Render Painel & Front Light Calculator */}
+        {activePage === 'painel' && (
+          <>
+            {/* Input Form Card */}
+            <section className="no-print bg-white rounded-2xl p-6 sm:p-8 shadow-xl border border-slate-200/80 mb-8 md:w-2/3 mx-auto w-full">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-4 mb-6">
+                <div>
+                  <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                    <Ruler className="w-5 h-5 text-[#707579]" />
+                    Painel &amp; Front Light — Estrutura de Metalon
+                  </h2>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Preencha as dimensões e o perfil para calcular a quantidade de barras de 6 metros.
+                  </p>
+                </div>
+              </div>
 
           <form onSubmit={handleGeneratePDF} className="space-y-6">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
@@ -267,6 +365,52 @@ export default function App() {
                 </div>
               </div>
 
+              {/* Vão Máximo Horizontal (cm) */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                  <Sliders className="w-4 h-4 text-[#707579]" />
+                  Vão Máx. Horizontal (Colunas)
+                </label>
+                <div className="relative">
+                  <input
+                    type="number"
+                    step="1"
+                    min="1"
+                    placeholder="Ex: 80"
+                    value={vaoMaxHoriz}
+                    onChange={(e) => setVaoMaxHoriz(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-slate-900 font-semibold focus:outline-none focus:ring-2 focus:ring-[#707579] focus:bg-white transition"
+                    required
+                  />
+                  <span className="absolute right-3 top-2.5 text-xs font-bold text-slate-400 bg-slate-200/70 px-2 py-0.5 rounded">
+                    cm
+                  </span>
+                </div>
+              </div>
+
+              {/* Vão Máximo Vertical (Linhas) */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                  <Sliders className="w-4 h-4 text-[#707579]" />
+                  Vão Máx. Vertical (Linhas)
+                </label>
+                <div className="relative">
+                  <input
+                    type="number"
+                    step="1"
+                    min="1"
+                    placeholder="Ex: 80"
+                    value={vaoMaxVert}
+                    onChange={(e) => setVaoMaxVert(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-slate-900 font-semibold focus:outline-none focus:ring-2 focus:ring-[#707579] focus:bg-white transition"
+                    required
+                  />
+                  <span className="absolute right-3 top-2.5 text-xs font-bold text-slate-400 bg-slate-200/70 px-2 py-0.5 rounded">
+                    cm
+                  </span>
+                </div>
+              </div>
+
               {/* Perfil Metalon Externo */}
               <div>
                 <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2 flex items-center gap-1.5">
@@ -298,49 +442,142 @@ export default function App() {
                 />
               </div>
 
-              {/* Vão Máximo Horizontal (cm) */}
-              <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                  <Sliders className="w-4 h-4 text-[#707579]" />
-                  Vão Máx. Horizontal (Colunas)
-                </label>
-                <div className="relative">
-                  <input
-                    type="number"
-                    step="1"
-                    min="1"
-                    placeholder="Ex: 80"
-                    value={vaoMaxHoriz}
-                    onChange={(e) => setVaoMaxHoriz(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-slate-900 font-semibold focus:outline-none focus:ring-2 focus:ring-[#707579] focus:bg-white transition"
-                    required
-                  />
-                  <span className="absolute right-3 top-2.5 text-xs font-bold text-slate-400 bg-slate-200/70 px-2 py-0.5 rounded">
-                    cm
+              {/* Posição / Orientação do Metalon Externo (quando não for quadrado) */}
+              <div className="sm:col-span-2 bg-slate-100/70 border border-slate-200 rounded-2xl p-4 space-y-4">
+                <div className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center justify-between">
+                  <span className="flex items-center gap-1.5">
+                    <Ruler className="w-4 h-4 text-[#707579]" />
+                    Posição e Orientação dos Perfis
+                  </span>
+                  <span className="text-[10px] font-medium text-slate-500 lowercase">
+                    (especifique a face frontal e a profundidade)
                   </span>
                 </div>
-              </div>
 
-              {/* Vão Máximo Vertical (cm) */}
-              <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                  <Sliders className="w-4 h-4 text-[#707579]" />
-                  Vão Máx. Vertical (Linhas)
-                </label>
-                <div className="relative">
-                  <input
-                    type="number"
-                    step="1"
-                    min="1"
-                    placeholder="Ex: 80"
-                    value={vaoMaxVert}
-                    onChange={(e) => setVaoMaxVert(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-slate-900 font-semibold focus:outline-none focus:ring-2 focus:ring-[#707579] focus:bg-white transition"
-                    required
-                  />
-                  <span className="absolute right-3 top-2.5 text-xs font-bold text-slate-400 bg-slate-200/70 px-2 py-0.5 rounded">
-                    cm
-                  </span>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Posição Metalon Externo */}
+                  <div className="bg-white border border-slate-200/80 rounded-xl p-3 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-slate-800">
+                        Posição Metalon Externo (Borda):
+                      </span>
+                      {extDims.isValid && (
+                        <span className="text-[10px] px-2 py-0.5 rounded-full font-bold bg-slate-100 text-slate-600 border border-slate-200">
+                          {extDims.isSquare ? 'Quadrado' : `${extDims.dim1}×${extDims.dim2} mm`}
+                        </span>
+                      )}
+                    </div>
+
+                    {extDims.isValid && !extDims.isSquare ? (
+                      <div className="space-y-1.5 pt-1">
+                        <p className="text-[11px] text-slate-500">
+                          Qual dimensão ficará virada para a <strong>frente (face do painel)</strong>?
+                        </p>
+                        <div className="grid grid-cols-2 gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setFaceExternoChoice(extDims.dim1)}
+                            className={`px-3 py-2 text-xs font-semibold rounded-lg border text-left transition flex flex-col ${
+                              effectiveFaceExt === extDims.dim1
+                                ? 'bg-slate-900 text-white border-slate-900 shadow-sm'
+                                : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+                            }`}
+                          >
+                            <span className="font-bold">Face: {extDims.dim1} mm</span>
+                            <span className={`text-[10px] ${effectiveFaceExt === extDims.dim1 ? 'text-slate-300' : 'text-slate-500'}`}>
+                              Profundidade: {extDims.dim2} mm
+                            </span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => setFaceExternoChoice(extDims.dim2)}
+                            className={`px-3 py-2 text-xs font-semibold rounded-lg border text-left transition flex flex-col ${
+                              effectiveFaceExt === extDims.dim2
+                                ? 'bg-slate-900 text-white border-slate-900 shadow-sm'
+                                : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+                            }`}
+                          >
+                            <span className="font-bold">Face: {extDims.dim2} mm</span>
+                            <span className={`text-[10px] ${effectiveFaceExt === extDims.dim2 ? 'text-slate-300' : 'text-slate-500'}`}>
+                              Profundidade: {extDims.dim1} mm
+                            </span>
+                          </button>
+                        </div>
+                        <div className="text-[10px] text-slate-500 bg-slate-50 rounded-md p-1.5 border border-slate-200/60 mt-1">
+                          Desconto de encaixe vertical: <strong>-{effectiveFaceExt * 2} mm</strong> nas colunas.
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="text-[11px] text-slate-500 py-1">
+                        {extDims.isValid
+                          ? `Perfil quadrado simétrico (${extDims.dim1} × ${extDims.dim2} mm) — a face e profundidade são idênticas.`
+                          : 'Digite o perfil externo acima para definir a orientação.'}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Posição Metalon Interno */}
+                  <div className="bg-white border border-slate-200/80 rounded-xl p-3 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-slate-800">
+                        Posição Metalon Interno (Travessas):
+                      </span>
+                      {intDims.isValid && (
+                        <span className="text-[10px] px-2 py-0.5 rounded-full font-bold bg-slate-100 text-slate-600 border border-slate-200">
+                          {intDims.isSquare ? 'Quadrado' : `${intDims.dim1}×${intDims.dim2} mm`}
+                        </span>
+                      )}
+                    </div>
+
+                    {intDims.isValid && !intDims.isSquare ? (
+                      <div className="space-y-1.5 pt-1">
+                        <p className="text-[11px] text-slate-500">
+                          Qual dimensão ficará virada para a <strong>frente (face do painel)</strong>?
+                        </p>
+                        <div className="grid grid-cols-2 gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setFaceInternoChoice(intDims.dim1)}
+                            className={`px-3 py-2 text-xs font-semibold rounded-lg border text-left transition flex flex-col ${
+                              effectiveFaceInt === intDims.dim1
+                                ? 'bg-slate-900 text-white border-slate-900 shadow-sm'
+                                : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+                            }`}
+                          >
+                            <span className="font-bold">Face: {intDims.dim1} mm</span>
+                            <span className={`text-[10px] ${effectiveFaceInt === intDims.dim1 ? 'text-slate-300' : 'text-slate-500'}`}>
+                              Profundidade: {intDims.dim2} mm
+                            </span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => setFaceInternoChoice(intDims.dim2)}
+                            className={`px-3 py-2 text-xs font-semibold rounded-lg border text-left transition flex flex-col ${
+                              effectiveFaceInt === intDims.dim2
+                                ? 'bg-slate-900 text-white border-slate-900 shadow-sm'
+                                : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+                            }`}
+                          >
+                            <span className="font-bold">Face: {intDims.dim2} mm</span>
+                            <span className={`text-[10px] ${effectiveFaceInt === intDims.dim2 ? 'text-slate-300' : 'text-slate-500'}`}>
+                              Profundidade: {intDims.dim1} mm
+                            </span>
+                          </button>
+                        </div>
+                        <div className="text-[10px] text-slate-500 bg-slate-50 rounded-md p-1.5 border border-slate-200/60 mt-1">
+                          Face visível no plano: <strong>{effectiveFaceInt} mm</strong> | Profundidade: <strong>{effectiveProfInt} mm</strong>
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="text-[11px] text-slate-500 py-1">
+                        {intDims.isValid
+                          ? `Perfil quadrado simétrico (${intDims.dim1} × ${intDims.dim2} mm) — a face e profundidade são idênticas.`
+                          : 'Digite o perfil interno acima para definir a orientação.'}
+                      </p>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
@@ -468,6 +705,8 @@ export default function App() {
               reportRef={reportRef}
             />
           </section>
+        )}
+          </>
         )}
 
       </main>
