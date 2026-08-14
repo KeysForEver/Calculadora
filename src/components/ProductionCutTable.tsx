@@ -4,6 +4,7 @@ import { MetalonInput } from '../types';
 export interface ProductionCutTableProps {
   input: MetalonInput;
   dateStr?: string;
+  source?: 'gemini' | 'calculator';
 }
 
 interface PieceToCut {
@@ -116,7 +117,7 @@ interface TablePageChunk {
   showGuidance: boolean;
 }
 
-export const ProductionCutTable: React.FC<ProductionCutTableProps> = ({ input, dateStr }) => {
+export const ProductionCutTable: React.FC<ProductionCutTableProps> = ({ input, dateStr, source }) => {
   const { largura, altura, perfilExterno, perfilInterno, perfil, vaoMaximo, vaoMaxHoriz, vaoMaxVert } = input;
 
   const extProfile = parseProfileName(perfilExterno || perfil || '30 x 30 mm');
@@ -294,14 +295,26 @@ export const ProductionCutTable: React.FC<ProductionCutTableProps> = ({ input, d
           <div>
             {/* Header */}
             <div className="border-b-2 border-slate-900 pb-3 mb-6 flex items-end justify-between">
-              <h1 className="text-3xl sm:text-4xl font-extrabold text-slate-900 font-poppins tracking-tight">
-                SKYMÍDIA
-              </h1>
+              <div className="flex items-baseline gap-3">
+                <h1 className="text-3xl sm:text-4xl font-extrabold text-slate-900 font-poppins tracking-tight">
+                  SKYMÍDIA
+                </h1>
+                {source === 'gemini' && (
+                  <span className="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-900 text-white tracking-wide uppercase">
+                    ✦ IA Gemini
+                  </span>
+                )}
+              </div>
               {dateStr && (
-                <div className="text-right">
+                <div className="text-right flex flex-col items-end">
                   <span className="text-xs sm:text-sm font-semibold text-slate-700 block">
                     {dateStr}
                   </span>
+                  {source === 'gemini' && (
+                    <span className="sm:hidden inline-block text-[10px] font-bold text-slate-700">
+                      ✦ IA Gemini
+                    </span>
+                  )}
                 </div>
               )}
             </div>

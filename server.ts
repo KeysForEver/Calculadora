@@ -152,7 +152,7 @@ OBRIGATÓRIO: Na Seção 4, exiba APENAS a tabela comparativa dos 3 cenários, s
     // Attempt Gemini call if GEMINI_API_KEY is defined
     const geminiInfo = getGeminiClient();
     if (geminiInfo) {
-      const candidateModels = ["gemini-3.7-flash", "gemini-flash-latest"];
+      const candidateModels = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash", "gemini-3.7-flash"];
       for (const modelName of candidateModels) {
         try {
           const response = await geminiInfo.client.models.generateContent({

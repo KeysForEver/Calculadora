@@ -16,16 +16,28 @@ interface ReportViewerProps {
   reportRef: React.RefObject<HTMLDivElement | null>;
 }
 
-const ReportHeader: React.FC<{ dateStr?: string }> = ({ dateStr }) => (
+const ReportHeader: React.FC<{ dateStr?: string; source?: 'gemini' | 'calculator' }> = ({ dateStr, source }) => (
   <div className="border-b-2 border-slate-900 pb-3 mb-6 flex items-end justify-between">
-    <h1 className="text-3xl sm:text-4xl font-extrabold text-slate-900 font-poppins tracking-tight">
-      SKYMÍDIA
-    </h1>
+    <div className="flex items-baseline gap-3">
+      <h1 className="text-3xl sm:text-4xl font-extrabold text-slate-900 font-poppins tracking-tight">
+        SKYMÍDIA
+      </h1>
+      {source === 'gemini' && (
+        <span className="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-900 text-white tracking-wide uppercase">
+          ✦ IA Gemini
+        </span>
+      )}
+    </div>
     {dateStr && (
-      <div className="text-right">
+      <div className="text-right flex flex-col items-end">
         <span className="text-xs sm:text-sm font-semibold text-slate-700 block">
           {dateStr}
         </span>
+        {source === 'gemini' && (
+          <span className="sm:hidden inline-block text-[10px] font-bold text-slate-700">
+            ✦ IA Gemini
+          </span>
+        )}
       </div>
     )}
   </div>
@@ -91,7 +103,7 @@ export const ReportViewer: React.FC<ReportViewerProps> = ({
       {/* Page 1: Header + Technical Considerations + Sections 1 & 2 + Footer */}
       <div className="pdf-page bg-white flex flex-col justify-between min-h-[960px] sm:min-h-[1000px]">
         <div>
-          <ReportHeader dateStr={dateStr} />
+          <ReportHeader dateStr={dateStr} source={source} />
           <div className="report-content prose prose-slate max-w-none my-2">
             <ReactMarkdown
               remarkPlugins={[remarkGfm, remarkMath]}
@@ -116,7 +128,7 @@ export const ReportViewer: React.FC<ReportViewerProps> = ({
           style={{ pageBreakBefore: 'always', breakBefore: 'page' }}
         >
           <div>
-            <ReportHeader dateStr={dateStr} />
+            <ReportHeader dateStr={dateStr} source={source} />
             <div className="report-content prose prose-slate max-w-none my-2">
               <ReactMarkdown
                 remarkPlugins={[remarkGfm, remarkMath]}
@@ -141,7 +153,7 @@ export const ReportViewer: React.FC<ReportViewerProps> = ({
         style={{ pageBreakBefore: 'always', breakBefore: 'page' }}
       >
         <div>
-          <ReportHeader dateStr={dateStr} />
+          <ReportHeader dateStr={dateStr} source={source} />
           <div className="my-2">
             <StructureVisualizer input={input} />
           </div>
@@ -155,7 +167,7 @@ export const ReportViewer: React.FC<ReportViewerProps> = ({
         style={{ pageBreakBefore: 'always', breakBefore: 'page' }}
       >
         <div>
-          <ReportHeader dateStr={dateStr} />
+          <ReportHeader dateStr={dateStr} source={source} />
           <div className="my-2">
             <TechnicalProjectDrawing input={input} />
           </div>
@@ -164,7 +176,7 @@ export const ReportViewer: React.FC<ReportViewerProps> = ({
       </div>
 
       {/* Page 5+: Section 7 (Tabela de Corte de Barras para a Produção) - Auto-paginated */}
-      <ProductionCutTable input={input} dateStr={dateStr} />
+      <ProductionCutTable input={input} dateStr={dateStr} source={source} />
     </div>
   );
 };
