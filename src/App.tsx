@@ -96,7 +96,7 @@ export default function App() {
 
     try {
       setIsProcessing(true);
-      setStatusMessage('Calculando estrutura com a IA Gemini...');
+      setStatusMessage('Calculando...');
 
       let markdownData = '';
       let dateString = getPortugueseDate();
@@ -364,12 +364,12 @@ export default function App() {
                 {isProcessing ? (
                   <>
                     <Loader2 className="w-5 h-5 animate-spin text-slate-300" />
-                    <span>{statusMessage || 'Calculando estrutura...'}</span>
+                    <span>{statusMessage || 'Calculando...'}</span>
                   </>
                 ) : (
                   <>
                     <Calculator className="w-5 h-5 text-slate-300" />
-                    <span>Calcular e Gerar Relatório</span>
+                    <span>Calcular</span>
                   </>
                 )}
               </button>
