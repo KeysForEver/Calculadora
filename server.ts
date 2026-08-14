@@ -153,15 +153,28 @@ OBRIGATÓRIO: Na Seção 4, exiba APENAS a tabela comparativa dos 3 cenários, s
     const geminiInfo = getGeminiClient();
     if (!geminiInfo) {
       return res.status(502).json({
-        error: "Chave GEMINI_API_KEY não configurada no servidor. O relatório e o PDF não foram gerados.",
+        error: "Erro de processamento, contate o administrador do sistema.",
         geminiStatus: "failed"
       });
     }
 
-    const candidateModels = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash", "gemini-3.7-flash"];
+    // Candidate models ordered for optimal quality with automatic quota fallback
+    const candidateModels = [
+      "gemini-3.7-flash",
+      "gemini-3.5-flash",
+      "gemini-3.5-flash-lite",
+      "gemini-3.1-flash-lite",
+      "gemini-3-flash",
+      "gemini-2.5-flash",
+      "gemini-2.5-flash-lite",
+      "gemini-flash-latest"
+    ];
     let lastGeminiError: string | null = null;
+    let successfulModel: string | null = null;
+
     for (const modelName of candidateModels) {
       try {
+        console.log(`[Gemini Request] Attempting calculation with model: ${modelName}`);
         const response = await geminiInfo.client.models.generateContent({
           model: modelName,
           contents: prompt,
@@ -176,28 +189,31 @@ OBRIGATÓRIO: Na Seção 4, exiba APENAS a tabela comparativa dos 3 cenários, s
           cleanedText = cleanedText.replace(/\|\s*Metragem Comprada[^\n|]*/gi, '');
           cleanedText = cleanedText.replace(/\|\s*Avalia[çc][ãa]o de Custo[^\n|]*/gi, '');
           cleanedText = cleanedText.replace(/(?:---|##)\s*#*\s*[567]\..*$/si, '').trim();
+          successfulModel = modelName;
+          console.log(`[Gemini Success] Successfully generated report using model: ${modelName}`);
           return res.json({
             markdown: cleanedText,
             source: "gemini",
+            modelUsed: successfulModel,
             date: dateFormatted,
             geminiStatus: "success"
           });
         }
       } catch (geminiErr: any) {
         lastGeminiError = geminiErr?.message || String(geminiErr);
-        console.warn(`Gemini model ${modelName} warning:`, geminiErr);
+        console.warn(`[Gemini Fallback] Model ${modelName} returned error or quota limit reached. Switching to next model... Reason:`, geminiErr?.message || geminiErr);
       }
     }
 
     // Strict Enforcement: Return error to client if Gemini fails
     return res.status(502).json({
-      error: `Falha ao processar o cálculo via IA Gemini: ${lastGeminiError || 'Os modelos do Gemini não responderam'}. O relatório e o PDF não foram gerados.`,
+      error: "Erro de processamento, contate o administrador do sistema.",
       geminiStatus: "failed"
     });
 
   } catch (error: any) {
     console.error("Error in /api/calculate:", error);
-    res.status(500).json({ error: error?.message || "Erro interno no servidor ao calcular metalon." });
+    res.status(500).json({ error: "Erro de processamento, contate o administrador do sistema." });
   }
 });
 

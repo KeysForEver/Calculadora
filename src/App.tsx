@@ -109,7 +109,7 @@ export default function App() {
       });
 
       if (!response.ok) {
-        let errDetails = 'Erro na resposta da API';
+        let errDetails = 'Erro de processamento, contate o administrador do sistema.';
         try {
           const errData = await response.json();
           if (errData?.error) errDetails = errData.error;
@@ -119,7 +119,7 @@ export default function App() {
 
       const data = await response.json();
       if (!data?.markdown) {
-        throw new Error(data?.error || 'A API do Gemini não retornou o texto do relatório.');
+        throw new Error(data?.error || 'Erro de processamento, contate o administrador do sistema.');
       }
 
       markdownData = data.markdown;
@@ -148,7 +148,7 @@ export default function App() {
       }, 100);
     } catch (err: any) {
       console.error(err);
-      setErrorMsg(err?.message || 'Falha ao processar o cálculo. Tente novamente.');
+      setErrorMsg(err?.message || 'Erro de processamento, contate o administrador do sistema.');
     } finally {
       setIsProcessing(false);
       setIsGeneratingPDF(false);

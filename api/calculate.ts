@@ -465,7 +465,17 @@ Responda em formato Markdown estruturado contendo estritamente:
 (Na Seção 4, exiba apenas as 3 colunas principais: se mesmo perfil -> | Cenário / Método de Corte | Pontos de Solda / Emendas | Total de Barras (6m) |; se perfis diferentes -> | Cenário / Método de Corte | Perfil Externo | Perfil Interno | Total de Barras (6m) |. Não inclua nenhuma coluna de Avaliação de Custo nem Metragem Comprada. Finalize o relatório após a Seção 4).
 `;
 
-      const candidateModels = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash", "gemini-3.7-flash"];
+      // Candidate models ordered for optimal quality with automatic quota fallback
+      const candidateModels = [
+        "gemini-3.7-flash",
+        "gemini-3.5-flash",
+        "gemini-3.5-flash-lite",
+        "gemini-3.1-flash-lite",
+        "gemini-3-flash",
+        "gemini-2.5-flash",
+        "gemini-2.5-flash-lite",
+        "gemini-flash-latest"
+      ];
       for (const modelName of candidateModels) {
         try {
           const rawText = await callGeminiRestApi(apiKey, prompt, modelName);
@@ -477,13 +487,14 @@ Responda em formato Markdown estruturado contendo estritamente:
             return res.status(200).json({
               markdown: cleanedText,
               source: "gemini",
+              modelUsed: modelName,
               date: dateFormatted,
               geminiStatus: "success"
             });
           }
         } catch (mErr: any) {
           geminiApiError = mErr?.message || String(mErr);
-          console.warn(`Model ${modelName} call exception:`, mErr);
+          console.warn(`[Gemini Fallback] Model ${modelName} call exception:`, mErr);
         }
       }
     } else {
@@ -492,13 +503,13 @@ Responda em formato Markdown estruturado contendo estritamente:
 
     // Strict Enforcement: No fallback report generation. Return error to client so no PDF/report is generated.
     return res.status(502).json({
-      error: `Falha ao processar o cálculo via IA Gemini: ${geminiApiError || 'Os modelos do Gemini não responderam ou a cota está indisponível'}. O relatório e o PDF não foram gerados.`,
+      error: "Erro de processamento, contate o administrador do sistema.",
       geminiStatus: "failed"
     });
   } catch (err: any) {
     console.error("Critical calculation handler error:", err);
     return res.status(500).json({
-      error: `Erro ao comunicar com a API do Gemini: ${err?.message || String(err)}. O cálculo não pôde ser concluído.`,
+      error: "Erro de processamento, contate o administrador do sistema.",
       geminiStatus: "error"
     });
   }
