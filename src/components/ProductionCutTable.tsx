@@ -200,86 +200,25 @@ export const ProductionCutTable: React.FC<ProductionCutTableProps> = ({ input, d
     allBars = [...resExt.bars, ...resInt.bars];
   }
 
-  // Calculate totals & welding stats
-  const totalBarsCount = allBars.length;
-  const totalAvailableMeterage = totalBarsCount * 6.0;
-  const totalUsedMeterage = allBars.reduce((acc, bar) => acc + bar.usedLength, 0);
-  const totalRemainingMeterage = allBars.reduce((acc, bar) => acc + bar.remainingLength, 0);
-  const globalEfficiency = totalAvailableMeterage > 0 ? (totalUsedMeterage / totalAvailableMeterage) * 100 : 0;
-
-  // Calculate base long piece welds (>6m)
-  const horizSplicesPerPiece = Math.floor(largura / 6.0);
-  const vertSplicesPerPiece = Math.floor(vertCutM / 6.0);
-  const totalWelds = (linhasHorizontais * horizSplicesPerPiece) + (colunasVerticais * vertSplicesPerPiece);
-
-  // Divide bars into clean pages so nothing is squeezed or shrunk
+  // Divide bars into clean pages (approx 12-14 bars per page without cards/boxes)
+  const rowsPerPage = 12;
   const chunks: TablePageChunk[] = React.useMemo(() => {
     const result: TablePageChunk[] = [];
-    
-    // If table fits on 1 page comfortably (<= 6 bars)
-    if (allBars.length <= 6) {
+    const totalPages = Math.ceil(allBars.length / rowsPerPage) || 1;
+
+    for (let p = 0; p < totalPages; p++) {
+      const start = p * rowsPerPage;
+      const end = start + rowsPerPage;
       result.push({
-        pageIndex: 0,
-        totalChunks: 1,
-        isFirst: true,
-        isLast: true,
-        bars: allBars,
-        showKPIs: true,
-        showGuidance: true,
+        pageIndex: p,
+        totalChunks: totalPages,
+        isFirst: p === 0,
+        isLast: p === totalPages - 1,
+        bars: allBars.slice(start, end),
+        showKPIs: false,
+        showGuidance: false,
       });
-      return result;
     }
-
-    // First page holds KPIs + 7 bars
-    const firstPageCount = 7;
-    result.push({
-      pageIndex: 0,
-      totalChunks: 1,
-      isFirst: true,
-      isLast: false,
-      bars: allBars.slice(0, firstPageCount),
-      showKPIs: true,
-      showGuidance: false,
-    });
-
-    let currentIdx = firstPageCount;
-    let pageCount = 1;
-
-    while (currentIdx < allBars.length) {
-      const remainingBars = allBars.length - currentIdx;
-      // If remaining bars <= 7, they fit with guidance box on the final page
-      if (remainingBars <= 7) {
-        result.push({
-          pageIndex: pageCount++,
-          totalChunks: 1,
-          isFirst: false,
-          isLast: true,
-          bars: allBars.slice(currentIdx),
-          showKPIs: false,
-          showGuidance: true,
-        });
-        break;
-      } else {
-        // Intermediate page holds up to 9 bars
-        const take = Math.min(9, remainingBars);
-        const isFinal = (currentIdx + take >= allBars.length);
-        result.push({
-          pageIndex: pageCount++,
-          totalChunks: 1,
-          isFirst: false,
-          isLast: isFinal,
-          bars: allBars.slice(currentIdx, currentIdx + take),
-          showKPIs: false,
-          showGuidance: isFinal,
-        });
-        currentIdx += take;
-      }
-    }
-
-    const total = result.length;
-    result.forEach((c) => {
-      c.totalChunks = total;
-    });
 
     return result;
   }, [allBars]);
@@ -322,102 +261,56 @@ export const ProductionCutTable: React.FC<ProductionCutTableProps> = ({ input, d
             <div className="space-y-4 my-2">
               {/* Section Title */}
               <div className="border-b border-slate-200 pb-2">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-lg sm:text-xl font-bold text-slate-900 flex items-center gap-2">
-                    <span className="text-[#707579]">7.</span>
-                    Tabela de Corte de Barras para a Produção
-                    {chunk.totalChunks > 1 && (
-                      <span className="text-sm font-medium text-slate-500">
-                        (Página {chunk.pageIndex + 1} de {chunk.totalChunks})
-                      </span>
-                    )}
-                  </h3>
-                  <span className="text-xs font-bold uppercase tracking-wider bg-slate-900 text-white px-3 py-1 rounded-md">
-                    Chão de Fábrica
-                  </span>
-                </div>
+                <h3 className="text-lg sm:text-xl font-bold text-slate-900 flex items-center gap-2">
+                  <span className="text-[#707579]">7.</span>
+                  Tabela de Corte de Barras para a Produção
+                  {chunk.totalChunks > 1 && (
+                    <span className="text-sm font-normal text-slate-500">
+                      (Página {chunk.pageIndex + 1} de {chunk.totalChunks})
+                    </span>
+                  )}
+                </h3>
               </div>
 
-              {/* KPI Cards Header on first page */}
-              {chunk.showKPIs && (
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2.5 text-xs">
-                  <div className="bg-slate-50 border border-slate-200 p-3 rounded-lg">
-                    <span className="text-slate-500 font-medium block text-xs">Total de Barras (6m):</span>
-                    <strong className="text-slate-900 text-lg font-extrabold">{totalBarsCount} barras</strong>
-                  </div>
-                  <div className="bg-slate-50 border border-slate-200 p-3 rounded-lg">
-                    <span className="text-slate-500 font-medium block text-xs">Metragem Utilizada:</span>
-                    <strong className="text-blue-700 text-lg font-extrabold">{totalUsedMeterage.toFixed(2)} m</strong>
-                  </div>
-                  <div className="bg-slate-50 border border-slate-200 p-3 rounded-lg">
-                    <span className="text-slate-500 font-medium block text-xs">Sobra Total (Retalhos):</span>
-                    <strong className="text-amber-700 text-lg font-extrabold">{totalRemainingMeterage.toFixed(2)} m</strong>
-                  </div>
-                  <div className="bg-slate-50 border border-slate-200 p-3 rounded-lg">
-                    <span className="text-slate-500 font-medium block text-xs">Pontos de Solda / Emendas:</span>
-                    <strong className="text-purple-700 text-lg font-extrabold">{totalWelds} solda(s)</strong>
-                  </div>
-                  <div className="bg-slate-50 border border-slate-200 p-3 rounded-lg">
-                    <span className="text-slate-500 font-medium block text-xs">Aproveitamento Global:</span>
-                    <strong className="text-emerald-700 text-lg font-extrabold">{globalEfficiency.toFixed(1)}%</strong>
-                  </div>
-                </div>
-              )}
-
-              {/* Main Table for Production with Normal Readable Font */}
-              <div className="overflow-x-auto bg-white border border-slate-200 rounded-xl shadow-sm">
-                <table className="w-full text-left text-sm border-collapse">
+              {/* Main Table for Production - Clean Table matching Section 4 */}
+              <div className="overflow-x-auto my-2">
+                <table className="w-full text-left text-sm border-collapse border border-slate-300">
                   <thead>
-                    <tr className="bg-slate-100 text-slate-800 border-b border-slate-200 font-bold uppercase text-xs tracking-wider">
-                      <th className="py-3 px-3.5 w-28 text-center">N° Barra</th>
-                      <th className="py-3 px-3.5 w-44">Perfil Metalon</th>
-                      <th className="py-3 px-3.5">Peças a Cortar / Gabarito</th>
-                      <th className="py-3 px-3.5 w-32 text-right">Uso Total</th>
-                      <th className="py-3 px-3.5 w-36 text-right">Sobra Restante</th>
+                    <tr className="bg-slate-100 text-slate-900 border-b border-slate-300 font-bold">
+                      <th className="py-2.5 px-3 text-center border-r border-slate-300 w-24">N° Barra</th>
+                      <th className="py-2.5 px-3 border-r border-slate-300 w-44">Perfil Metalon</th>
+                      <th className="py-2.5 px-3 border-r border-slate-300">Peças a Cortar / Gabarito</th>
+                      <th className="py-2.5 px-3 text-right border-r border-slate-300 w-28">Uso Total</th>
+                      <th className="py-2.5 px-3 text-right w-32">Sobra Restante</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-200">
+                  <tbody className="divide-y divide-slate-300">
                     {chunk.bars.map((bar) => {
-                      const hasRemaining = bar.remainingLength > 0.005;
+                      const pecasTexto = bar.pieces
+                        .map((p) => `1x ${p.description} (${p.length.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} m)`)
+                        .join(' + ');
+
+                      const usoFormatado = `${bar.usedLength.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} m`;
+                      const sobraFormatada = bar.remainingLength > 0.001
+                        ? `${bar.remainingLength.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} m`
+                        : '0,00 m';
+
                       return (
-                        <tr key={`bar-${bar.barNumber}`} className="hover:bg-slate-50/80 transition-colors">
-                          <td className="py-2.5 px-3.5 text-center">
-                            <span className="inline-flex items-center justify-center font-mono font-bold bg-slate-900 text-white px-2.5 py-1 rounded text-xs">
-                              Barra {String(bar.barNumber).padStart(2, '0')}
-                            </span>
+                        <tr key={`bar-${bar.barNumber}`} className="border-b border-slate-200">
+                          <td className="py-2.5 px-3 text-center font-medium text-slate-900 border-r border-slate-300">
+                            Barra {String(bar.barNumber).padStart(2, '0')}
                           </td>
-                          <td className="py-2.5 px-3.5 font-semibold text-slate-800 text-sm">
+                          <td className="py-2.5 px-3 text-slate-900 border-r border-slate-300">
                             {bar.profileName}
                           </td>
-                          <td className="py-2.5 px-3.5">
-                            <div className="flex flex-wrap gap-1.5 items-center">
-                              {bar.pieces.map((piece, pIdx) => (
-                                <span
-                                  key={`p-${bar.barNumber}-${pIdx}`}
-                                  className={`inline-flex items-center gap-1 px-2.5 py-1 rounded border text-xs font-medium ${
-                                    piece.type === 'Horizontal'
-                                      ? 'bg-blue-50 text-blue-800 border-blue-200'
-                                      : 'bg-amber-50 text-amber-800 border-amber-200'
-                                  }`}
-                                >
-                                  <strong>{piece.description}:</strong> {piece.length.toFixed(2)} m
-                                </span>
-                              ))}
-                            </div>
+                          <td className="py-2.5 px-3 text-slate-800 border-r border-slate-300">
+                            {pecasTexto}
                           </td>
-                          <td className="py-2.5 px-3.5 text-right font-mono font-bold text-slate-900 text-sm">
-                            {bar.usedLength.toFixed(2)} m
+                          <td className="py-2.5 px-3 text-right font-medium text-slate-900 border-r border-slate-300">
+                            {usoFormatado}
                           </td>
-                          <td className="py-2.5 px-3.5 text-right">
-                            {hasRemaining ? (
-                              <span className="inline-block font-mono font-bold bg-amber-100 text-amber-900 border border-amber-300 px-2.5 py-1 rounded text-xs">
-                                {bar.remainingLength.toFixed(2)} m
-                              </span>
-                            ) : (
-                              <span className="text-slate-400 font-medium text-xs">
-                                0,00 m (Sem sobra)
-                              </span>
-                            )}
+                          <td className="py-2.5 px-3 text-right text-slate-900">
+                            {sobraFormatada}
                           </td>
                         </tr>
                       );
@@ -425,36 +318,6 @@ export const ProductionCutTable: React.FC<ProductionCutTableProps> = ({ input, d
                   </tbody>
                 </table>
               </div>
-
-              {/* Production Guidance & Cost Logic Box on last page of section 7 */}
-              {chunk.showGuidance && (
-                <div className="p-3.5 bg-blue-50/80 border border-blue-200 rounded-xl text-xs sm:text-sm text-blue-950 leading-relaxed font-medium space-y-2">
-                  <div className="font-bold text-blue-900 flex items-center gap-1.5 text-sm">
-                    <span>⚡</span>
-                    <span>Critério de Otimização de Custo e Soldagem:</span>
-                  </div>
-                  <p className="text-xs sm:text-sm text-blue-900 leading-normal">
-                    <strong>1. Prioridade Absoluta:</strong> Menor número total de barras de 6m compradas no projeto (redução direta do custo de matéria-prima).<br />
-                    <strong>2. Prioridade Secundária:</strong> Menor número de pontos de solda / emendas adicionais. Se o <em>Cenário 2 (Sem Emenda)</em> resultar na mesma quantidade de barras que o <em>Cenário 3 (Com Emenda)</em>, o Cenário 2 é preferido por eliminar a mão de obra de soldagem.
-                  </p>
-
-                  <div className="font-bold text-blue-900 pt-1 flex items-center gap-1.5 border-t border-blue-200 text-sm">
-                    <span>🛠️</span>
-                    <span>Instruções para Chão de Fábrica e Corte:</span>
-                  </div>
-                  <ul className="list-disc list-inside space-y-1 text-xs sm:text-sm text-blue-900">
-                    <li>
-                      Identifique cada barra de 6m com giz ou etiqueta correspondente ao número da barra (ex: <strong>B-01</strong>, <strong>B-02</strong>) antes de efetuar os cortes.
-                    </li>
-                    <li>
-                      Considere a espessura do disco de corte (aproximadamente 2 mm a 3 mm por corte) ao traçar as medidas na barra.
-                    </li>
-                    <li>
-                      Guarde e identifique os retalhos de sobra para aproveitamento conforme a indicação do plano de corte.
-                    </li>
-                  </ul>
-                </div>
-              )}
             </div>
           </div>
 

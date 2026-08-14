@@ -94,43 +94,35 @@ export default function App() {
 
     try {
       setIsProcessing(true);
-      setStatusMessage('Processando...');
+      setStatusMessage('Calculando estrutura com a IA Gemini...');
 
       let markdownData = '';
       let dateString = getPortugueseDate();
-      let sourceTag: 'gemini' | 'calculator' = 'calculator';
+      let sourceTag: 'gemini' | 'calculator' = 'gemini';
 
-      try {
-        const response = await fetch('/api/calculate', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(inputData),
-        });
+      const response = await fetch('/api/calculate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(inputData),
+      });
 
-        if (response.ok) {
-          const data = await response.json();
-          markdownData = data.markdown;
-          if (data.date) dateString = data.date;
-          if (data.source) sourceTag = data.source;
-        } else {
-          console.warn(`API returned status ${response.status}, utilizing local high-precision calculation engine.`);
-        }
-      } catch (networkOrApiErr) {
-        console.warn('API endpoint unreachable, utilizing local high-precision calculation engine:', networkOrApiErr);
+      if (!response.ok) {
+        let errDetails = 'Erro na resposta da API';
+        try {
+          const errData = await response.json();
+          if (errData?.error) errDetails = errData.error;
+        } catch (_) {}
+        throw new Error(errDetails);
       }
 
-      // If API did not return markdown (e.g. 404 on static Vercel build or offline), generate via local calculator
-      if (!markdownData) {
-        markdownData = generateReportMarkdown(
-          numLargura,
-          numAltura,
-          perfilExterno.trim(),
-          finalPerfilInterno,
-          numVaoHoriz,
-          numVaoVert
-        );
-        sourceTag = 'calculator';
+      const data = await response.json();
+      if (!data?.markdown) {
+        throw new Error(data?.error || 'A API do Gemini não retornou o texto do relatório.');
       }
+
+      markdownData = data.markdown;
+      if (data.date) dateString = data.date;
+      sourceTag = 'gemini';
 
       const newResult: CalculationResult = {
         id: Date.now().toString(),

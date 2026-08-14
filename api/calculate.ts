@@ -196,6 +196,11 @@ function generateReportMarkdown(
   let extScenario1 = 0, extScenario2 = 0, extScenario3 = 0;
   let intScenario1 = 0, intScenario2 = 0, intScenario3 = 0;
 
+  const totalMetragemLinear = Number((metragemExtTotal + metragemIntTotal).toFixed(2));
+  const teoricoBarrasGeral = (totalMetragemLinear / 6.0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const widthFormatted = largura.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const heightFormatted = altura.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
   if (isSameProfile) {
     const allPieces: PieceToCut[] = [
       ...Array(linhasHorizontais).fill(0).map((_, i) => ({ type: 'Horizontal' as const, length: largura, description: `Linha Horiz ${i + 1}` })),
@@ -207,21 +212,20 @@ function generateReportMarkdown(
     const optSpliceUnified = optimizePiecesPlan(allPieces);
     totalComEmendaComOpt = optSpliceUnified.totalComEmenda;
 
-    if (optSpliceUnified.full6mBarsCount > 0) {
-      planoDeCorteTexto += `- **Barras de 6m inteiras:** ${optSpliceUnified.full6mBarsCount} barra(s) de ${profileExt.name}.\n`;
-    }
-    if (optSpliceUnified.allocatedBars.length > 0) {
-      planoDeCorteTexto += `- **Barras fracionadas com corte otimizado (${optSpliceUnified.allocatedBars.length} barra(s)):**\n`;
-      optSpliceUnified.allocatedBars.forEach((bar, index) => {
-        const pecasDesc = bar.pieces
-          .map((p) => `${p.type === "Horizontal" ? "1x Horiz" : "1x Vert"} (${p.length.toLocaleString("pt-BR")} m)`)
-          .join(" + ");
-        const sobraStr = bar.remainingLength > 0 
-          ? ` -> **Sobra:** ${bar.remainingLength.toLocaleString("pt-BR")} m`
-          : ` -> **Sem sobra**`;
-        planoDeCorteTexto += `  - *Barra ${index + 1}:* ${pecasDesc}${sobraStr}\n`;
-      });
-    }
+    planoDeCorteTexto = `### Memória de Cálculo e Lógica de Otimização
+
+- **Demanda Linear e Consumo Teórico:**
+  - **Metragem Linear Total:** ${totalMetragemLinear.toLocaleString("pt-BR")} m (${linhasHorizontais} linhas horizontais de ${widthFormatted} m + ${colunasVerticais} colunas verticais de ${vertCutLength.toLocaleString("pt-BR")} m).
+  - **Consumo Teórico Mínimo:** ${teoricoBarrasGeral} barras comerciais de 6,00 m (sem considerar perdas de ponta).
+
+- **Estratégia de Recombinação de Retalhos (Bin-Packing):**
+  - As peças mais longas (${linhasHorizontais} linhas de ${widthFormatted} m) são priorizadas para o primeiro corte em barras novas de 6,00 m.
+  - As sobras de comprimento útil geradas em cada barra são imediatamente combinadas para cortar as colunas verticais menores (${vertCutLength.toLocaleString("pt-BR")} m), evitando a abertura desnecessária de barras adicionais.
+  - O detalhamento peça a peça de cada barra está consolidado na **Tabela de Corte de Barras para a Produção**.
+
+- **Critério de Avaliação Técnica (Emenda vs. Mão de Obra):**
+  - **Cenário Sem Emenda (Peças Inteiras):** Mantém as barras cortadas em peças integrais sem soldas de união em peças longas, reduzindo tempo de fabricação e acabamento.
+  - **Cenário Com Emenda (Otimização Máxima):** Permite reaproveitamento de retalhos com solda para alcançar o menor volume de compra de aço comercial quando houver economia efetiva de barras.`;
   } else {
     const piecesExt: PieceToCut[] = [
       ...Array(horizExtCount).fill(0).map((_, i) => ({ type: 'Horizontal' as const, length: largura, description: `Horiz Borda ${i + 1}` })),
@@ -246,37 +250,23 @@ function generateReportMarkdown(
     totalSemEmendaComOpt = extScenario2 + intScenario2;
     totalComEmendaComOpt = extScenario3 + intScenario3;
 
-    planoDeCorteTexto += `### A) Perfil Metalon Externo (${profileExt.name})\n`;
-    planoDeCorteTexto += `* Metragem total da borda: **${metragemExtTotal.toLocaleString("pt-BR")} m** (Consumo Otimizado: **${optExtResult.totalComEmenda} barra(s) de 6m**)\n`;
-    if (optExtResult.full6mBarsCount > 0) {
-      planoDeCorteTexto += `- **Barras de 6m inteiras:** ${optExtResult.full6mBarsCount} barra(s)\n`;
-    }
-    if (optExtResult.allocatedBars.length > 0) {
-      planoDeCorteTexto += `- **Barras fracionadas otimizadas (${optExtResult.allocatedBars.length} barra(s)):**\n`;
-      optExtResult.allocatedBars.forEach((bar, index) => {
-        const pecasDesc = bar.pieces.map((p) => `1x ${p.description} (${p.length.toLocaleString("pt-BR")} m)`).join(" + ");
-        const sobraStr = bar.remainingLength > 0 ? ` -> **Sobra:** ${bar.remainingLength.toLocaleString("pt-BR")} m` : ` -> **Sem sobra**`;
-        planoDeCorteTexto += `  - *Barra ${index + 1}:* ${pecasDesc}${sobraStr}\n`;
-      });
-    }
+    const teoricoExt = (metragemExtTotal / 6.0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const teoricoInt = (metragemIntTotal / 6.0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-    planoDeCorteTexto += `\n### B) Perfil Metalon Interno (${profileInt.name})\n`;
-    planoDeCorteTexto += `* Metragem total interna: **${metragemIntTotal.toLocaleString("pt-BR")} m** (Consumo Otimizado: **${optIntResult.totalComEmenda} barra(s) de 6m**)\n`;
-    if (optIntResult.full6mBarsCount > 0) {
-      planoDeCorteTexto += `- **Barras de 6m inteiras:** ${optIntResult.full6mBarsCount} barra(s)\n`;
-    }
-    if (optIntResult.allocatedBars.length > 0) {
-      planoDeCorteTexto += `- **Barras fracionadas otimizadas (${optIntResult.allocatedBars.length} barra(s)):**\n`;
-      optIntResult.allocatedBars.forEach((bar, index) => {
-        const pecasDesc = bar.pieces.map((p) => `1x ${p.description} (${p.length.toLocaleString("pt-BR")} m)`).join(" + ");
-        const sobraStr = bar.remainingLength > 0 ? ` -> **Sobra:** ${bar.remainingLength.toLocaleString("pt-BR")} m` : ` -> **Sem sobra**`;
-        planoDeCorteTexto += `  - *Barra ${index + 1}:* ${pecasDesc}${sobraStr}\n`;
-      });
-    }
+    planoDeCorteTexto = `### Memória de Cálculo e Lógica de Otimização
+
+- **Demanda Linear por Perfil:**
+  - **Perfil Externo (${profileExt.name}):** Metragem total de ${metragemExtTotal.toLocaleString("pt-BR")} m (${horizExtCount} linhas de ${widthFormatted} m + ${vertExtCount} colunas de ${vertCutLength.toLocaleString("pt-BR")} m) -> Consumo Teórico: ${teoricoExt} barras de 6,00 m.
+  - **Perfil Interno (${profileInt.name}):** Metragem total de ${metragemIntTotal.toLocaleString("pt-BR")} m (${horizIntCount} linhas de ${widthFormatted} m + ${vertIntCount} colunas de ${vertCutLength.toLocaleString("pt-BR")} m) -> Consumo Teórico: ${teoricoInt} barras de 6,00 m.
+
+- **Estratégia de Recombinação de Retalhos:**
+  - Os cálculos de corte são segregados por tipo de perfil para evitar misturas de bitolas na montagem.
+  - As sobras das linhas de borda externa de ${widthFormatted} m são aproveitadas para as colunas laterais (${vertCutLength.toLocaleString("pt-BR")} m); similarmente, as sobras das travessas internas são utilizadas nas colunas internas.
+  - A alocação peça a peça para cada perfil está detalhada na **Tabela de Corte de Barras para a Produção**.
+
+- **Critério de Avaliação Técnica:**
+  - Compara a redução de custo de barras no Cenário 3 contra a agilidade do Cenário 2, favorecendo o corte sem emenda quando a quantidade total de barras de 6m for equivalente.`;
   }
-
-  const widthFormatted = largura.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  const heightFormatted = altura.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
   const profileHeader = isSameProfile
     ? `- **Perfil Metalon Selecionado:** ${profileExt.name} (Face: ${extFaceMm} mm)`
@@ -437,7 +427,9 @@ export default async function handler(req: any, res: any) {
     const profileIntInfo = parseProfileInfo(perfilInt);
     const dateFormatted = getPortugueseDate();
 
-    // If Gemini key is available, call Google Gemini REST API directly
+    let geminiApiError: string | null = null;
+
+    // Call Google Gemini REST API directly
     if (hasValidKey) {
       const prompt = `Você é um engenheiro calculista e especialista em serralheria e corte de estruturas metálicas de metalon.
 Gere um relatório técnico formal, ultra-preciso, profissional e detalhado para a fabricação de uma estrutura metálica retangular em metalon.
@@ -468,6 +460,7 @@ Responda em formato Markdown estruturado contendo estritamente:
 ## 1. Estrutura Horizontal
 ## 2. Estrutura Vertical (Com Desconto do Perfil Externo)
 ## 3. Plano de Corte Otimizado (Reaproveitamento de Sobras)
+(Na Seção 3, NÃO liste barra por barra. Apresente apenas a explicação e memória de cálculo: demanda linear total, consumo teórico de barras de 6m, estratégia de reaproveitamento de sobras das linhas horizontais para cortar as colunas verticais e critério de decisão entre emenda versus sem emenda, permitindo que o usuário avalie a lógica de engenharia com clareza).
 ## 4. Resultado e Quadro Comparativo de Consumo
 (Na Seção 4, exiba apenas as 3 colunas principais: se mesmo perfil -> | Cenário / Método de Corte | Pontos de Solda / Emendas | Total de Barras (6m) |; se perfis diferentes -> | Cenário / Método de Corte | Perfil Externo | Perfil Interno | Total de Barras (6m) |. Não inclua nenhuma coluna de Avaliação de Custo nem Metragem Comprada. Finalize o relatório após a Seção 4).
 `;
@@ -488,35 +481,25 @@ Responda em formato Markdown estruturado contendo estritamente:
               geminiStatus: "success"
             });
           }
-        } catch (mErr) {
+        } catch (mErr: any) {
+          geminiApiError = mErr?.message || String(mErr);
           console.warn(`Model ${modelName} call exception:`, mErr);
         }
       }
+    } else {
+      geminiApiError = "Chave GEMINI_API_KEY não configurada no servidor.";
     }
 
-    // Deterministic mathematical fallback engine
-    const fallbackMarkdown = generateReportMarkdown(
-      numLargura,
-      numAltura,
-      perfilExt,
-      perfilInt,
-      vaoMaxHorizCm,
-      vaoMaxVertCm
-    );
-
-    return res.status(200).json({
-      markdown: fallbackMarkdown,
-      source: "calculator",
-      date: dateFormatted,
-      geminiStatus: hasValidKey ? "model_fallback" : "no_key"
+    // Strict Enforcement: No fallback report generation. Return error to client so no PDF/report is generated.
+    return res.status(502).json({
+      error: `Falha ao processar o cálculo via IA Gemini: ${geminiApiError || 'Os modelos do Gemini não responderam ou a cota está indisponível'}. O relatório e o PDF não foram gerados.`,
+      geminiStatus: "failed"
     });
   } catch (err: any) {
     console.error("Critical calculation handler error:", err);
-    return res.status(200).json({
-      markdown: "Erro temporário ao processar cálculo. Por favor, tente novamente.",
-      source: "calculator",
-      date: getPortugueseDate(),
-      error: err?.message || String(err)
+    return res.status(500).json({
+      error: `Erro ao comunicar com a API do Gemini: ${err?.message || String(err)}. O cálculo não pôde ser concluído.`,
+      geminiStatus: "error"
     });
   }
 }

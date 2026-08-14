@@ -139,7 +139,7 @@ Formato da resposta (obrigatório em Markdown):
 ---
 
 ## 3. Plano de Corte Otimizado (Reaproveitamento de Sobras)
-[Detalhe o plano de corte das barras de 6m do Cenário Otimizado. Se os perfis forem diferentes, detalhe a seção A para Perfil Externo e a seção B para Perfil Interno]
+(Na Seção 3, NÃO liste barra por barra. Apresente exclusivamente a explicação técnica e a memória de cálculo: demanda linear total, consumo teórico mínimo de barras de 6m, lógica de reaproveitamento de sobras das peças horizontais para cortar as colunas verticais menores e critérios de aproveitamento entre peças inteiras versus soldagem).
 
 ---
 
@@ -149,45 +149,50 @@ CRÍTICO: NÃO INCLUA NENHUMA COLUNA CHAMADA 'Metragem Comprada' OU 'Avaliação
 OBRIGATÓRIO: Na Seção 4, exiba APENAS a tabela comparativa dos 3 cenários, sem nenhum texto ou marcador abaixo dela. Finalize o relatório após a Seção 4.
 `;
 
-    // Attempt Gemini call if GEMINI_API_KEY is defined
+    // Call Gemini API strictly
     const geminiInfo = getGeminiClient();
-    if (geminiInfo) {
-      const candidateModels = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash", "gemini-3.7-flash"];
-      for (const modelName of candidateModels) {
-        try {
-          const response = await geminiInfo.client.models.generateContent({
-            model: modelName,
-            contents: prompt,
-            config: {
-              temperature: 0.1,
-              systemInstruction: `Você é um especialista em serralheria e cálculo de estruturas de metalon. Calcule com extrema precisão os vãos, linhas, colunas, metragens lineares e barras de 6 metros respeitando estritamente o vão máximo horizontal de ${vaoMaxHorizCm} cm (colunas) e vão máximo vertical de ${vaoMaxVertCm} cm (linhas) configurados pelo usuário. CRÍTICO E OBRIGATÓRIO: Na tabela da Seção 4, NUNCA INCLUA a coluna 'Metragem Comprada' nem 'Avaliação de Custo'. O relatório de texto termina rigorosamente após a Seção 4. Responda rigorosamente no formato especificado em Markdown.`,
-            },
-          });
+    if (!geminiInfo) {
+      return res.status(502).json({
+        error: "Chave GEMINI_API_KEY não configurada no servidor. O relatório e o PDF não foram gerados.",
+        geminiStatus: "failed"
+      });
+    }
 
-          if (response && response.text) {
-            let cleanedText = response.text;
-            cleanedText = cleanedText.replace(/\|\s*Metragem Comprada[^\n|]*/gi, '');
-            cleanedText = cleanedText.replace(/\|\s*Avalia[çc][ãa]o de Custo[^\n|]*/gi, '');
-            cleanedText = cleanedText.replace(/(?:---|##)\s*#*\s*[567]\..*$/si, '').trim();
-            return res.json({
-              markdown: cleanedText,
-              source: "gemini",
-              date: dateFormatted,
-              geminiStatus: "success"
-            });
-          }
-        } catch (geminiErr) {
-          console.warn(`Gemini model ${modelName} warning:`, geminiErr);
+    const candidateModels = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash", "gemini-3.7-flash"];
+    let lastGeminiError: string | null = null;
+    for (const modelName of candidateModels) {
+      try {
+        const response = await geminiInfo.client.models.generateContent({
+          model: modelName,
+          contents: prompt,
+          config: {
+            temperature: 0.1,
+            systemInstruction: `Você é um especialista em serralheria e cálculo de estruturas de metalon. Calcule com extrema precisão os vãos, linhas, colunas, metragens lineares e barras de 6 metros respeitando estritamente o vão máximo horizontal de ${vaoMaxHorizCm} cm (colunas) e vão máximo vertical de ${vaoMaxVertCm} cm (linhas) configurados pelo usuário. CRÍTICO E OBRIGATÓRIO: Na tabela da Seção 4, NUNCA INCLUA a coluna 'Metragem Comprada' nem 'Avaliação de Custo'. O relatório de texto termina rigorosamente após a Seção 4. Responda rigorosamente no formato especificado em Markdown.`,
+          },
+        });
+
+        if (response && response.text) {
+          let cleanedText = response.text;
+          cleanedText = cleanedText.replace(/\|\s*Metragem Comprada[^\n|]*/gi, '');
+          cleanedText = cleanedText.replace(/\|\s*Avalia[çc][ãa]o de Custo[^\n|]*/gi, '');
+          cleanedText = cleanedText.replace(/(?:---|##)\s*#*\s*[567]\..*$/si, '').trim();
+          return res.json({
+            markdown: cleanedText,
+            source: "gemini",
+            date: dateFormatted,
+            geminiStatus: "success"
+          });
         }
+      } catch (geminiErr: any) {
+        lastGeminiError = geminiErr?.message || String(geminiErr);
+        console.warn(`Gemini model ${modelName} warning:`, geminiErr);
       }
     }
 
-    // Fallback deterministic calculation if Gemini API key is missing or errored
-    const fallbackMarkdown = generateReportMarkdown(numLargura, numAltura, perfilExtStr, perfilIntStr, vaoMaxHorizCm, vaoMaxVertCm);
-    return res.json({
-      markdown: fallbackMarkdown,
-      source: "calculator",
-      date: dateFormatted
+    // Strict Enforcement: Return error to client if Gemini fails
+    return res.status(502).json({
+      error: `Falha ao processar o cálculo via IA Gemini: ${lastGeminiError || 'Os modelos do Gemini não responderam'}. O relatório e o PDF não foram gerados.`,
+      geminiStatus: "failed"
     });
 
   } catch (error: any) {
