@@ -40,14 +40,14 @@ export const TechnicalProjectDrawing: React.FC<TechnicalProjectDrawingProps> = (
 
   const extFaceMm = Math.round(profileExt.faceSizeM * 1000);
 
-  // Canvas setup for drawing
-  const svgWidth = 620;
-  const svgHeight = 150;
+  // Spacious SVG dimensions for clear visual blueprints
+  const svgWidth = 640;
+  const svgHeight = 175;
 
-  const padLeft = 60;
-  const padRight = 35;
-  const padTop = 26;
-  const padBottom = 22;
+  const padLeft = 65;
+  const padRight = 40;
+  const padTop = 28;
+  const padBottom = 24;
 
   const availWidth = svgWidth - padLeft - padRight;
   const availHeight = svgHeight - padTop - padBottom;
@@ -74,7 +74,7 @@ export const TechnicalProjectDrawing: React.FC<TechnicalProjectDrawingProps> = (
             <path d="M 20 0 L 0 0 0 20" fill="none" stroke="#f1f5f9" strokeWidth="1" />
           </pattern>
         </defs>
-        <rect width={svgWidth} height={svgHeight} fill={`url(#grid-${scenario})`} />
+        <rect width={svgWidth} height={svgHeight} fill={`url(#grid-${scenario})`} rx="8" />
 
         {/* Outer Frame */}
         <rect
@@ -126,20 +126,20 @@ export const TechnicalProjectDrawing: React.FC<TechnicalProjectDrawingProps> = (
                       {segWidth > 28 && (
                         <g>
                           <rect
-                            x={segMidX - 12}
-                            y={y - 6}
-                            width="24"
-                            height="8"
-                            rx="1.5"
+                            x={segMidX - 13}
+                            y={y - 7}
+                            width="26"
+                            height="10"
+                            rx="2"
                             fill="#ffffff"
                             stroke="#2563eb"
-                            strokeWidth="0.6"
+                            strokeWidth="0.8"
                           />
                           <text
                             x={segMidX}
-                            y={y - 0.5}
+                            y={y + 0.5}
                             fill="#1e293b"
-                            fontSize="6"
+                            fontSize="6.5"
                             fontWeight="bold"
                             textAnchor="middle"
                           >
@@ -150,7 +150,7 @@ export const TechnicalProjectDrawing: React.FC<TechnicalProjectDrawingProps> = (
                       {/* Solder point */}
                       {sIdx < elem.segments.length - 1 && (
                         <g>
-                          <circle cx={segX2} cy={y} r="3" fill="#dc2626" stroke="#ffffff" strokeWidth="1" />
+                          <circle cx={segX2} cy={y} r="3.5" fill="#dc2626" stroke="#ffffff" strokeWidth="1.2" />
                         </g>
                       )}
                     </g>
@@ -164,7 +164,7 @@ export const TechnicalProjectDrawing: React.FC<TechnicalProjectDrawingProps> = (
                   x2={startX + drawWidth}
                   y2={y}
                   stroke="#2563eb"
-                  strokeWidth="2"
+                  strokeWidth={i === 0 || i === linhasHorizontais - 1 ? '2.5' : '1.8'}
                 />
               )}
             </g>
@@ -210,7 +210,7 @@ export const TechnicalProjectDrawing: React.FC<TechnicalProjectDrawingProps> = (
           x={startX + drawWidth / 2}
           y={startY - 20}
           fill="#0f172a"
-          fontSize="9"
+          fontSize="9.5"
           fontWeight="bold"
           textAnchor="middle"
         >
@@ -225,7 +225,7 @@ export const TechnicalProjectDrawing: React.FC<TechnicalProjectDrawingProps> = (
           x={startX - 22}
           y={startY + drawHeight / 2}
           fill="#0f172a"
-          fontSize="9"
+          fontSize="9.5"
           fontWeight="bold"
           textAnchor="middle"
           transform={`rotate(-90, ${startX - 22}, ${startY + drawHeight / 2})`}
@@ -237,7 +237,7 @@ export const TechnicalProjectDrawing: React.FC<TechnicalProjectDrawingProps> = (
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       {/* Section Header */}
       <div className="border-b border-slate-200 pb-2">
         <div className="flex items-center justify-between">
@@ -254,8 +254,8 @@ export const TechnicalProjectDrawing: React.FC<TechnicalProjectDrawingProps> = (
       {/* Grid containing the 3 Scenario Assembly Diagrams */}
       <div className="space-y-4">
         {/* Scenario 1 Card */}
-        <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 shadow-sm">
-          <div className="flex items-center justify-between mb-1.5">
+        <div className="bg-slate-50 border border-slate-200 rounded-xl p-3.5 shadow-sm">
+          <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-2">
               <span className="w-5 h-5 rounded-full bg-slate-800 text-white text-[10px] font-bold flex items-center justify-center">
                 1
@@ -268,17 +268,14 @@ export const TechnicalProjectDrawing: React.FC<TechnicalProjectDrawingProps> = (
               Peças Isoladas
             </span>
           </div>
-          <p className="text-[11px] text-slate-600 mb-2 leading-tight">
-            • <strong>Gabarito de Montagem:</strong> Cada elemento da estrutura é cortado de uma barra nova de 6m exclusiva. Nenhuma sobra é compartilhada com outras peças. Peças 100% inteiras sem emendas.
-          </p>
-          <div className="flex justify-center items-center bg-white rounded-lg p-2 border border-slate-200 shadow-inner overflow-x-auto">
+          <div className="flex justify-center items-center bg-white rounded-lg p-2.5 border border-slate-200 shadow-inner overflow-x-auto">
             {renderBlueprintSVG(1)}
           </div>
         </div>
 
         {/* Scenario 2 Card */}
-        <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 shadow-sm">
-          <div className="flex items-center justify-between mb-1.5">
+        <div className="bg-slate-50 border border-slate-200 rounded-xl p-3.5 shadow-sm">
+          <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-2">
               <span className="w-5 h-5 rounded-full bg-blue-700 text-white text-[10px] font-bold flex items-center justify-center">
                 2
@@ -291,33 +288,27 @@ export const TechnicalProjectDrawing: React.FC<TechnicalProjectDrawingProps> = (
               Aproveitamento de Sobras
             </span>
           </div>
-          <p className="text-[11px] text-slate-600 mb-2 leading-tight">
-            • <strong>Gabarito de Montagem:</strong> As peças são mantidas 100% inteiras (<strong>sem nenhuma solda ou emenda no meio da barra</strong>), porém sobras de uma barra de 6m são utilizadas para cortar outras peças inteiras menores do projeto.
-          </p>
-          <div className="flex justify-center items-center bg-white rounded-lg p-2 border border-slate-200 shadow-inner overflow-x-auto">
+          <div className="flex justify-center items-center bg-white rounded-lg p-2.5 border border-slate-200 shadow-inner overflow-x-auto">
             {renderBlueprintSVG(2)}
           </div>
         </div>
 
         {/* Scenario 3 Card */}
-        <div className="bg-slate-50 border-2 border-emerald-500/40 rounded-xl p-3 shadow-sm">
-          <div className="flex items-center justify-between mb-1.5">
+        <div className="bg-slate-50 border-2 border-emerald-500/40 rounded-xl p-3.5 shadow-sm">
+          <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-2">
               <span className="w-5 h-5 rounded-full bg-emerald-700 text-white text-[10px] font-bold flex items-center justify-center">
                 3
               </span>
               <h4 className="text-xs font-bold uppercase tracking-wider text-slate-900">
-                Cenário 3: Com Emenda e Otimização Total (Reaproveitamento Máximo • Reflete a Tabela 7)
+                Cenário 3: Com Emenda e Otimização Total (Reflete a Tabela 7 de Produção)
               </h4>
             </div>
             <span className="text-[10px] font-bold bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded">
               Barras B01 a B{String(totalComEmendaComOpt).padStart(2, '0')}
             </span>
           </div>
-          <p className="text-[11px] text-slate-600 mb-2 leading-tight">
-            • <strong>Gabarito de Montagem & Identificação de Barras:</strong> As barras estão identificadas exatamente pelos códigos <strong>B01 a B{String(totalComEmendaComOpt).padStart(2, '0')}</strong> correspondentes à <strong>Tabela 7 de Produção</strong>. Os pontos vermelhos indicam as soldas de emenda nas posições exatas.
-          </p>
-          <div className="flex justify-center items-center bg-white rounded-lg p-2 border border-slate-200 shadow-inner overflow-x-auto">
+          <div className="flex justify-center items-center bg-white rounded-lg p-2.5 border border-slate-200 shadow-inner overflow-x-auto">
             {renderBlueprintSVG(3)}
           </div>
         </div>
