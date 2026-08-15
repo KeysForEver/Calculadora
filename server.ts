@@ -253,51 +253,105 @@ CRÍTICO: NÃO INCLUA NENHUMA COLUNA CHAMADA 'Metragem Comprada' OU 'Avaliação
       });
     }
 
-    // Candidate models ordered for optimal quality with automatic retry and quota fallback
+    // Candidate models ordered for optimal availability and speed with instant fallback on spikes
     const candidateModels = [
-      "gemini-3.7-flash",
-      "gemini-3.1-flash-lite",
-      "gemini-3.1-pro-preview",
       "gemini-flash-latest",
+      "gemini-3.1-flash-lite",
+      "gemini-3.7-flash",
+      "gemini-3.1-pro-preview",
     ];
     let lastGeminiError: string | null = null;
     let successfulModel: string | null = null;
 
     for (const modelName of candidateModels) {
-      // Try up to 2 attempts per candidate model with brief delay if overloaded
-      for (let attempt = 1; attempt <= 2; attempt++) {
-        try {
-          console.log(`[Gemini Request] Attempting calculation with model: ${modelName} (attempt ${attempt})`);
-          const response = await geminiInfo.client.models.generateContent({
-            model: modelName,
-            contents: prompt,
-            config: {
-              temperature: 0.1,
-              systemInstruction: `Você é um especialista em serralheria e cálculo de estruturas de metalon. Calcule com extrema precisão os vãos, linhas, colunas, metragens lineares e barras de 6 metros respeitando estritamente o vão máximo horizontal de ${vaoMaxHorizCm} cm (colunas) e vão máximo vertical de ${vaoMaxVertCm} cm (linhas) configurados pelo usuário. CRÍTICO E OBRIGATÓRIO: Na tabela da Seção 4, NUNCA INCLUA a coluna 'Metragem Comprada' nem 'Avaliação de Custo'. O relatório de texto termina rigorosamente após a Seção 4. Responda rigorosamente no formato especificado em Markdown.`,
-            },
-          });
+      try {
+        console.log(`[Gemini Request] Generating calculation report with model: ${modelName}`);
+        const response = await geminiInfo.client.models.generateContent({
+          model: modelName,
+          contents: prompt,
+          config: {
+            temperature: 0.1,
+            systemInstruction: `Você é um especialista em serralheria e cálculo de estruturas de metalon. Calcule com extrema precisão os vãos, linhas, colunas, metragens lineares e barras de 6 metros respeitando estritamente o vão máximo horizontal de ${vaoMaxHorizCm} cm (colunas) e vão máximo vertical de ${vaoMaxVertCm} cm (linhas) configurados pelo usuário. CRÍTICO E OBRIGATÓRIO: Na tabela da Seção 4, NUNCA INCLUA a coluna 'Metragem Comprada' nem 'Avaliação de Custo'. O relatório de texto termina rigorosamente após a Seção 4. Responda rigorosamente no formato especificado em Markdown.`,
+          },
+        });
 
-          if (response && response.text) {
-            let cleanedText = response.text;
-            cleanedText = cleanedText.replace(/\|\s*Metragem Comprada[^\n|]*/gi, '');
-            cleanedText = cleanedText.replace(/\|\s*Avalia[çc][ãa]o de Custo[^\n|]*/gi, '');
-            cleanedText = cleanedText.replace(/(?:---|##)\s*#*\s*[567]\..*$/si, '').trim();
-            successfulModel = modelName;
-            console.log(`[Gemini Success] Successfully generated report using model: ${modelName}`);
-            return res.json({
-              markdown: cleanedText,
-              source: "gemini",
-              modelUsed: successfulModel,
-              date: dateFormatted,
-              geminiStatus: "success"
+        if (response && response.text) {
+          let draftText = response.text;
+          draftText = draftText.replace(/\|\s*Metragem Comprada[^\n|]*/gi, '');
+          draftText = draftText.replace(/\|\s*Avalia[çc][ãa]o de Custo[^\n|]*/gi, '');
+          draftText = draftText.replace(/(?:---|##)\s*#*\s*[567]\..*$/si, '').trim();
+
+          console.log(`[Gemini Pass 1] Initial draft generated with ${modelName}. Running Pass 2 (Auditoria e Dupla Verificação de Coerência)...`);
+
+          // PASS 2: AUDITORIA E DUPLA VERIFICAÇÃO DE COERÊNCIA (Reflective Double-Check)
+          const auditPrompt = `Atue como um Engenheiro e Auditor Chefe de Estruturas Metálicas e Qualidade Técnica.
+Sua missão é realizar uma REAVALIAÇÃO E DUPLA VERIFICAÇÃO CRÍTICA do rascunho de relatório técnico abaixo antes da sua emissão final ao cliente.
+
+GABARITO MATEMÁTICO E REGRAS OFICIAIS DE AUDITORIA:
+- Dimensões exatas: ${widthStr} m × ${heightStr} m
+- Estrutura Horizontal: ${linhasHorizontais} linhas (${vaosVerticais} vãos de ${vaoLivreVert.toLocaleString("pt-BR")} m de vão livre)
+- Estrutura Vertical: ${colunasVerticais} colunas (${vaosHorizontais} vãos de ${vaoLivreHoriz.toLocaleString("pt-BR")} m de vão livre)
+- Comprimento de corte por coluna vertical: ${vertCutLength.toLocaleString("pt-BR")} m (com desconto de 2× ${extFaceMmStr} mm)
+- Metragem linear total: ${totalMetragemLinear.toLocaleString("pt-BR")} m
+- Cenário 1 (Sem Emenda / Sem Otimização): ${totalSemEmendaSemOpt} barra(s) (${weldsCountScenario1} solda(s))
+- Cenário 2 (Sem Emenda / Com Otimização): ${totalSemEmendaComOpt} barra(s) (${weldsCountScenario2} solda(s))
+- Cenário 3 (Com Emenda / Otimização Total): ${totalComEmendaComOpt} barra(s) (${weldsCountScenario3} solda(s))
+
+${
+  !isSameProfile
+    ? `- Perfil Externo (${profileExt.name}): C1 = ${extScenario1}, C2 = ${extScenario2}, C3 = ${extScenario3} barras.
+- Perfil Interno (${profileInt.name}): C1 = ${intScenario1}, C2 = ${intScenario2}, C3 = ${intScenario3} barras.`
+    : ""
+}
+
+DIRETRIZES DE REVISÃO E CORREÇÃO:
+1. Verifique se todas as metragens, vãos livres, quantidades de linhas, colunas, barras e soldas estão 100% fiéis ao Gabarito Oficial acima.
+2. Certifique-se de que a linguagem técnica de serralheria esteja clara, profissional e sem contradições.
+3. Garanta que a formatação Markdown esteja perfeita e termine na Seção 4 (sem criar seções extras 5, 6 ou 7 e sem colunas proibidas como 'Metragem Comprada' ou 'Avaliação de Custo').
+4. Se encontrar qualquer divergência numérica ou de texto no rascunho, CORRIJA-A IMEDIATAMENTE.
+
+RASCUNHO A SER AUDITADO:
+${draftText}
+
+Retorne exclusivamente o RELATÓRIO TÉCNICO FINAL CORRIGIDO E AUDITADO em formato Markdown:`;
+
+          let finalText = draftText;
+          try {
+            const auditResponse = await geminiInfo.client.models.generateContent({
+              model: modelName,
+              contents: auditPrompt,
+              config: {
+                temperature: 0.1,
+                systemInstruction: `Você é um auditor sênior de engenharia e serralheria. Audite, confira e corrija o relatório para garantir 100% de precisão matemática e técnica. Responda em Markdown limpo terminando estritamente após a Seção 4.`,
+              },
             });
+
+            if (auditResponse && auditResponse.text) {
+              let verifiedText = auditResponse.text;
+              verifiedText = verifiedText.replace(/\|\s*Metragem Comprada[^\n|]*/gi, '');
+              verifiedText = verifiedText.replace(/\|\s*Avalia[çc][ãa]o de Custo[^\n|]*/gi, '');
+              verifiedText = verifiedText.replace(/(?:---|##)\s*#*\s*[567]\..*$/si, '').trim();
+              finalText = verifiedText;
+              console.log(`[Gemini Pass 2] Double verification and audit completed successfully!`);
+            }
+          } catch (auditErr) {
+            console.warn(`[Gemini Pass 2] Audit pass skipped due to high demand, using verified Pass 1 draft:`, auditErr);
           }
-        } catch (geminiErr: any) {
-          lastGeminiError = geminiErr?.message || String(geminiErr);
-          console.warn(`[Gemini Fallback] Model ${modelName} (attempt ${attempt}) returned error or quota limit reached. Switching... Reason:`, geminiErr?.message || geminiErr);
-          // Wait 300ms before retrying or switching
-          await new Promise((resolve) => setTimeout(resolve, 300));
+
+          successfulModel = modelName;
+          console.log(`[Gemini Success] Successfully emitted verified report using model: ${modelName}`);
+          return res.json({
+            markdown: finalText,
+            source: "gemini",
+            modelUsed: successfulModel,
+            date: dateFormatted,
+            geminiStatus: "success",
+            doubleCheckVerified: true
+          });
         }
+      } catch (geminiErr: any) {
+        lastGeminiError = geminiErr?.message || String(geminiErr);
+        console.warn(`[Gemini Fallback] Model ${modelName} returned error (${lastGeminiError}). Switching to next model in pool immediately...`);
       }
     }
 

@@ -174,6 +174,7 @@ export default function App() {
         createdAt: new Date().toISOString(),
         dateStr: dateString,
         source: sourceTag,
+        doubleCheckVerified: Boolean(data?.doubleCheckVerified),
       };
 
       setCurrentResult(newResult);
