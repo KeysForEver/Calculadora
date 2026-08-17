@@ -35,8 +35,8 @@ export const ReportHeader: React.FC<{ dateStr?: string; source?: 'gemini' | 'cal
 );
 
 export const ReportFooter: React.FC<{ pageNum?: number; totalPages?: number }> = ({ pageNum, totalPages }) => (
-  <div className="mt-auto pt-3 border-t border-slate-200 text-xs text-slate-600 flex items-center justify-between w-full">
-    <div className="flex items-center gap-4">
+  <div className="mt-auto pt-3 border-t border-slate-200 text-xs text-slate-600 relative flex items-center justify-center w-full min-h-[32px]">
+    <div className="flex flex-wrap items-center justify-center gap-3 sm:gap-4 text-center px-4">
       <a
         href="https://skymidiabh.com.br/"
         target="_blank"
@@ -45,7 +45,7 @@ export const ReportFooter: React.FC<{ pageNum?: number; totalPages?: number }> =
       >
         https://skymidiabh.com.br/
       </a>
-      <span className="text-slate-300">•</span>
+      <span className="text-slate-300 hidden sm:inline">•</span>
       <a
         href="https://www.instagram.com/skymidiabh/"
         target="_blank"
@@ -56,12 +56,65 @@ export const ReportFooter: React.FC<{ pageNum?: number; totalPages?: number }> =
       </a>
     </div>
     {pageNum && totalPages && (
-      <span className="text-[11px] font-semibold text-slate-500">
+      <span className="absolute right-0 text-[11px] font-semibold text-slate-500 whitespace-nowrap">
         Página {pageNum} de {totalPages}
       </span>
     )}
   </div>
 );
+
+/**
+ * Parses markdown dynamically into sequential, beautifully proportioned A4 pages
+ * without restricting text or truncating content.
+ */
+function splitMarkdownIntoPages(markdown: string): string[] {
+  // 1. Clean markdown from trailing metadata
+  const cleaned = markdown
+    .replace(/---\s*\n*\s*Data:.*$/si, '')
+    .replace(/\n\s*Data:.*$/si, '')
+    .trim();
+
+  // 2. Strip sections 5, 6, 7 if present in text, as they are rendered via interactive components
+  const textWithout567 = cleaned.replace(/(?:---|##)\s*#*\s*[567]\..*$/si, '').trim();
+
+  // 3. Search for Section 3 heading (## 3. Plano de Corte Otimizado)
+  const regexSection3 = /(?:^|\n)(?=##\s*3[\.\s])/i;
+  const matchIndex = textWithout567.search(regexSection3);
+
+  if (matchIndex > 0) {
+    const part1 = textWithout567.slice(0, matchIndex).trim().replace(/---\s*$/, '').trim();
+    const part2 = textWithout567.slice(matchIndex).trim();
+
+    // If either part is still excessively long, split further to guarantee perfect readability
+    const pages: string[] = [part1];
+
+    if (part2.length > 2800) {
+      const splitSec4 = part2.search(/(?:^|\n)(?=##\s*4[\.\s])/i);
+      if (splitSec4 > 0) {
+        pages.push(part2.slice(0, splitSec4).trim());
+        pages.push(part2.slice(splitSec4).trim());
+      } else {
+        pages.push(part2);
+      }
+    } else {
+      pages.push(part2);
+    }
+
+    return pages;
+  }
+
+  // 4. Flexible fallback based on section headers or length
+  const sections = textWithout567.split(/(?=\n##\s+)/g).map(s => s.trim()).filter(Boolean);
+  if (sections.length > 1) {
+    const mid = Math.ceil(sections.length / 2);
+    return [
+      sections.slice(0, mid).join('\n\n---\n\n'),
+      sections.slice(mid).join('\n\n---\n\n')
+    ];
+  }
+
+  return [textWithout567];
+}
 
 export const ReportViewer: React.FC<ReportViewerProps> = ({
   markdown,
@@ -89,88 +142,55 @@ export const ReportViewer: React.FC<ReportViewerProps> = ({
   }, [input]);
 
   const totalTableChunks = Math.ceil(calcResult.allocatedBarsDetailed.length / 12) || 1;
+  const markdownPages = React.useMemo(() => splitMarkdownIntoPages(markdown), [markdown]);
 
-  // Clean markdown and split into Page 1 (Sections 1 & 2) and Page 2 (Sections 3 & 4)
-  const [markdownPart1, markdownPart2] = React.useMemo(() => {
-    const cleaned = markdown
-      .replace(/---\s*\n*\s*Data:.*$/si, '')
-      .replace(/\n\s*Data:.*$/si, '')
-      .trim();
-
-    // Look for Section 3 heading (e.g. ## 3. Plano de Corte Otimizado)
-    const regexSection3 = /(?:^|\n)(?=##\s*3[\.\s])/i;
-    const matchIndex = cleaned.search(regexSection3);
-
-    if (matchIndex > 0) {
-      const part1 = cleaned.slice(0, matchIndex).trim().replace(/---\s*$/, '').trim();
-      let part2 = cleaned.slice(matchIndex).trim();
-      // Ensure part2 doesn't contain duplicated Sections 5, 6 or 7 since they are rendered as dedicated components on subsequent pages
-      part2 = part2.replace(/(?:---|##)\s*#*\s*[567]\..*$/si, '').trim();
-      return [part1, part2];
-    }
-
-    const sanitizedCleaned = cleaned.replace(/(?:---|##)\s*#*\s*[567]\..*$/si, '').trim();
-    return [sanitizedCleaned, ''];
-  }, [markdown]);
-
-  const hasPage2 = Boolean(markdownPart2);
-  const basePagesCount = hasPage2 ? 4 : 3;
-  const totalPages = basePagesCount + totalTableChunks;
+  const markdownPagesCount = markdownPages.length;
+  const section5PageNumber = markdownPagesCount + 1;
+  const section6PageNumber = markdownPagesCount + 2;
+  const tableStartPageNumber = markdownPagesCount + 3;
+  const totalPages = markdownPagesCount + 2 + totalTableChunks;
 
   return (
     <div
       ref={reportRef}
       id="printable-report"
-      className="report-card bg-white text-slate-900 p-8 sm:p-10 rounded-2xl shadow-xl border border-slate-200/80 max-w-4xl mx-auto my-4 transition-all"
+      className="report-card bg-white text-slate-900 p-6 sm:p-10 rounded-2xl shadow-xl border border-slate-200/80 max-w-4xl mx-auto my-4 transition-all"
     >
-      {/* Page 1: Header + Technical Considerations + Sections 1 & 2 + Footer */}
-      <div className="pdf-page bg-white flex flex-col justify-between min-h-[960px] sm:min-h-[1000px]">
-        <div className="flex-1 flex flex-col justify-start">
-          <ReportHeader dateStr={dateStr} source={source} />
-          <div className="report-content prose prose-slate max-w-none my-1">
-            <ReactMarkdown
-              remarkPlugins={[remarkGfm, remarkMath]}
-              rehypePlugins={[rehypeKatex]}
-              components={{
-                a: ({ node, ...props }) => (
-                  <a {...props} target="_blank" rel="noopener noreferrer" />
-                ),
-              }}
-            >
-              {markdownPart1}
-            </ReactMarkdown>
-          </div>
-        </div>
-        <ReportFooter pageNum={1} totalPages={totalPages} />
-      </div>
+      {/* Markdown Sequential Text Pages (Technical Considerations, Sections 1, 2, 3, 4) */}
+      {markdownPages.map((pageMarkdown, pIdx) => {
+        const pageNumber = pIdx + 1;
+        const isFirst = pIdx === 0;
 
-      {/* Page 2: Header + Sections 3 & 4 (Plano de Corte & Comparativo) + Footer */}
-      {hasPage2 ? (
-        <div
-          className="pdf-page bg-white pt-6 mt-10 border-t border-slate-200 flex flex-col justify-between min-h-[960px] sm:min-h-[1000px] break-before-page page-break-before-always"
-          style={{ pageBreakBefore: 'always', breakBefore: 'page' }}
-        >
-          <div className="flex-1 flex flex-col justify-start">
-            <ReportHeader dateStr={dateStr} source={source} />
-            <div className="report-content prose prose-slate max-w-none my-1">
-              <ReactMarkdown
-                remarkPlugins={[remarkGfm, remarkMath]}
-                rehypePlugins={[rehypeKatex]}
-                components={{
-                  a: ({ node, ...props }) => (
-                    <a {...props} target="_blank" rel="noopener noreferrer" />
-                  ),
-                }}
-              >
-                {markdownPart2}
-              </ReactMarkdown>
+        return (
+          <div
+            key={`md-page-${pIdx}`}
+            className={`pdf-page bg-white flex flex-col justify-between min-h-[960px] sm:min-h-[1000px] ${
+              !isFirst ? 'pt-6 mt-10 border-t border-slate-200 break-before-page page-break-before-always' : ''
+            }`}
+            style={!isFirst ? { pageBreakBefore: 'always', breakBefore: 'page' } : undefined}
+          >
+            <div className="flex-1 flex flex-col justify-start">
+              <ReportHeader dateStr={dateStr} source={source} />
+              <div className="report-content prose prose-slate max-w-none my-1">
+                <ReactMarkdown
+                  remarkPlugins={[remarkGfm, remarkMath]}
+                  rehypePlugins={[rehypeKatex]}
+                  components={{
+                    a: ({ node, ...props }) => (
+                      <a {...props} target="_blank" rel="noopener noreferrer" />
+                    ),
+                  }}
+                >
+                  {pageMarkdown}
+                </ReactMarkdown>
+              </div>
             </div>
+            <ReportFooter pageNum={pageNumber} totalPages={totalPages} />
           </div>
-          <ReportFooter pageNum={2} totalPages={totalPages} />
-        </div>
-      ) : null}
+        );
+      })}
 
-      {/* Page 3: Header + Section 5 (Esquemas Estruturais Individuais) + Footer */}
+      {/* Section 5: Esquemas Estruturais Individuais com Numeração de Barras */}
       <div
         className="pdf-page bg-white pt-6 mt-10 border-t border-slate-200 flex flex-col justify-between min-h-[960px] sm:min-h-[1000px] break-before-page page-break-before-always"
         style={{ pageBreakBefore: 'always', breakBefore: 'page' }}
@@ -181,10 +201,10 @@ export const ReportViewer: React.FC<ReportViewerProps> = ({
             <StructureVisualizer input={input} />
           </div>
         </div>
-        <ReportFooter pageNum={hasPage2 ? 3 : 2} totalPages={totalPages} />
+        <ReportFooter pageNum={section5PageNumber} totalPages={totalPages} />
       </div>
 
-      {/* Page 4: Header + Section 6 (Desenho Técnico do Projeto com Cotas e Gabarito de Montagem) + Footer */}
+      {/* Section 6: Gabarito Técnico de Montagem e Solda da Estrutura */}
       <div
         className="pdf-page bg-white pt-6 mt-10 border-t border-slate-200 flex flex-col justify-between min-h-[960px] sm:min-h-[1000px] break-before-page page-break-before-always"
         style={{ pageBreakBefore: 'always', breakBefore: 'page' }}
@@ -195,15 +215,15 @@ export const ReportViewer: React.FC<ReportViewerProps> = ({
             <TechnicalProjectDrawing input={input} />
           </div>
         </div>
-        <ReportFooter pageNum={hasPage2 ? 4 : 3} totalPages={totalPages} />
+        <ReportFooter pageNum={section6PageNumber} totalPages={totalPages} />
       </div>
 
-      {/* Page 5+: Section 7 (Tabela de Corte de Barras para a Produção) - Auto-paginated */}
+      {/* Section 7: Tabela de Corte de Barras para a Produção (Auto-paginada em blocos limpos) */}
       <ProductionCutTable
         input={input}
         dateStr={dateStr}
         source={source}
-        startPageNum={hasPage2 ? 5 : 4}
+        startPageNum={tableStartPageNumber}
         totalPages={totalPages}
       />
     </div>

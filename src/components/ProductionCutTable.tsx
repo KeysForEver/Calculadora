@@ -205,8 +205,8 @@ export const ProductionCutTable: React.FC<ProductionCutTableProps> = ({
             </div>
 
             {/* Footer with fixed page numbers */}
-            <div className="mt-auto pt-3 border-t border-slate-200 text-xs text-slate-600 flex items-center justify-between w-full">
-              <div className="flex items-center gap-4">
+            <div className="mt-auto pt-3 border-t border-slate-200 text-xs text-slate-600 relative flex items-center justify-center w-full min-h-[32px]">
+              <div className="flex flex-wrap items-center justify-center gap-3 sm:gap-4 text-center px-4">
                 <a
                   href="https://skymidiabh.com.br/"
                   target="_blank"
@@ -215,7 +215,7 @@ export const ProductionCutTable: React.FC<ProductionCutTableProps> = ({
                 >
                   https://skymidiabh.com.br/
                 </a>
-                <span className="text-slate-300">•</span>
+                <span className="text-slate-300 hidden sm:inline">•</span>
                 <a
                   href="https://www.instagram.com/skymidiabh/"
                   target="_blank"
@@ -225,7 +225,7 @@ export const ProductionCutTable: React.FC<ProductionCutTableProps> = ({
                   https://www.instagram.com/skymidiabh/
                 </a>
               </div>
-              <span className="text-[11px] font-semibold text-slate-500">
+              <span className="absolute right-0 text-[11px] font-semibold text-slate-500 whitespace-nowrap">
                 Página {currentPageNumber} de {totalPages}
               </span>
             </div>
