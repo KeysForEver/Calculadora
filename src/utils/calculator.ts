@@ -726,6 +726,8 @@ export function getPortugueseDate(): string {
   return `${day} de ${month} de ${year}`;
 }
 
+export const TABLE_ROWS_PER_PAGE = 24;
+
 export function generateReportMarkdown(
   largura: number,
   altura: number,
@@ -828,24 +830,10 @@ export function generateReportMarkdown(
   - Compara a redução de custo de barras no Cenário 3 (${totalComEmendaComOpt} barras) contra a agilidade do Cenário 2 (${totalSemEmendaComOpt} barras), favorecendo o corte sem emenda quando a quantidade total de barras de 6m for equivalente.`;
   }
 
-  const profileHeader = isSameProfile
-    ? `- **Perfil Metalon Selecionado:** ${profileExt.name} (${profileExt.positionDesc})`
-    : `- **Perfil Metalon Externo (Borda):** ${profileExt.name} (${profileExt.positionDesc})\n- **Perfil Metalon Interno (Travessas):** ${profileInt.name} (${profileInt.positionDesc})`;
-
-  return `## Considerações Técnicas do Perfil
-- **Dimensões da Estrutura:** ${widthFormatted} m × ${heightFormatted} m
-${profileHeader}
-- **Vão Máximo Horizontal (Colunas):** ${vaoMaxHorizCm} cm (${calc.vaoHorizM.toLocaleString('pt-BR')} m)
-- **Vão Máximo Vertical (Linhas):** ${vaoMaxVertCm} cm (${calc.vaoVertM.toLocaleString('pt-BR')} m)
-- **Desconto de Encaixe:** -${(profileExt.faceSizeM * 2 * 1000).toFixed(0)} mm na altura das colunas verticais (encaixe sob as barras superior/inferior do Perfil Externo de ${extFaceMm} mm)
-
----
-
-## 1. Estrutura Horizontal
+  return `## 1. Estrutura Horizontal
 * Linhas Horizontais Totais: **${linhasHorizontais} linhas** (${vaosVerticais} vãos de **${vaoLivreVert.toLocaleString('pt-BR')} m** de vão livre)
 * Linhas de Borda Externa (${profileExt.name}): **${horizExtCount} linhas** de **${widthFormatted} m** = **${metragemExtHoriz.toLocaleString('pt-BR')} m**
 ${horizIntCount > 0 ? `* Linhas Internas (${profileInt.name}): **${horizIntCount} linhas** de **${widthFormatted} m** = **${metragemIntHoriz.toLocaleString('pt-BR')} m**\n` : ''}
-
 ---
 
 ## 2. Estrutura Vertical (Com Desconto do Perfil Externo)
@@ -853,7 +841,6 @@ ${horizIntCount > 0 ? `* Linhas Internas (${profileInt.name}): **${horizIntCount
 * **Comprimento real de corte por coluna:** **${vertCutLength.toLocaleString('pt-BR')} m** (com desconto de 2× ${extFaceMm} mm dos perfis de contorno)
 * Colunas de Borda Externa (${profileExt.name}): **${vertExtCount} colunas** = **${metragemExtVert.toLocaleString('pt-BR')} m**
 ${vertIntCount > 0 ? `* Colunas Internas (${profileInt.name}): **${vertIntCount} colunas** = **${metragemIntVert.toLocaleString('pt-BR')} m**\n` : ''}
-
 ---
 
 ## 3. Plano de Corte Otimizado (Reaproveitamento de Sobras)
@@ -867,13 +854,13 @@ ${
   isSameProfile
     ? `| Cenário / Método de Corte | Pontos de Solda / Emendas | Total de Barras (6m) |
 | :------------------------ | :-----------------------: | :------------------: |
-| **1. Sem Emenda e Sem Otimização** | ${weldsCountScenario1} solda(s) | **${totalSemEmendaSemOpt} barra(s)** |
-| **2. Sem Emenda com Otimização** | ${weldsCountScenario2} solda(s) | **${totalSemEmendaComOpt} barra(s)** |
-| **3. Com Emenda e Otimização Total** | ${weldsCountScenario3} solda(s) | **${totalComEmendaComOpt} barra(s)** |`
+| **Cenário 1: "Sem Emenda e Sem Otimização"** | ${weldsCountScenario1} solda(s) | **${totalSemEmendaSemOpt} barras** |
+| **Cenário 2: "Sem Emenda com Otimização de Corte"** | ${weldsCountScenario2} solda(s) | **${totalSemEmendaComOpt} barras** |
+| **Cenário 3: "Com Emenda e Otimização Total"** | ${weldsCountScenario3} solda(s) | **${totalComEmendaComOpt} barras** |`
     : `| Cenário / Método de Corte | Perfil Externo (${profileExt.name}) | Perfil Interno (${profileInt.name}) | Total de Barras (6m) |
 | :------------------------ | :---------------------------------: | :---------------------------------: | :------------------: |
-| **1. Sem Emenda e Sem Otimização** | ${extScenario1} barra(s) | ${intScenario1} barra(s) | **${totalSemEmendaSemOpt} barra(s)** |
-| **2. Sem Emenda com Otimização** | ${extScenario2} barra(s) | ${intScenario2} barra(s) | **${totalSemEmendaComOpt} barra(s)** |
-| **3. Com Emenda e Otimização Total** | ${extScenario3} barra(s) | ${intScenario3} barra(s) | **${totalComEmendaComOpt} barra(s)** |`
+| **Cenário 1: "Sem Emenda e Sem Otimização"** | ${extScenario1} barra(s) | ${intScenario1} barra(s) | **${totalSemEmendaSemOpt} barras** |
+| **Cenário 2: "Sem Emenda com Otimização de Corte"** | ${extScenario2} barra(s) | ${intScenario2} barra(s) | **${totalSemEmendaComOpt} barras** |
+| **Cenário 3: "Com Emenda e Otimização Total"** | ${extScenario3} barra(s) | ${intScenario3} barra(s) | **${totalComEmendaComOpt} barras** |`
 }`;
 }

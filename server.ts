@@ -162,9 +162,9 @@ OS VALORES MATEMÁTICOS DESTE PROJETO JÁ FORAM RIGOROSAMENTE CALCULADOS PELO MO
 - Estrutura Vertical: ${colunasVerticais} colunas (${vaosHorizontais} vãos de ${vaoLivreHoriz.toLocaleString("pt-BR")} m de vão livre)
 - Comprimento real de corte por coluna: ${vertCutLength.toLocaleString("pt-BR")} m (com desconto de 2× ${extFaceMmStr} mm do perfil de borda)
 - Metragem Linear Total: ${totalMetragemLinear.toLocaleString("pt-BR")} m (Consumo teórico: ${teoricoBarrasGeral} barras de 6m)
-- Cenário 1 (Sem Emenda e Sem Otimização): ${totalSemEmendaSemOpt} barra(s) (${weldsCountScenario1} soldas)
-- Cenário 2 (Sem Emenda com Otimização): ${totalSemEmendaComOpt} barra(s) (${weldsCountScenario2} soldas)
-- Cenário 3 (Com Emenda e Otimização Total - Melhor Cenário): ${totalComEmendaComOpt} barra(s) (${weldsCountScenario3} soldas)
+- Cenário 1 (Sem Emenda e Sem Otimização): ${totalSemEmendaSemOpt} barras (${weldsCountScenario1} soldas)
+- Cenário 2 (Sem Emenda com Otimização): ${totalSemEmendaComOpt} barras (${weldsCountScenario2} soldas)
+- Cenário 3 (Com Emenda e Otimização Total - Melhor Cenário): ${totalComEmendaComOpt} barras (${weldsCountScenario3} soldas)
 
 ${
   !isSameProfile
@@ -174,26 +174,12 @@ ${
     : ""
 }
 
-Formato da resposta (obrigatório em Markdown):
-
-## Considerações Técnicas do Perfil
-- **Dimensões da Estrutura:** ${widthStr} m × ${heightStr} m
-${
-  isSameProfile
-    ? `- **Perfil Metalon Selecionado:** ${profileExt.name} (${profileExt.positionDesc})`
-    : `- **Perfil Metalon Externo (Borda):** ${profileExt.name} (${profileExt.positionDesc})\n- **Perfil Metalon Interno (Travessas):** ${profileInt.name} (${profileInt.positionDesc})`
-}
-- **Vão Máximo Horizontal (Colunas):** ${vaoMaxHorizCm} cm (${vaoHorizM.toLocaleString("pt-BR")} m)
-- **Vão Máximo Vertical (Linhas):** ${vaoMaxVertCm} cm (${vaoVertM.toLocaleString("pt-BR")} m)
-- **Desconto de Encaixe:** -${(profileExt.faceSizeM * 2 * 1000).toFixed(0)} mm no comprimento de corte das colunas verticais
-
----
+Formato da resposta (obrigatório em Markdown, iniciando diretamente na Seção 1):
 
 ## 1. Estrutura Horizontal
 * Linhas Horizontais Totais: **${linhasHorizontais} linhas** (${vaosVerticais} vãos de **${vaoLivreVert.toLocaleString("pt-BR")} m** de vão livre)
 * Linhas de Borda Externa (${profileExt.name}): **${horizExtCount} linhas** de **${widthStr} m** = **${metragemExtHoriz.toLocaleString("pt-BR")} m**
 ${horizIntCount > 0 ? `* Linhas Internas (${profileInt.name}): **${horizIntCount} linhas** de **${widthStr} m** = **${metragemIntHoriz.toLocaleString("pt-BR")} m**\n` : ""}
-
 ---
 
 ## 2. Estrutura Vertical (Com Desconto do Perfil Externo)
@@ -201,7 +187,6 @@ ${horizIntCount > 0 ? `* Linhas Internas (${profileInt.name}): **${horizIntCount
 * **Comprimento real de corte por coluna:** **${vertCutLength.toLocaleString("pt-BR")} m** (com desconto de 2× ${extFaceMmStr} mm dos perfis de contorno)
 * Colunas de Borda Externa (${profileExt.name}): **${vertExtCount} colunas** = **${metragemExtVert.toLocaleString("pt-BR")} m**
 ${vertIntCount > 0 ? `* Colunas Internas (${profileInt.name}): **${vertIntCount} colunas** = **${metragemIntVert.toLocaleString("pt-BR")} m**\n` : ""}
-
 ---
 
 ## 3. Plano de Corte Otimizado (Reaproveitamento de Sobras)
@@ -215,17 +200,17 @@ ${
   isSameProfile
     ? `| Cenário / Método de Corte | Pontos de Solda / Emendas | Total de Barras (6m) |
 | :------------------------ | :-----------------------: | :------------------: |
-| **1. Sem Emenda e Sem Otimização** | ${weldsCountScenario1} solda(s) | **${totalSemEmendaSemOpt} barra(s)** |
-| **2. Sem Emenda com Otimização** | ${weldsCountScenario2} solda(s) | **${totalSemEmendaComOpt} barra(s)** |
-| **3. Com Emenda e Otimização Total** | ${weldsCountScenario3} solda(s) | **${totalComEmendaComOpt} barra(s)** |`
+| **Cenário 1: "Sem Emenda e Sem Otimização"** | ${weldsCountScenario1} solda(s) | **${totalSemEmendaSemOpt} barras** |
+| **Cenário 2: "Sem Emenda com Otimização de Corte"** | ${weldsCountScenario2} solda(s) | **${totalSemEmendaComOpt} barras** |
+| **Cenário 3: "Com Emenda e Otimização Total"** | ${weldsCountScenario3} solda(s) | **${totalComEmendaComOpt} barras** |`
     : `| Cenário / Método de Corte | Perfil Externo (${profileExt.name}) | Perfil Interno (${profileInt.name}) | Total de Barras (6m) |
 | :------------------------ | :---------------------------------: | :---------------------------------: | :------------------: |
-| **1. Sem Emenda e Sem Otimização** | ${extScenario1} barra(s) | ${intScenario1} barra(s) | **${totalSemEmendaSemOpt} barra(s)** |
-| **2. Sem Emenda com Otimização** | ${extScenario2} barra(s) | ${intScenario2} barra(s) | **${totalSemEmendaComOpt} barra(s)** |
-| **3. Com Emenda e Otimização Total** | ${extScenario3} barra(s) | ${intScenario3} barra(s) | **${totalComEmendaComOpt} barra(s)** |`
+| **Cenário 1: "Sem Emenda e Sem Otimização"** | ${extScenario1} barra(s) | ${intScenario1} barra(s) | **${totalSemEmendaSemOpt} barras** |
+| **Cenário 2: "Sem Emenda com Otimização de Corte"** | ${extScenario2} barra(s) | ${intScenario2} barra(s) | **${totalSemEmendaComOpt} barras** |
+| **Cenário 3: "Com Emenda e Otimização Total"** | ${extScenario3} barra(s) | ${intScenario3} barra(s) | **${totalComEmendaComOpt} barras** |`
 }
 
-CRÍTICO: NÃO INCLUA NENHUMA COLUNA CHAMADA 'Metragem Comprada' OU 'Avaliação de Custo'. O relatório em Markdown termina rigorosamente após a Seção 4.
+CRÍTICO: NÃO INCLUA NENHUMA SEÇÃO DE 'Considerações Técnicas', 'Metragem Comprada' OU 'Avaliação de Custo'. O relatório em Markdown termina rigorosamente após a Seção 4.
 `;
 
     // Call Gemini API
@@ -336,6 +321,32 @@ Retorne exclusivamente o RELATÓRIO TÉCNICO FINAL CORRIGIDO E AUDITADO em forma
             }
           } catch (auditErr) {
             console.warn(`[Gemini Pass 2] Audit pass skipped due to high demand, using verified Pass 1 draft:`, auditErr);
+          }
+
+          const canonicalSection4Table = isSameProfile
+            ? `| Cenário / Método de Corte | Pontos de Solda / Emendas | Total de Barras (6m) |
+| :------------------------ | :-----------------------: | :------------------: |
+| **Cenário 1: "Sem Emenda e Sem Otimização"** | ${weldsCountScenario1} solda(s) | **${totalSemEmendaSemOpt} barras** |
+| **Cenário 2: "Sem Emenda com Otimização de Corte"** | ${weldsCountScenario2} solda(s) | **${totalSemEmendaComOpt} barras** |
+| **Cenário 3: "Com Emenda e Otimização Total"** | ${weldsCountScenario3} solda(s) | **${totalComEmendaComOpt} barras** |`
+            : `| Cenário / Método de Corte | Perfil Externo (${profileExt.name}) | Perfil Interno (${profileInt.name}) | Total de Barras (6m) |
+| :------------------------ | :---------------------------------: | :---------------------------------: | :------------------: |
+| **Cenário 1: "Sem Emenda e Sem Otimização"** | ${extScenario1} barra(s) | ${intScenario1} barra(s) | **${totalSemEmendaSemOpt} barras** |
+| **Cenário 2: "Sem Emenda com Otimização de Corte"** | ${extScenario2} barra(s) | ${intScenario2} barra(s) | **${totalSemEmendaComOpt} barras** |
+| **Cenário 3: "Com Emenda e Otimização Total"** | ${extScenario3} barra(s) | ${intScenario3} barra(s) | **${totalComEmendaComOpt} barras** |`;
+
+          // Post-processing: Remove Considerações Técnicas if generated, remove forbidden sections & columns
+          finalText = finalText.replace(/(?:^|\n)#*\s*Considera[çc][õo]es\s+T[ée]cnicas[^\n]*(?:\n[\s\S]*?)?(?=\n#*\s*1[\.\s])/si, '').trim();
+          finalText = finalText.replace(/(?:---|##)\s*#*\s*[567]\..*$/si, '').trim();
+          
+          // Replace Section 4 with canonical verified table
+          if (finalText.search(/(?:^|\n)##\s*4[\.\s]/i) >= 0) {
+            finalText = finalText.replace(
+              /(?:^|\n)(##\s*4[\.\s][^\n]*\n+)[\s\S]*$/i,
+              `\n\n## 4. Resultado e Quadro Comparativo de Consumo\n\n${canonicalSection4Table}`
+            ).trim();
+          } else {
+            finalText = `${finalText}\n\n---\n\n## 4. Resultado e Quadro Comparativo de Consumo\n\n${canonicalSection4Table}`;
           }
 
           successfulModel = modelName;

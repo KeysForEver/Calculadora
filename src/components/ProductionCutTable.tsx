@@ -1,6 +1,6 @@
 import React from 'react';
 import { MetalonInput } from '../types';
-import { calculateMetalonStructure, PieceToCut } from '../utils/calculator';
+import { calculateMetalonStructure, PieceToCut, TABLE_ROWS_PER_PAGE } from '../utils/calculator';
 
 export interface ProductionCutTableProps {
   input: MetalonInput;
@@ -65,8 +65,8 @@ export const ProductionCutTable: React.FC<ProductionCutTableProps> = ({
 
   const allBars = calcResult.allocatedBarsDetailed;
 
-  // Divide bars into clean pages (approx 12 bars per page to fit A4 perfectly)
-  const rowsPerPage = 12;
+  // Divide bars into clean full pages (24 bars per page fills the A4 page height)
+  const rowsPerPage = TABLE_ROWS_PER_PAGE;
   const chunks: TablePageChunk[] = React.useMemo(() => {
     const result: TablePageChunk[] = [];
     const totalChunks = Math.ceil(allBars.length / rowsPerPage) || 1;

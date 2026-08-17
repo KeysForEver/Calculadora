@@ -7,7 +7,7 @@ import { MetalonInput } from '../types';
 import { StructureVisualizer } from './StructureVisualizer';
 import { TechnicalProjectDrawing } from './TechnicalProjectDrawing';
 import { ProductionCutTable } from './ProductionCutTable';
-import { calculateMetalonStructure } from '../utils/calculator';
+import { calculateMetalonStructure, TABLE_ROWS_PER_PAGE } from '../utils/calculator';
 
 interface ReportViewerProps {
   markdown: string;
@@ -65,19 +65,44 @@ export const ReportFooter: React.FC<{ pageNum?: number; totalPages?: number }> =
 
 /**
  * Parses markdown dynamically into sequential, beautifully proportioned A4 pages
- * without restricting text or truncating content.
+ * without restricting text or truncating content, ensuring Table 4 matches Table 7.
  */
-function splitMarkdownIntoPages(markdown: string): string[] {
+function splitMarkdownIntoPages(markdown: string, calcResult: ReturnType<typeof calculateMetalonStructure>): string[] {
   // 1. Clean markdown from trailing metadata
-  const cleaned = markdown
+  let cleaned = markdown
     .replace(/---\s*\n*\s*Data:.*$/si, '')
     .replace(/\n\s*Data:.*$/si, '')
     .trim();
 
-  // 2. Strip sections 5, 6, 7 if present in text, as they are rendered via interactive components
-  const textWithout567 = cleaned.replace(/(?:---|##)\s*#*\s*[567]\..*$/si, '').trim();
+  // 2. Remove "Considerações Técnicas do Perfil" heading and introductory paragraph
+  cleaned = cleaned
+    .replace(/(?:^|\n)#*\s*Considera[çc][õo]es\s+T[ée]cnicas[^\n]*(?:\n[\s\S]*?)?(?=\n#*\s*1[\.\s])/si, '')
+    .trim();
 
-  // 3. Search for Section 3 heading (## 3. Plano de Corte Otimizado)
+  // 3. Strip sections 5, 6, 7 if present in text, as they are rendered via dedicated visual components
+  let textWithout567 = cleaned.replace(/(?:---|##)\s*#*\s*[567]\..*$/si, '').trim();
+
+  // 4. Enforce canonical Table 4 exactly matching Table 7
+  const canonicalSection4Table = calcResult.isSameProfile
+    ? `| Cenário / Método de Corte | Pontos de Solda / Emendas | Total de Barras (6m) |
+| :------------------------ | :-----------------------: | :------------------: |
+| **Cenário 1: "Sem Emenda e Sem Otimização"** | ${calcResult.weldsCountScenario1} solda(s) | **${calcResult.totalSemEmendaSemOpt} barras** |
+| **Cenário 2: "Sem Emenda com Otimização de Corte"** | ${calcResult.weldsCountScenario2} solda(s) | **${calcResult.totalSemEmendaComOpt} barras** |
+| **Cenário 3: "Com Emenda e Otimização Total"** | ${calcResult.weldsCountScenario3} solda(s) | **${calcResult.totalComEmendaComOpt} barras** |`
+    : `| Cenário / Método de Corte | Perfil Externo (${calcResult.profileExt.name}) | Perfil Interno (${calcResult.profileInt.name}) | Total de Barras (6m) |
+| :------------------------ | :---------------------------------: | :---------------------------------: | :------------------: |
+| **Cenário 1: "Sem Emenda e Sem Otimização"** | ${calcResult.extScenario1} barra(s) | ${calcResult.intScenario1} barra(s) | **${calcResult.totalSemEmendaSemOpt} barras** |
+| **Cenário 2: "Sem Emenda com Otimização de Corte"** | ${calcResult.extScenario2} barra(s) | ${calcResult.intScenario2} barra(s) | **${calcResult.totalSemEmendaComOpt} barras** |
+| **Cenário 3: "Com Emenda e Otimização Total"** | ${calcResult.extScenario3} barra(s) | ${calcResult.intScenario3} barra(s) | **${calcResult.totalComEmendaComOpt} barras** |`;
+
+  if (textWithout567.search(/(?:^|\n)##\s*4[\.\s]/i) >= 0) {
+    textWithout567 = textWithout567.replace(
+      /(?:^|\n)(##\s*4[\.\s][^\n]*\n+)[\s\S]*$/i,
+      `\n\n## 4. Resultado e Quadro Comparativo de Consumo\n\n${canonicalSection4Table}`
+    ).trim();
+  }
+
+  // 5. Search for Section 3 heading (## 3. Plano de Corte Otimizado)
   const regexSection3 = /(?:^|\n)(?=##\s*3[\.\s])/i;
   const matchIndex = textWithout567.search(regexSection3);
 
@@ -85,7 +110,6 @@ function splitMarkdownIntoPages(markdown: string): string[] {
     const part1 = textWithout567.slice(0, matchIndex).trim().replace(/---\s*$/, '').trim();
     const part2 = textWithout567.slice(matchIndex).trim();
 
-    // If either part is still excessively long, split further to guarantee perfect readability
     const pages: string[] = [part1];
 
     if (part2.length > 2800) {
@@ -103,7 +127,6 @@ function splitMarkdownIntoPages(markdown: string): string[] {
     return pages;
   }
 
-  // 4. Flexible fallback based on section headers or length
   const sections = textWithout567.split(/(?=\n##\s+)/g).map(s => s.trim()).filter(Boolean);
   if (sections.length > 1) {
     const mid = Math.ceil(sections.length / 2);
@@ -141,8 +164,8 @@ export const ReportViewer: React.FC<ReportViewerProps> = ({
     });
   }, [input]);
 
-  const totalTableChunks = Math.ceil(calcResult.allocatedBarsDetailed.length / 12) || 1;
-  const markdownPages = React.useMemo(() => splitMarkdownIntoPages(markdown), [markdown]);
+  const totalTableChunks = Math.ceil(calcResult.allocatedBarsDetailed.length / TABLE_ROWS_PER_PAGE) || 1;
+  const markdownPages = React.useMemo(() => splitMarkdownIntoPages(markdown, calcResult), [markdown, calcResult]);
 
   const markdownPagesCount = markdownPages.length;
   const section5PageNumber = markdownPagesCount + 1;
