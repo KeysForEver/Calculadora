@@ -18,16 +18,27 @@ interface ReportViewerProps {
 }
 
 export const ReportHeader: React.FC<{ dateStr?: string; source?: 'gemini' | 'calculator' }> = ({ dateStr }) => (
-  <div className="border-b-2 border-slate-900 pb-2.5 mb-5 flex items-end justify-between w-full">
-    <div className="flex items-baseline gap-3">
-      <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 font-poppins tracking-tight">
-        SKYMÍDIA
-      </h1>
+  <div className="border-b border-slate-700 pb-2 mb-4 flex items-end justify-between w-full font-serif">
+    <div className="flex flex-col">
+      <div className="flex items-baseline gap-2">
+        <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 font-serif">
+          SKYMÍDIA
+        </h1>
+        <span className="text-[11px] uppercase tracking-wider text-slate-600 font-serif hidden sm:inline">
+          — Projetos e Estruturas Metálicas
+        </span>
+      </div>
+      <span className="text-[10px] text-slate-500 font-serif tracking-normal">
+        Memorial Descritivo e Plano de Produção
+      </span>
     </div>
     {dateStr && (
       <div className="text-right flex flex-col items-end">
-        <span className="text-xs sm:text-sm font-semibold text-slate-700 block">
+        <span className="text-xs font-medium text-slate-700 font-serif block">
           {dateStr}
+        </span>
+        <span className="text-[9px] uppercase tracking-widest text-slate-500 font-serif">
+          Norma ABNT / NBR
         </span>
       </div>
     )}
@@ -35,28 +46,28 @@ export const ReportHeader: React.FC<{ dateStr?: string; source?: 'gemini' | 'cal
 );
 
 export const ReportFooter: React.FC<{ pageNum?: number; totalPages?: number }> = ({ pageNum, totalPages }) => (
-  <div className="mt-auto pt-3 border-t border-slate-200 text-xs text-slate-600 relative flex items-center justify-center w-full min-h-[32px]">
-    <div className="flex flex-wrap items-center justify-center gap-3 sm:gap-4 text-center px-4">
+  <div className="mt-auto pt-2 border-t border-slate-700 text-xs text-slate-700 font-serif relative flex items-center justify-center w-full min-h-[28px]">
+    <div className="flex flex-wrap items-center justify-center gap-3 text-center px-4">
       <a
         href="https://skymidiabh.com.br/"
         target="_blank"
         rel="noopener noreferrer"
-        className="text-[#707579] hover:text-slate-900 hover:underline font-medium text-[11px]"
+        className="text-slate-700 hover:text-slate-900 hover:underline font-serif text-[11px]"
       >
         https://skymidiabh.com.br/
       </a>
-      <span className="text-slate-300 hidden sm:inline">•</span>
+      <span className="text-slate-400 hidden sm:inline">•</span>
       <a
         href="https://www.instagram.com/skymidiabh/"
         target="_blank"
         rel="noopener noreferrer"
-        className="text-[#707579] hover:text-slate-900 hover:underline font-medium text-[11px]"
+        className="text-slate-700 hover:text-slate-900 hover:underline font-serif text-[11px]"
       >
         https://www.instagram.com/skymidiabh/
       </a>
     </div>
     {pageNum && totalPages && (
-      <span className="absolute right-0 text-[11px] font-semibold text-slate-500 whitespace-nowrap">
+      <span className="absolute right-0 text-[11px] font-semibold text-slate-800 font-serif whitespace-nowrap">
         Página {pageNum} de {totalPages}
       </span>
     )}
@@ -177,7 +188,7 @@ export const ReportViewer: React.FC<ReportViewerProps> = ({
     <div
       ref={reportRef}
       id="printable-report"
-      className="report-card bg-white text-slate-900 p-6 sm:p-10 rounded-2xl shadow-xl border border-slate-200/80 max-w-4xl mx-auto my-4 transition-all"
+      className="report-card latex-document font-serif bg-white text-slate-900 p-6 sm:p-10 rounded-2xl shadow-xl border border-slate-200/80 max-w-4xl mx-auto my-4 transition-all"
     >
       {/* Markdown Sequential Text Pages (Technical Considerations, Sections 1, 2, 3, 4) */}
       {markdownPages.map((pageMarkdown, pIdx) => {

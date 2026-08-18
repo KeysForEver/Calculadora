@@ -1,6 +1,7 @@
 import React from 'react';
 import { MetalonInput } from '../types';
 import { calculateMetalonStructure, PieceToCut, TABLE_ROWS_PER_PAGE } from '../utils/calculator';
+import { ReportHeader, ReportFooter } from './ReportViewer';
 
 export interface ProductionCutTableProps {
   input: MetalonInput;
@@ -30,6 +31,7 @@ interface TablePageChunk {
 export const ProductionCutTable: React.FC<ProductionCutTableProps> = ({
   input,
   dateStr,
+  source,
   startPageNum = 5,
   totalPages = 8,
 }) => {
@@ -84,7 +86,7 @@ export const ProductionCutTable: React.FC<ProductionCutTableProps> = ({
     }
 
     return result;
-  }, [allBars]);
+  }, [allBars, rowsPerPage]);
 
   const totalUsoGeral = React.useMemo(() => {
     return allBars.reduce((sum, bar) => sum + bar.usedLength, 0);
@@ -102,60 +104,47 @@ export const ProductionCutTable: React.FC<ProductionCutTableProps> = ({
         return (
           <div
             key={`chunk-page-${cIdx}`}
-            className="pdf-page bg-white pt-6 mt-10 border-t border-slate-200 flex flex-col justify-between min-h-[960px] sm:min-h-[1000px] break-before-page page-break-before-always"
+            className="pdf-page latex-document font-serif bg-white pt-6 mt-10 border-t border-slate-200 flex flex-col justify-between min-h-[960px] sm:min-h-[1000px] break-before-page page-break-before-always"
             style={{ pageBreakBefore: 'always', breakBefore: 'page' }}
           >
             {/* Top Container */}
             <div className="flex-1 flex flex-col justify-start">
-              {/* Header */}
-              <div className="border-b-2 border-slate-900 pb-2.5 mb-5 flex items-end justify-between w-full">
-                <div className="flex items-baseline gap-3">
-                  <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 font-poppins tracking-tight">
-                    SKYMÍDIA
-                  </h1>
-                </div>
-                {dateStr && (
-                  <div className="text-right flex flex-col items-end">
-                    <span className="text-xs sm:text-sm font-semibold text-slate-700 block">
-                      {dateStr}
-                    </span>
-                  </div>
-                )}
-              </div>
+              {/* LaTeX Header */}
+              <ReportHeader dateStr={dateStr} source={source} />
 
-              <div className="space-y-3.5 my-1 flex-1">
+              <div className="space-y-2 my-1 flex-1 font-serif">
                 {/* Section Title */}
-                <div className="border-b border-slate-200 pb-1.5 flex items-center justify-between">
-                  <h3 className="text-base sm:text-lg font-bold text-slate-900 flex items-center gap-2">
-                    <span className="text-[#707579]">7.</span>
+                <div className="border-b border-slate-700 pb-1 flex items-center justify-between">
+                  <h3 className="text-base font-bold text-slate-900 font-serif flex items-center gap-2">
+                    <span>7.</span>
                     Tabela de Corte de Barras para a Produção
                     {chunk.totalChunks > 1 && (
-                      <span className="text-xs font-normal text-slate-500">
-                        (Tabela {chunk.pageIndex + 1} de {chunk.totalChunks})
+                      <span className="text-xs font-normal text-slate-600 font-serif">
+                        (Folha {chunk.pageIndex + 1} de {chunk.totalChunks})
                       </span>
                     )}
                   </h3>
-                  <span className="text-[10px] font-semibold text-slate-600 bg-slate-100 px-2 py-0.5 rounded border border-slate-300">
+                  <span className="text-[11px] font-medium text-slate-700 font-serif">
                     Barras {chunk.bars[0]?.barNumber} a {chunk.bars[chunk.bars.length - 1]?.barNumber} de {allBars.length}
                   </span>
                 </div>
 
-                {/* Main Table for Production - Clean Table matching Section 4 */}
+                {/* Main Table for Production - LaTeX Booktabs Design */}
                 <div className="overflow-x-auto my-1">
-                  <table className="w-full text-left text-xs border-collapse border border-slate-300">
+                  <table className="booktabs-table w-full text-left text-xs font-serif">
                     <thead>
-                      <tr className="bg-slate-100 text-slate-900 border-b border-slate-300 font-bold">
-                        <th className="py-2 px-2.5 text-center border-r border-slate-300 w-20">N° Barra</th>
-                        <th className="py-2 px-2.5 border-r border-slate-300 w-36">Perfil Metalon</th>
-                        <th className="py-2 px-2.5 border-r border-slate-300">Peças a Cortar / Gabarito</th>
-                        <th className="py-2 px-2.5 text-right border-r border-slate-300 w-24">Uso Total</th>
-                        <th className="py-2 px-2.5 text-right w-24">Sobra Restante</th>
+                      <tr>
+                        <th className="w-20 text-center">N° Barra</th>
+                        <th className="w-36 text-left">Perfil Metalon</th>
+                        <th className="text-left">Peças a Cortar / Gabarito</th>
+                        <th className="w-24 text-right">Uso Total</th>
+                        <th className="w-24 text-right">Sobra Restante</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-300">
+                    <tbody>
                       {chunk.bars.map((bar) => {
                         const pecasTexto = bar.pieces
-                          .map((p) => `1x ${p.description} (${p.length.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} m)`)
+                          .map((p) => `1× ${p.description} (${p.length.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} m)`)
                           .join(' + ');
 
                         const usoFormatado = `${bar.usedLength.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} m`;
@@ -164,20 +153,20 @@ export const ProductionCutTable: React.FC<ProductionCutTableProps> = ({
                           : '0,00 m';
 
                         return (
-                          <tr key={`bar-${bar.barNumber}`} className="border-b border-slate-200">
-                            <td className="py-2 px-2.5 text-center font-medium text-slate-900 border-r border-slate-300">
+                          <tr key={`bar-${bar.barNumber}`}>
+                            <td className="text-center font-medium text-slate-900 font-mono text-[11px]">
                               Barra {String(bar.barNumber).padStart(2, '0')}
                             </td>
-                            <td className="py-2 px-2.5 text-slate-900 border-r border-slate-300">
+                            <td className="text-slate-900 font-serif">
                               {bar.profileName}
                             </td>
-                            <td className="py-2 px-2.5 text-slate-800 border-r border-slate-300">
+                            <td className="text-slate-800 font-serif">
                               {pecasTexto}
                             </td>
-                            <td className="py-2 px-2.5 text-right font-medium text-slate-900 border-r border-slate-300">
+                            <td className="text-right font-medium text-slate-900 font-serif">
                               {usoFormatado}
                             </td>
-                            <td className="py-2 px-2.5 text-right text-slate-900">
+                            <td className="text-right text-slate-700 font-serif">
                               {sobraFormatada}
                             </td>
                           </tr>
@@ -185,15 +174,15 @@ export const ProductionCutTable: React.FC<ProductionCutTableProps> = ({
                       })}
                     </tbody>
                     {chunk.isLast && (
-                      <tfoot className="border-t-2 border-slate-400">
-                        <tr className="bg-slate-100 font-bold text-slate-900">
-                          <td colSpan={3} className="py-2 px-2.5 text-right border-r border-slate-300 uppercase tracking-wider text-[10px]">
+                      <tfoot>
+                        <tr className="border-t border-slate-700 font-bold text-slate-900 font-serif">
+                          <td colSpan={3} className="text-right uppercase tracking-wider text-[11px] font-serif pt-2 pb-2">
                             TOTAL GERAL ({allBars.length} {allBars.length === 1 ? 'Barra' : 'Barras'} de 6,00 m = {(allBars.length * 6).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} m):
                           </td>
-                          <td className="py-2 px-2.5 text-right font-bold text-slate-900 border-r border-slate-300">
+                          <td className="text-right font-bold text-slate-900 font-serif pt-2 pb-2">
                             {totalUsoGeral.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} m
                           </td>
-                          <td className="py-2 px-2.5 text-right font-bold text-slate-900">
+                          <td className="text-right font-bold text-slate-900 font-serif pt-2 pb-2">
                             {totalSobraGeral.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} m
                           </td>
                         </tr>
@@ -204,31 +193,8 @@ export const ProductionCutTable: React.FC<ProductionCutTableProps> = ({
               </div>
             </div>
 
-            {/* Footer with fixed page numbers */}
-            <div className="mt-auto pt-3 border-t border-slate-200 text-xs text-slate-600 relative flex items-center justify-center w-full min-h-[32px]">
-              <div className="flex flex-wrap items-center justify-center gap-3 sm:gap-4 text-center px-4">
-                <a
-                  href="https://skymidiabh.com.br/"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-[#707579] hover:text-slate-900 hover:underline font-medium text-[11px]"
-                >
-                  https://skymidiabh.com.br/
-                </a>
-                <span className="text-slate-300 hidden sm:inline">•</span>
-                <a
-                  href="https://www.instagram.com/skymidiabh/"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-[#707579] hover:text-slate-900 hover:underline font-medium text-[11px]"
-                >
-                  https://www.instagram.com/skymidiabh/
-                </a>
-              </div>
-              <span className="absolute right-0 text-[11px] font-semibold text-slate-500 whitespace-nowrap">
-                Página {currentPageNumber} de {totalPages}
-              </span>
-            </div>
+            {/* LaTeX Footer */}
+            <ReportFooter pageNum={currentPageNumber} totalPages={totalPages} />
           </div>
         );
       })}

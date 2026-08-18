@@ -68,28 +68,25 @@ export const TechnicalProjectDrawing: React.FC<TechnicalProjectDrawingProps> = (
   const startY = padTop + (availHeight - drawHeight) / 2;
 
   return (
-    <div className="space-y-3.5">
+    <div className="space-y-3.5 font-serif">
       {/* Section Header */}
-      <div className="border-b border-slate-200 pb-1.5 flex items-center justify-between">
-        <h3 className="text-base sm:text-lg font-bold text-slate-900 flex items-center gap-2">
-          <span className="text-[#707579]">6.</span>
+      <div className="border-b border-slate-700 pb-1 flex items-center justify-between font-serif">
+        <h3 className="text-base font-bold text-slate-900 font-serif flex items-center gap-2">
+          <span>6.</span>
           Gabarito Técnico de Montagem e Solda da Estrutura
         </h3>
-        <span className="text-[10px] font-bold uppercase tracking-wider bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded border border-emerald-300">
-          Gabarito Oficial de Produção (Barras B01 a B{String(totalComEmendaComOpt).padStart(2, '0')})
+        <span className="text-[11px] font-medium text-slate-700 font-serif">
+          Gabarito Oficial (Barras B01 a B{String(totalComEmendaComOpt).padStart(2, '0')})
         </span>
       </div>
 
       {/* Main Master Technical Blueprint Card */}
-      <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 shadow-sm">
-        <div className="flex items-center justify-between mb-2">
-          <div className="flex items-center gap-2">
-            <span className="w-2.5 h-2.5 rounded-full bg-emerald-600"></span>
-            <h4 className="text-xs font-bold uppercase tracking-wider text-slate-900">
-              Planta Técnica de Montagem com Posicionamento de Emendas e Soldas
-            </h4>
-          </div>
-          <span className="text-[10px] font-semibold text-slate-600 bg-white px-2 py-0.5 rounded border border-slate-200">
+      <div className="bg-white border border-slate-300 rounded-lg p-2.5">
+        <div className="flex items-center justify-between mb-1.5 font-serif">
+          <h4 className="text-xs font-bold text-slate-900 font-serif">
+            Figura 3 — Planta Técnica Geral de Montagem, Posicionamento de Emendas e Soldas
+          </h4>
+          <span className="text-[11px] font-serif text-slate-700">
             {weldsCountScenario3} Pontos de Solda / Emendas
           </span>
         </div>

@@ -63,25 +63,24 @@ export const StructureVisualizer: React.FC<VisualizerProps> = ({ input }) => {
   return (
     <div className="space-y-4">
       {/* Section Title */}
-      <div className="border-b border-slate-200 pb-1.5 flex items-center justify-between">
-        <h3 className="text-base sm:text-lg font-bold text-slate-900 flex items-center gap-2">
-          <span className="text-[#707579]">5.</span>
+      <div className="border-b border-slate-700 pb-1 flex items-center justify-between font-serif">
+        <h3 className="text-base font-bold text-slate-900 font-serif flex items-center gap-2">
+          <span>5.</span>
           Esquemas Estruturais Individuais com Numeração de Barras
         </h3>
-        <span className="text-[10px] font-semibold text-slate-600 bg-slate-100 px-2 py-0.5 rounded border border-slate-300">
+        <span className="text-[11px] font-medium text-slate-700 font-serif">
           Barras B01 a B{String(calc.totalComEmendaComOpt).padStart(2, '0')} (Tabela 7)
         </span>
       </div>
 
-      <div className="flex flex-col gap-3.5">
+      <div className="flex flex-col gap-3.5 font-serif">
         {/* 5.1 Desenho da Estrutura Horizontal */}
-        <div className="bg-slate-50/80 text-slate-800 rounded-xl p-3 border border-slate-200 shadow-sm">
-          <div className="flex items-center justify-between mb-1.5">
-            <h4 className="text-[11px] font-bold uppercase tracking-wider text-slate-900 flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-blue-600"></span>
-              5.1 Estrutura Horizontal (Emendas e Barras da Tabela 7)
+        <div className="bg-white text-slate-900 rounded-lg p-2.5 border border-slate-300">
+          <div className="flex items-center justify-between mb-1.5 font-serif">
+            <h4 className="text-xs font-bold text-slate-900 flex items-center gap-1.5 font-serif">
+              Figura 1 — Esquema da Estrutura Horizontal (Emendas e Barras da Tabela 7)
             </h4>
-            <span className="text-[10px] font-medium text-slate-600">
+            <span className="text-[11px] font-serif text-slate-700">
               {linhasHorizontais} linhas • {largura.toFixed(2)} m cada • Vão livre vertical: ~{(vaoLivreVert * 100).toFixed(1)} cm
             </span>
           </div>
@@ -229,13 +228,12 @@ export const StructureVisualizer: React.FC<VisualizerProps> = ({ input }) => {
         </div>
 
         {/* 5.2 Desenho da Estrutura Vertical */}
-        <div className="bg-slate-50/80 text-slate-800 rounded-xl p-3 border border-slate-200 shadow-sm">
-          <div className="flex items-center justify-between mb-1.5">
-            <h4 className="text-[11px] font-bold uppercase tracking-wider text-slate-900 flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-amber-600"></span>
-              5.2 Estrutura Vertical (Colunas e Numeração de Barras)
+        <div className="bg-white text-slate-900 rounded-lg p-2.5 border border-slate-300">
+          <div className="flex items-center justify-between mb-1.5 font-serif">
+            <h4 className="text-xs font-bold text-slate-900 flex items-center gap-1.5 font-serif">
+              Figura 2 — Esquema da Estrutura Vertical (Colunas e Numeração de Barras)
             </h4>
-            <span className="text-[10px] font-semibold text-amber-800">
+            <span className="text-[11px] font-serif text-slate-700">
               {colunasVerticais} colunas • {vertCutLength.toFixed(2)} m cada • Vão livre horizontal: ~{(vaoLivreHoriz * 100).toFixed(1)} cm
             </span>
           </div>
