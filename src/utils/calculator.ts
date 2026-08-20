@@ -798,7 +798,7 @@ export function calculateMetalonStructure(params: {
 
   rawDiagrams[winnerIndex].isWinner = true;
   rawDiagrams[winnerIndex].winnerBadge = '★ MODELO VITORIOSO (RECOMENDADO PARA PRODUÇÃO)';
-  rawDiagrams[winnerIndex].winnerReason = `Menor tempo de fabricação e quantidade mínima de soldas (${rawDiagrams[winnerIndex].weldsCount} nós / ~${rawDiagrams[winnerIndex].weldingTimeFormatted}) com consumo eficiente de material (${rawDiagrams[winnerIndex].totalBars} barras de 6,00 m).`;
+  rawDiagrams[winnerIndex].winnerReason = `Quantidade mínima de nós de solda (${rawDiagrams[winnerIndex].weldsCount} soldas) com consumo eficiente de material (${rawDiagrams[winnerIndex].totalBars} barras de 6,00 m).`;
 
   const winnerDiagram = rawDiagrams[winnerIndex];
   const diagrams = rawDiagrams;
@@ -948,10 +948,10 @@ ${vertIntCount > 0 ? `* Colunas Internas (${profileInt.name}): **${vertIntCount}
 
 ## 3. Análise Comparativa dos 4 Modelos Estruturais e Critério de Decisão
 
-### 3.1 Priorização Técnica: Mínimo de Solda e Menor Tempo de Fabricação
-Na fabricação de painéis em serralheria industrial, o custo de mão de obra e o tempo de solda representam o maior impacto financeiro e operacional. Para cada um dos 4 esquemas construtivos (Diagramas 1 a 4), calculou-se a demanda exata de barras comerciais de 6,00 m, metragem linear, aproveitamento e pontos de solda:
-- **Critério de Seleção:** Prioridade absoluta para o modelo que minimiza os pontos de solda (menor tempo de execução), mantendo um consumo de barras comercialmente eficiente e seguro.
-- **Modelo Vitorioso Eleito:** **${winnerDiagram.title}** (${winnerDiagram.shortTitle}), totalizando **${winnerDiagram.totalBars} barras de 6,00 m** e **${winnerDiagram.weldsCount} pontos de solda** (~${winnerDiagram.weldingTimeFormatted} de soldagem).
+### 3.1 Priorização Técnica: Mínimo de Solda e Eficiência Estrutural
+Na fabricação de painéis em serralheria industrial, a quantidade de nós de solda e o aproveitamento de barras representam os critérios determinantes. Para cada um dos 4 esquemas construtivos (Diagramas 1 a 4), calculou-se a demanda exata de barras comerciais de 6,00 m, metragem linear, aproveitamento e pontos de solda:
+- **Critério de Seleção:** Prioridade para o modelo que minimiza a quantidade de pontos de solda, mantendo um consumo de barras comercialmente eficiente e seguro.
+- **Modelo Vitorioso Eleito:** **${winnerDiagram.title}** (${winnerDiagram.shortTitle}), totalizando **${winnerDiagram.totalBars} barras de 6,00 m** e **${winnerDiagram.weldsCount} pontos de solda**.
 
 ### 3.2 Gabarito de Transporte (Caminhão 4,30 m × 2,00 m)
 - **Status de Transporte:** ${transportLogistics.statusText}
@@ -959,23 +959,8 @@ Na fabricação de painéis em serralheria industrial, o custo de mão de obra e
 
 ---
 
-## 4. Comparativo dos 4 Diagramas e Lista Técnica de Produção
-
-| Diagrama / Modelo Construtivo | Topologia Estrutural | Barras (6,00m) | Metragem Linear | Aproveitamento | Pontos de Solda | Tempo Estimado | Classificação |
-| :---------------------------- | :------------------: | :------------: | :-------------: | :------------: | :-------------: | :------------: | :-----------: |
-${diagrams.map(d => `| **${d.shortTitle}** | ${d.topologyName} | **${d.totalBars} barras** | ${d.totalMetragemLinear.toLocaleString('pt-BR')} m | ${d.aproveitamentoPct.toLocaleString('pt-BR')}% | **${d.weldsCount} soldas** | ~${d.weldingTimeFormatted} | ${d.isWinner ? '**★ MODELO VITORIOSO**' : 'Alternativa'} |`).join('\n')}
-
-### Lista Técnica de Quantitativos e Soldagem (Modelo Eleito: ${winnerDiagram.shortTitle}):
-- **Total de Barras Comerciais (6,00 m):** **${winnerDiagram.totalBars} barras de 6,00 m** (${(winnerDiagram.totalBars * 6.0).toLocaleString('pt-BR')} m lineares adquiridos).
-- **Consumo Teórico de Projeto:** **${teoricoBarrasGeral} barras** (${winnerDiagram.totalMetragemLinear.toLocaleString('pt-BR')} m de demanda linear efetiva).
-- **Índice de Aproveitamento de Aço:** **${winnerDiagram.aproveitamentoPct.toLocaleString('pt-BR')}%** (Sobra total de retalhos: **${winnerDiagram.sobraTotalM.toLocaleString('pt-BR')} m**).
-- **Total de Pontos / Nós de Solda:** **${winnerDiagram.weldsCount} pontos de solda** (Tempo de soldagem estimado: **~${winnerDiagram.weldingTimeFormatted}** a 2,5 min/nó).
-- **Topologia Estrutural:** **${winnerDiagram.topologyName}** (Solução de menor esforço operacional e máxima rigidez mecânica).
-- **Gabarito Logístico de Transporte:** **${transportLogistics.totalModulesCount === 1 ? 'Peça Única (Transporte Direto em Caminhão Padrão)' : `${transportLogistics.totalModulesCount} Módulos Transportáveis com Flanges de Fixação`}** (${transportLogistics.statusText}).
-
-### Lista Técnica Comparativa por Topologia Construtiva:
-- **Figura 1 (${d1.shortTitle} — ${d1.topologyName}):** **${d1.totalBars} barras de 6,00 m** • **${d1.totalMetragemLinear.toLocaleString('pt-BR')} m** • **${d1.weldsCount} soldas** (~${d1.weldingTimeFormatted}) • **${d1.aproveitamentoPct.toLocaleString('pt-BR')}%** aproveitamento.
-- **Figura 2 (${d2.shortTitle} — ${d2.topologyName}):** **${d2.totalBars} barras de 6,00 m** • **${d2.totalMetragemLinear.toLocaleString('pt-BR')} m** • **${d2.weldsCount} soldas** (~${d2.weldingTimeFormatted}) • **${d2.aproveitamentoPct.toLocaleString('pt-BR')}%** aproveitamento.
-- **Figura 3 (${d3.shortTitle} — ${d3.topologyName}):** **${d3.totalBars} barras de 6,00 m** • **${d3.totalMetragemLinear.toLocaleString('pt-BR')} m** • **${d3.weldsCount} soldas** (~${d3.weldingTimeFormatted}) • **${d3.aproveitamentoPct.toLocaleString('pt-BR')}%** aproveitamento.
-- **Figura 4 (${d4.shortTitle} — ${d4.topologyName}):** **${d4.totalBars} barras de 6,00 m** • **${d4.totalMetragemLinear.toLocaleString('pt-BR')} m** • **${d4.weldsCount} soldas** (~${d4.weldingTimeFormatted}) • **${d4.aproveitamentoPct.toLocaleString('pt-BR')}%** aproveitamento.`;
+## 4. Comparativo dos 4 Diagramas
+| Diagrama / Modelo Construtivo | Topologia Estrutural | Barras (6,00m) | Metragem Linear | Aproveitamento | Pontos de Solda | Classificação |
+| :---------------------------- | :------------------: | :------------: | :-------------: | :------------: | :-------------: | :-----------: |
+${diagrams.map(d => `| **${d.shortTitle}** | ${d.topologyName} | **${d.totalBars} barras** | ${d.totalMetragemLinear.toLocaleString('pt-BR')} m | ${d.aproveitamentoPct.toLocaleString('pt-BR')}% | **${d.weldsCount} soldas** | ${d.isWinner ? '**★ MODELO VITORIOSO**' : 'Alternativa'} |`).join('\n')}`;
 }

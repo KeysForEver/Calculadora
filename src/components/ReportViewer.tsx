@@ -84,34 +84,15 @@ function splitMarkdownIntoPages(markdown: string, calcResult: ReturnType<typeof 
   // 3. Strip sections 5, 6, 7 if present in text, as they are rendered via dedicated visual components
   let textWithout567 = cleaned.replace(/(?:---|##)\s*#*\s*[567]\..*$/si, '').trim();
 
-  // 4. Enforce Section 4 Summary Table with 4-Diagram Comparison and Technical List format
-  const d1 = calcResult.diagrams[0];
-  const d2 = calcResult.diagrams[1];
-  const d3 = calcResult.diagrams[2];
-  const d4 = calcResult.diagrams[3];
-
-  const canonicalSection4Table = `| Diagrama / Modelo Construtivo | Topologia Estrutural | Barras (6,00m) | Metragem Linear | Aproveitamento | Pontos de Solda | Tempo Estimado | Classificação |
-| :---------------------------- | :------------------: | :------------: | :-------------: | :------------: | :-------------: | :------------: | :-----------: |
-${calcResult.diagrams.map(d => `| **${d.shortTitle}** | ${d.topologyName} | **${d.totalBars} barras** | ${d.totalMetragemLinear.toLocaleString('pt-BR')} m | ${d.aproveitamentoPct.toLocaleString('pt-BR')}% | **${d.weldsCount} soldas** | ~${d.weldingTimeFormatted} | ${d.isWinner ? '**★ MODELO VITORIOSO**' : 'Alternativa'} |`).join('\n')}
-
-### Lista Técnica de Quantitativos e Soldagem (Modelo Eleito: ${calcResult.winnerDiagram.shortTitle}):
-- **Total de Barras Comerciais (6,00 m):** **${calcResult.winnerDiagram.totalBars} barras de 6,00 m** (${(calcResult.winnerDiagram.totalBars * 6.0).toLocaleString('pt-BR')} m lineares adquiridos).
-- **Consumo Teórico de Projeto:** **${calcResult.teoricoBarrasGeral} barras** (${calcResult.winnerDiagram.totalMetragemLinear.toLocaleString('pt-BR')} m de demanda linear efetiva).
-- **Índice de Aproveitamento de Aço:** **${calcResult.winnerDiagram.aproveitamentoPct.toLocaleString('pt-BR')}%** (Sobra total de retalhos: **${calcResult.winnerDiagram.sobraTotalM.toLocaleString('pt-BR')} m**).
-- **Total de Pontos / Nós de Solda:** **${calcResult.winnerDiagram.weldsCount} pontos de solda** (Tempo de soldagem estimado: **~${calcResult.winnerDiagram.weldingTimeFormatted}** a 2,5 min/nó).
-- **Topologia Estrutural:** **${calcResult.winnerDiagram.topologyName}** (Solução de menor esforço operacional e máxima rigidez mecânica).
-- **Gabarito Logístico de Transporte:** **${calcResult.transportLogistics.totalModulesCount === 1 ? 'Peça Única (Transporte Direto em Caminhão Padrão)' : `${calcResult.transportLogistics.totalModulesCount} Módulos Transportáveis com Flanges de Fixação`}** (${calcResult.transportLogistics.statusText}).
-
-### Lista Técnica Comparativa por Topologia Construtiva:
-- **Figura 1 (${d1.shortTitle} — ${d1.topologyName}):** **${d1.totalBars} barras de 6,00 m** • **${d1.totalMetragemLinear.toLocaleString('pt-BR')} m** • **${d1.weldsCount} soldas** (~${d1.weldingTimeFormatted}) • **${d1.aproveitamentoPct.toLocaleString('pt-BR')}%** aproveitamento.
-- **Figura 2 (${d2.shortTitle} — ${d2.topologyName}):** **${d2.totalBars} barras de 6,00 m** • **${d2.totalMetragemLinear.toLocaleString('pt-BR')} m** • **${d2.weldsCount} soldas** (~${d2.weldingTimeFormatted}) • **${d2.aproveitamentoPct.toLocaleString('pt-BR')}%** aproveitamento.
-- **Figura 3 (${d3.shortTitle} — ${d3.topologyName}):** **${d3.totalBars} barras de 6,00 m** • **${d3.totalMetragemLinear.toLocaleString('pt-BR')} m** • **${d3.weldsCount} soldas** (~${d3.weldingTimeFormatted}) • **${d3.aproveitamentoPct.toLocaleString('pt-BR')}%** aproveitamento.
-- **Figura 4 (${d4.shortTitle} — ${d4.topologyName}):** **${d4.totalBars} barras de 6,00 m** • **${d4.totalMetragemLinear.toLocaleString('pt-BR')} m** • **${d4.weldsCount} soldas** (~${d4.weldingTimeFormatted}) • **${d4.aproveitamentoPct.toLocaleString('pt-BR')}%** aproveitamento.`;
+  // 4. Enforce Section 4 with only the 4-Diagram Summary Table
+  const canonicalSection4Table = `| Diagrama / Modelo Construtivo | Topologia Estrutural | Barras (6,00m) | Metragem Linear | Aproveitamento | Pontos de Solda | Classificação |
+| :---------------------------- | :------------------: | :------------: | :-------------: | :------------: | :-------------: | :-----------: |
+${calcResult.diagrams.map(d => `| **${d.shortTitle}** | ${d.topologyName} | **${d.totalBars} barras** | ${d.totalMetragemLinear.toLocaleString('pt-BR')} m | ${d.aproveitamentoPct.toLocaleString('pt-BR')}% | **${d.weldsCount} soldas** | ${d.isWinner ? '**★ MODELO VITORIOSO**' : 'Alternativa'} |`).join('\n')}`;
 
   if (textWithout567.search(/(?:^|\n)##\s*4[\.\s]/i) >= 0) {
     textWithout567 = textWithout567.replace(
       /(?:^|\n)(##\s*4[\.\s][^\n]*\n+)[\s\S]*$/i,
-      `\n\n## 4. Comparativo dos 4 Diagramas e Lista Técnica de Produção\n\n${canonicalSection4Table}`
+      `\n\n## 4. Comparativo dos 4 Diagramas\n\n${canonicalSection4Table}`
     ).trim();
   }
 

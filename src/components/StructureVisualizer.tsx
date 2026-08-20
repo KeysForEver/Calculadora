@@ -50,12 +50,12 @@ export const StructureVisualizer: React.FC<VisualizerProps> = ({ input, part = '
 
   // SVG Dimension Constants tailored for A4 page width and 2-diagram vertical stack per page
   const svgWidth = 720;
-  const svgHeight = 220;
+  const svgHeight = 236;
 
   const padLeft = 85;
-  const padRight = 55;
-  const padTop = 40;
-  const padBottom = 34;
+  const padRight = 75;
+  const padTop = 42;
+  const padBottom = 26;
 
   const availWidth = svgWidth - padLeft - padRight;
   const availHeight = svgHeight - padTop - padBottom;
@@ -76,9 +76,11 @@ export const StructureVisualizer: React.FC<VisualizerProps> = ({ input, part = '
   const numVaosHoriz = Math.max(1, colunasVerticais - 1);
   const numVaosVert = Math.max(1, linhasHorizontais - 1);
 
-  // Partial span dimensions in cm
+  // Partial span dimensions in cm and m
   const vaoHorizCmStr = (vaoLivreHoriz * 100).toFixed(1).replace('.', ',');
   const vaoVertCmStr = (vaoLivreVert * 100).toFixed(1).replace('.', ',');
+  const vaoHorizMStr = vaoLivreHoriz.toFixed(2).replace('.', ',');
+  const vaoVertMStr = vaoLivreVert.toFixed(2).replace('.', ',');
 
   const showPart1 = part === 'all' || part === 'part1';
   const showPart2 = part === 'all' || part === 'part2';
@@ -153,13 +155,28 @@ export const StructureVisualizer: React.FC<VisualizerProps> = ({ input, part = '
                   {d1.aproveitamentoPct.toFixed(1).replace('.', ',')}% aproveitamento
                 </span>
                 <span className="bg-amber-50 text-amber-900 px-2 py-0.5 rounded border border-amber-300 font-bold">
-                  {d1.weldsCount} pontos de solda (~{d1.weldingTimeFormatted})
+                  {d1.weldsCount} pontos de solda
                 </span>
               </div>
             </div>
 
             <div className="relative flex justify-center items-center bg-white rounded-lg p-2 border border-slate-200 overflow-x-auto">
               <svg width={svgWidth} height={svgHeight} className="max-w-full h-auto">
+                <defs>
+                  <marker id="d1-arr-start" viewBox="0 0 10 10" refX="2" refY="5" markerWidth="3" markerHeight="3" orient="auto-start-reverse">
+                    <path d="M 10 1 L 0 5 L 10 9 z" fill="#475569" />
+                  </marker>
+                  <marker id="d1-arr-end" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="3" markerHeight="3" orient="auto">
+                    <path d="M 0 1 L 10 5 L 0 9 z" fill="#475569" />
+                  </marker>
+                  <marker id="d1-int-start" viewBox="0 0 10 10" refX="2" refY="5" markerWidth="3" markerHeight="3" orient="auto-start-reverse">
+                    <path d="M 10 1 L 0 5 L 10 9 z" fill="#0284c7" />
+                  </marker>
+                  <marker id="d1-int-end" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="3" markerHeight="3" orient="auto">
+                    <path d="M 0 1 L 10 5 L 0 9 z" fill="#0284c7" />
+                  </marker>
+                </defs>
+
                 {/* Outer Reference Box */}
                 <rect
                   x={startX}
@@ -269,135 +286,220 @@ export const StructureVisualizer: React.FC<VisualizerProps> = ({ input, part = '
                   );
                 })}
 
-                {/* === COTAS TÉCNICAS DO DIAGRAMA 1 === */}
+                {/* === COTAS INTERNAS DO DIAGRAMA 1 (Vãos Livres Interiores) === */}
+                {Array.from({ length: numVaosVert }).map((_, i) => {
+                  const y1 = startY + (i * drawHeight) / numVaosVert;
+                  const y2 = startY + ((i + 1) * drawHeight) / numVaosVert;
+                  const midY = (y1 + y2) / 2;
+                  const cellH = y2 - y1;
+
+                  return (
+                    <g key={`d1-internal-row-${i}`}>
+                      {Array.from({ length: numVaosHoriz }).map((_, j) => {
+                        const x1 = startX + (j * drawWidth) / numVaosHoriz;
+                        const x2 = startX + ((j + 1) * drawWidth) / numVaosHoriz;
+                        const midX = (x1 + x2) / 2;
+                        const cellW = x2 - x1;
+
+                        // Internal horizontal span dimension line inside each cell
+                        return (
+                          <g key={`d1-int-cell-${i}-${j}`}>
+                            {cellW > 45 && cellH > 24 && (
+                              <>
+                                {/* Inner Horizontal Dimension Line */}
+                                <line
+                                  x1={x1 + 6}
+                                  y1={midY - (cellH > 40 ? 5 : 0)}
+                                  x2={x2 - 6}
+                                  y2={midY - (cellH > 40 ? 5 : 0)}
+                                  stroke="#0284c7"
+                                  strokeWidth="0.8"
+                                  strokeDasharray="3 2"
+                                  markerStart="url(#d1-int-start)"
+                                  markerEnd="url(#d1-int-end)"
+                                />
+                                <rect
+                                  x={midX - 22}
+                                  y={midY - (cellH > 40 ? 11 : 6)}
+                                  width="44"
+                                  height="11"
+                                  rx="2"
+                                  fill="#ffffff"
+                                  stroke="#0284c7"
+                                  strokeWidth="0.7"
+                                />
+                                <text
+                                  x={midX}
+                                  y={midY - (cellH > 40 ? 3 : -2)}
+                                  fill="#0369a1"
+                                  fontSize="6.5"
+                                  fontWeight="bold"
+                                  textAnchor="middle"
+                                >
+                                  Vão: {vaoHorizCmStr} cm
+                                </text>
+
+                                {/* Inner Vertical Dimension Line (in first column cells) */}
+                                {j === 0 && cellH > 38 && (
+                                  <>
+                                    <line
+                                      x1={x1 + 14}
+                                      y1={y1 + 6}
+                                      x2={x1 + 14}
+                                      y2={y2 - 6}
+                                      stroke="#0284c7"
+                                      strokeWidth="0.8"
+                                      strokeDasharray="3 2"
+                                      markerStart="url(#d1-int-start)"
+                                      markerEnd="url(#d1-int-end)"
+                                    />
+                                    <rect
+                                      x={x1 + 16}
+                                      y={midY + 3}
+                                      width="42"
+                                      height="10"
+                                      rx="2"
+                                      fill="#ffffff"
+                                      stroke="#0284c7"
+                                      strokeWidth="0.6"
+                                    />
+                                    <text
+                                      x={x1 + 37}
+                                      y={midY + 10.5}
+                                      fill="#0369a1"
+                                      fontSize="6"
+                                      fontWeight="bold"
+                                      textAnchor="middle"
+                                    >
+                                      Alt: {vaoVertCmStr} cm
+                                    </text>
+                                  </>
+                                )}
+                              </>
+                            )}
+                          </g>
+                        );
+                      })}
+                    </g>
+                  );
+                })}
+
+                {/* === COTAS EXTERNAS DO DIAGRAMA 1 === */}
+                {/* Linhas de Extensão Superiores */}
+                <line x1={startX} y1={startY} x2={startX} y2={startY - 30} stroke="#94a3b8" strokeWidth="0.7" strokeDasharray="2 2" />
+                <line x1={startX + drawWidth} y1={startY} x2={startX + drawWidth} y2={startY - 30} stroke="#94a3b8" strokeWidth="0.7" strokeDasharray="2 2" />
+
                 {/* Cota Geral Superior (Largura Total) */}
                 <line
                   x1={startX}
-                  y1={startY - 22}
+                  y1={startY - 25}
                   x2={startX + drawWidth}
-                  y2={startY - 22}
+                  y2={startY - 25}
                   stroke="#0f172a"
                   strokeWidth="1"
                 />
-                <line x1={startX} y1={startY - 27} x2={startX} y2={startY - 17} stroke="#0f172a" strokeWidth="1" />
-                <line
-                  x1={startX + drawWidth}
-                  y1={startY - 27}
-                  x2={startX + drawWidth}
-                  y2={startY - 17}
-                  stroke="#0f172a"
-                  strokeWidth="1"
-                />
+                <line x1={startX} y1={startY - 29} x2={startX} y2={startY - 21} stroke="#0f172a" strokeWidth="1" />
+                <line x1={startX + drawWidth} y1={startY - 29} x2={startX + drawWidth} y2={startY - 21} stroke="#0f172a" strokeWidth="1" />
                 <rect
-                  x={startX + drawWidth / 2 - 40}
-                  y={startY - 29}
-                  width="80"
+                  x={startX + drawWidth / 2 - 45}
+                  y={startY - 32}
+                  width="90"
                   height="13"
                   fill="#ffffff"
+                  stroke="#0f172a"
+                  strokeWidth="0.7"
                   rx="2"
                 />
                 <text
                   x={startX + drawWidth / 2}
-                  y={startY - 20}
+                  y={startY - 23}
                   fill="#0f172a"
-                  fontSize="8"
+                  fontSize="7.5"
                   fontWeight="bold"
                   textAnchor="middle"
                 >
                   Largura Total: {largura.toFixed(2).replace('.', ',')} m
                 </text>
 
-                {/* Cotas Parciais Superiores de Cada Vão Livre */}
-                {numVaosHoriz > 1 &&
-                  Array.from({ length: numVaosHoriz }).map((_, j) => {
-                    const x1 = startX + (j * drawWidth) / numVaosHoriz;
-                    const x2 = startX + ((j + 1) * drawWidth) / numVaosHoriz;
-                    const midX = (x1 + x2) / 2;
-                    return (
-                      <g key={`d1-span-dim-${j}`}>
-                        <line x1={x1} y1={startY - 8} x2={x2} y2={startY - 8} stroke="#475569" strokeWidth="0.8" />
-                        <line x1={x1} y1={startY - 11} x2={x1} y2={startY - 5} stroke="#475569" strokeWidth="0.8" />
-                        <line x1={x2} y1={startY - 11} x2={x2} y2={startY - 5} stroke="#475569" strokeWidth="0.8" />
-                        {drawWidth / numVaosHoriz > 35 && (
-                          <text
-                            x={midX}
-                            y={startY - 11}
-                            fill="#475569"
-                            fontSize="6.5"
-                            fontWeight="bold"
-                            textAnchor="middle"
-                          >
-                            {vaoHorizCmStr} cm
-                          </text>
-                        )}
-                      </g>
-                    );
-                  })}
+                {/* Cotas Parciais Superiores de Cada Vão */}
+                {Array.from({ length: numVaosHoriz }).map((_, j) => {
+                  const x1 = startX + (j * drawWidth) / numVaosHoriz;
+                  const x2 = startX + ((j + 1) * drawWidth) / numVaosHoriz;
+                  const midX = (x1 + x2) / 2;
+                  return (
+                    <g key={`d1-ext-span-dim-${j}`}>
+                      <line x1={x1} y1={startY - 10} x2={x2} y2={startY - 10} stroke="#475569" strokeWidth="0.8" />
+                      <line x1={x1} y1={startY - 13} x2={x1} y2={startY - 7} stroke="#475569" strokeWidth="0.8" />
+                      <line x1={x2} y1={startY - 13} x2={x2} y2={startY - 7} stroke="#475569" strokeWidth="0.8" />
+                      {drawWidth / numVaosHoriz > 35 && (
+                        <text
+                          x={midX}
+                          y={startY - 12}
+                          fill="#475569"
+                          fontSize="6.5"
+                          fontWeight="bold"
+                          textAnchor="middle"
+                        >
+                          {vaoHorizCmStr} cm
+                        </text>
+                      )}
+                    </g>
+                  );
+                })}
+
+                {/* Linhas de Extensão Laterais Direitas */}
+                <line x1={startX + drawWidth} y1={startY} x2={startX + drawWidth + 38} y2={startY} stroke="#94a3b8" strokeWidth="0.7" strokeDasharray="2 2" />
+                <line x1={startX + drawWidth} y1={startY + drawHeight} x2={startX + drawWidth + 38} y2={startY + drawHeight} stroke="#94a3b8" strokeWidth="0.7" strokeDasharray="2 2" />
 
                 {/* Cota Geral Lateral Direita (Altura Total) */}
                 <line
-                  x1={startX + drawWidth + 22}
+                  x1={startX + drawWidth + 30}
                   y1={startY}
-                  x2={startX + drawWidth + 22}
+                  x2={startX + drawWidth + 30}
                   y2={startY + drawHeight}
                   stroke="#0f172a"
                   strokeWidth="1"
                 />
-                <line
-                  x1={startX + drawWidth + 17}
-                  y1={startY}
-                  x2={startX + drawWidth + 27}
-                  y2={startY}
-                  stroke="#0f172a"
-                  strokeWidth="1"
-                />
-                <line
-                  x1={startX + drawWidth + 17}
-                  y1={startY + drawHeight}
-                  x2={startX + drawWidth + 27}
-                  y2={startY + drawHeight}
-                  stroke="#0f172a"
-                  strokeWidth="1"
-                />
+                <line x1={startX + drawWidth + 26} y1={startY} x2={startX + drawWidth + 34} y2={startY} stroke="#0f172a" strokeWidth="1" />
+                <line x1={startX + drawWidth + 26} y1={startY + drawHeight} x2={startX + drawWidth + 34} y2={startY + drawHeight} stroke="#0f172a" strokeWidth="1" />
                 <text
-                  x={startX + drawWidth + 36}
+                  x={startX + drawWidth + 42}
                   y={startY + drawHeight / 2}
                   fill="#0f172a"
-                  fontSize="8"
+                  fontSize="7.5"
                   fontWeight="bold"
                   textAnchor="middle"
                   dominantBaseline="central"
-                  transform={`rotate(90, ${startX + drawWidth + 36}, ${startY + drawHeight / 2})`}
+                  transform={`rotate(90, ${startX + drawWidth + 42}, ${startY + drawHeight / 2})`}
                 >
-                  Altura: {altura.toFixed(2).replace('.', ',')} m
+                  Altura Total: {altura.toFixed(2).replace('.', ',')} m
                 </text>
 
                 {/* Cotas Parciais Verticais dos Vãos */}
-                {numVaosVert > 1 &&
-                  Array.from({ length: numVaosVert }).map((_, i) => {
-                    const y1 = startY + (i * drawHeight) / numVaosVert;
-                    const y2 = startY + ((i + 1) * drawHeight) / numVaosVert;
-                    const midY = (y1 + y2) / 2;
-                    return (
-                      <g key={`d1-vspan-dim-${i}`}>
-                        <line x1={startX + drawWidth + 7} y1={y1} x2={startX + drawWidth + 7} y2={y2} stroke="#475569" strokeWidth="0.8" />
-                        <line x1={startX + drawWidth + 4} y1={y1} x2={startX + drawWidth + 10} y2={y1} stroke="#475569" strokeWidth="0.8" />
-                        <line x1={startX + drawWidth + 4} y1={y2} x2={startX + drawWidth + 10} y2={y2} stroke="#475569" strokeWidth="0.8" />
-                        {drawHeight / numVaosVert > 18 && (
-                          <text
-                            x={startX + drawWidth + 12}
-                            y={midY + 2.5}
-                            fill="#475569"
-                            fontSize="6"
-                            fontWeight="bold"
-                            textAnchor="start"
-                          >
-                            {vaoVertCmStr} cm
-                          </text>
-                        )}
-                      </g>
-                    );
-                  })}
+                {Array.from({ length: numVaosVert }).map((_, i) => {
+                  const y1 = startY + (i * drawHeight) / numVaosVert;
+                  const y2 = startY + ((i + 1) * drawHeight) / numVaosVert;
+                  const midY = (y1 + y2) / 2;
+                  return (
+                    <g key={`d1-ext-vspan-dim-${i}`}>
+                      <line x1={startX + drawWidth + 10} y1={y1} x2={startX + drawWidth + 10} y2={y2} stroke="#475569" strokeWidth="0.8" />
+                      <line x1={startX + drawWidth + 7} y1={y1} x2={startX + drawWidth + 13} y2={y1} stroke="#475569" strokeWidth="0.8" />
+                      <line x1={startX + drawWidth + 7} y1={y2} x2={startX + drawWidth + 13} y2={y2} stroke="#475569" strokeWidth="0.8" />
+                      {drawHeight / numVaosVert > 16 && (
+                        <text
+                          x={startX + drawWidth + 16}
+                          y={midY + 2.5}
+                          fill="#475569"
+                          fontSize="6"
+                          fontWeight="bold"
+                          textAnchor="start"
+                        >
+                          {vaoVertCmStr} cm
+                        </text>
+                      )}
+                    </g>
+                  );
+                })}
               </svg>
             </div>
           </div>
@@ -430,13 +532,22 @@ export const StructureVisualizer: React.FC<VisualizerProps> = ({ input, part = '
                   {d2.aproveitamentoPct.toFixed(1).replace('.', ',')}% aproveitamento
                 </span>
                 <span className="bg-amber-50 text-amber-900 px-2 py-0.5 rounded border border-amber-300 font-bold">
-                  {d2.weldsCount} pontos de solda (~{d2.weldingTimeFormatted})
+                  {d2.weldsCount} pontos de solda
                 </span>
               </div>
             </div>
 
             <div className="relative flex justify-center items-center bg-white rounded-lg p-2 border border-slate-200 overflow-x-auto">
               <svg width={svgWidth} height={svgHeight} className="max-w-full h-auto">
+                <defs>
+                  <marker id="d2-int-start" viewBox="0 0 10 10" refX="2" refY="5" markerWidth="3" markerHeight="3" orient="auto-start-reverse">
+                    <path d="M 10 1 L 0 5 L 10 9 z" fill="#0284c7" />
+                  </marker>
+                  <marker id="d2-int-end" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="3" markerHeight="3" orient="auto">
+                    <path d="M 0 1 L 10 5 L 0 9 z" fill="#0284c7" />
+                  </marker>
+                </defs>
+
                 {/* Outer Frame */}
                 <rect
                   x={startX}
@@ -496,12 +607,12 @@ export const StructureVisualizer: React.FC<VisualizerProps> = ({ input, part = '
                             <line x1={x2 - 1} y1={y - 4} x2={x2 - 1} y2={y + 4} stroke="#ef4444" strokeWidth="2" />
 
                             {/* Span Dimension Tag on Crossbeam */}
-                            {drawWidth / numVaosHoriz > 42 && (
+                            {drawWidth / numVaosHoriz > 38 && (
                               <g>
                                 <rect
-                                  x={midX - 16}
+                                  x={midX - 18}
                                   y={y - 5.5}
-                                  width="32"
+                                  width="36"
                                   height="11"
                                   rx="2"
                                   fill="#ffffff"
@@ -527,38 +638,149 @@ export const StructureVisualizer: React.FC<VisualizerProps> = ({ input, part = '
                   );
                 })}
 
+                {/* === COTAS INTERNAS DO DIAGRAMA 2 (Vão Livre Vertical e Cortes) === */}
+                {Array.from({ length: numVaosVert }).map((_, i) => {
+                  const y1 = startY + (i * drawHeight) / numVaosVert;
+                  const y2 = startY + ((i + 1) * drawHeight) / numVaosVert;
+                  const midY = (y1 + y2) / 2;
+                  const cellH = y2 - y1;
+
+                  return (
+                    <g key={`d2-int-vrow-${i}`}>
+                      {cellH > 32 && (
+                        <>
+                          <line
+                            x1={startX + drawWidth / 2 - 20}
+                            y1={y1 + 4}
+                            x2={startX + drawWidth / 2 - 20}
+                            y2={y2 - 4}
+                            stroke="#047857"
+                            strokeWidth="0.8"
+                            strokeDasharray="2 2"
+                            markerStart="url(#d2-int-start)"
+                            markerEnd="url(#d2-int-end)"
+                          />
+                          <rect
+                            x={startX + drawWidth / 2 - 16}
+                            y={midY - 5}
+                            width="52"
+                            height="10"
+                            rx="2"
+                            fill="#ffffff"
+                            stroke="#047857"
+                            strokeWidth="0.6"
+                          />
+                          <text
+                            x={startX + drawWidth / 2 + 10}
+                            y={midY + 2.5}
+                            fill="#065f46"
+                            fontSize="6"
+                            fontWeight="bold"
+                            textAnchor="middle"
+                          >
+                            Vão Vert: {vaoVertCmStr} cm
+                          </text>
+                        </>
+                      )}
+                    </g>
+                  );
+                })}
+
+                {/* === COTAS EXTERNAS DO DIAGRAMA 2 === */}
+                {/* Linhas de Extensão Superiores */}
+                <line x1={startX} y1={startY} x2={startX} y2={startY - 30} stroke="#94a3b8" strokeWidth="0.7" strokeDasharray="2 2" />
+                <line x1={startX + drawWidth} y1={startY} x2={startX + drawWidth} y2={startY - 30} stroke="#94a3b8" strokeWidth="0.7" strokeDasharray="2 2" />
+
                 {/* Cota Geral Superior */}
-                <line x1={startX} y1={startY - 20} x2={startX + drawWidth} y2={startY - 20} stroke="#0f172a" strokeWidth="1" />
-                <line x1={startX} y1={startY - 25} x2={startX} y2={startY - 15} stroke="#0f172a" strokeWidth="1" />
-                <line x1={startX + drawWidth} y1={startY - 25} x2={startX + drawWidth} y2={startY - 15} stroke="#0f172a" strokeWidth="1" />
+                <line x1={startX} y1={startY - 25} x2={startX + drawWidth} y2={startY - 25} stroke="#0f172a" strokeWidth="1" />
+                <line x1={startX} y1={startY - 29} x2={startX} y2={startY - 21} stroke="#0f172a" strokeWidth="1" />
+                <line x1={startX + drawWidth} y1={startY - 29} x2={startX + drawWidth} y2={startY - 21} stroke="#0f172a" strokeWidth="1" />
                 <rect
-                  x={startX + drawWidth / 2 - 60}
-                  y={startY - 29}
-                  width="120"
-                  height="14"
+                  x={startX + drawWidth / 2 - 65}
+                  y={startY - 32}
+                  width="130"
+                  height="13"
                   fill="#ffffff"
+                  stroke="#0f172a"
+                  strokeWidth="0.7"
                   rx="2"
                 />
-                <text x={startX + drawWidth / 2} y={startY - 19} fill="#0f172a" fontSize="8" fontWeight="bold" textAnchor="middle">
+                <text x={startX + drawWidth / 2} y={startY - 23} fill="#0f172a" fontSize="7.5" fontWeight="bold" textAnchor="middle">
                   Largura Total: {largura.toFixed(2).replace('.', ',')} m ({numVaosHoriz} Travessas por Linha)
                 </text>
 
+                {/* Cotas Parciais Superiores de Cada Vão */}
+                {Array.from({ length: numVaosHoriz }).map((_, j) => {
+                  const x1 = startX + (j * drawWidth) / numVaosHoriz;
+                  const x2 = startX + ((j + 1) * drawWidth) / numVaosHoriz;
+                  const midX = (x1 + x2) / 2;
+                  return (
+                    <g key={`d2-ext-span-dim-${j}`}>
+                      <line x1={x1} y1={startY - 10} x2={x2} y2={startY - 10} stroke="#475569" strokeWidth="0.8" />
+                      <line x1={x1} y1={startY - 13} x2={x1} y2={startY - 7} stroke="#475569" strokeWidth="0.8" />
+                      <line x1={x2} y1={startY - 13} x2={x2} y2={startY - 7} stroke="#475569" strokeWidth="0.8" />
+                      {drawWidth / numVaosHoriz > 35 && (
+                        <text
+                          x={midX}
+                          y={startY - 12}
+                          fill="#475569"
+                          fontSize="6.5"
+                          fontWeight="bold"
+                          textAnchor="middle"
+                        >
+                          {vaoHorizCmStr} cm
+                        </text>
+                      )}
+                    </g>
+                  );
+                })}
+
+                {/* Linhas de Extensão Laterais Direitas */}
+                <line x1={startX + drawWidth} y1={startY} x2={startX + drawWidth + 38} y2={startY} stroke="#94a3b8" strokeWidth="0.7" strokeDasharray="2 2" />
+                <line x1={startX + drawWidth} y1={startY + drawHeight} x2={startX + drawWidth + 38} y2={startY + drawHeight} stroke="#94a3b8" strokeWidth="0.7" strokeDasharray="2 2" />
+
                 {/* Cota Geral Lateral */}
-                <line x1={startX + drawWidth + 20} y1={startY} x2={startX + drawWidth + 20} y2={startY + drawHeight} stroke="#0f172a" strokeWidth="1" />
-                <line x1={startX + drawWidth + 15} y1={startY} x2={startX + drawWidth + 25} y2={startY} stroke="#0f172a" strokeWidth="1" />
-                <line x1={startX + drawWidth + 15} y1={startY + drawHeight} x2={startX + drawWidth + 25} y2={startY + drawHeight} stroke="#0f172a" strokeWidth="1" />
+                <line x1={startX + drawWidth + 30} y1={startY} x2={startX + drawWidth + 30} y2={startY + drawHeight} stroke="#0f172a" strokeWidth="1" />
+                <line x1={startX + drawWidth + 26} y1={startY} x2={startX + drawWidth + 34} y2={startY} stroke="#0f172a" strokeWidth="1" />
+                <line x1={startX + drawWidth + 26} y1={startY + drawHeight} x2={startX + drawWidth + 34} y2={startY + drawHeight} stroke="#0f172a" strokeWidth="1" />
                 <text
-                  x={startX + drawWidth + 34}
+                  x={startX + drawWidth + 42}
                   y={startY + drawHeight / 2}
                   fill="#0f172a"
-                  fontSize="8"
+                  fontSize="7.5"
                   fontWeight="bold"
                   textAnchor="middle"
                   dominantBaseline="central"
-                  transform={`rotate(90, ${startX + drawWidth + 34}, ${startY + drawHeight / 2})`}
+                  transform={`rotate(90, ${startX + drawWidth + 42}, ${startY + drawHeight / 2})`}
                 >
-                  Altura: {altura.toFixed(2).replace('.', ',')} m
+                  Altura Total: {altura.toFixed(2).replace('.', ',')} m
                 </text>
+
+                {/* Cotas Parciais Verticais dos Vãos */}
+                {Array.from({ length: numVaosVert }).map((_, i) => {
+                  const y1 = startY + (i * drawHeight) / numVaosVert;
+                  const y2 = startY + ((i + 1) * drawHeight) / numVaosVert;
+                  const midY = (y1 + y2) / 2;
+                  return (
+                    <g key={`d2-ext-vspan-dim-${i}`}>
+                      <line x1={startX + drawWidth + 10} y1={y1} x2={startX + drawWidth + 10} y2={y2} stroke="#475569" strokeWidth="0.8" />
+                      <line x1={startX + drawWidth + 7} y1={y1} x2={startX + drawWidth + 13} y2={y1} stroke="#475569" strokeWidth="0.8" />
+                      <line x1={startX + drawWidth + 7} y1={y2} x2={startX + drawWidth + 13} y2={y2} stroke="#475569" strokeWidth="0.8" />
+                      {drawHeight / numVaosVert > 16 && (
+                        <text
+                          x={startX + drawWidth + 16}
+                          y={midY + 2.5}
+                          fill="#475569"
+                          fontSize="6"
+                          fontWeight="bold"
+                          textAnchor="start"
+                        >
+                          {vaoVertCmStr} cm
+                        </text>
+                      )}
+                    </g>
+                  );
+                })}
               </svg>
             </div>
           </div>
@@ -591,13 +813,22 @@ export const StructureVisualizer: React.FC<VisualizerProps> = ({ input, part = '
                   {d3.aproveitamentoPct.toFixed(1).replace('.', ',')}% aproveitamento
                 </span>
                 <span className="bg-amber-50 text-amber-900 px-2 py-0.5 rounded border border-amber-300 font-bold">
-                  {d3.weldsCount} pontos de solda (~{d3.weldingTimeFormatted})
+                  {d3.weldsCount} pontos de solda
                 </span>
               </div>
             </div>
 
             <div className="relative flex justify-center items-center bg-white rounded-lg p-2 border border-slate-200 overflow-x-auto">
               <svg width={svgWidth} height={svgHeight} className="max-w-full h-auto">
+                <defs>
+                  <marker id="d3-int-start" viewBox="0 0 10 10" refX="2" refY="5" markerWidth="3" markerHeight="3" orient="auto-start-reverse">
+                    <path d="M 10 1 L 0 5 L 10 9 z" fill="#b45309" />
+                  </marker>
+                  <marker id="d3-int-end" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="3" markerHeight="3" orient="auto">
+                    <path d="M 0 1 L 10 5 L 0 9 z" fill="#b45309" />
+                  </marker>
+                </defs>
+
                 {/* Outer Bounding Box */}
                 <rect
                   x={startX}
@@ -689,37 +920,139 @@ export const StructureVisualizer: React.FC<VisualizerProps> = ({ input, part = '
                   );
                 })}
 
+                {/* === COTAS INTERNAS DO DIAGRAMA 3 === */}
+                {Array.from({ length: numVaosHoriz }).map((_, j) => {
+                  const x1 = startX + (j * drawWidth) / numVaosHoriz;
+                  const x2 = startX + ((j + 1) * drawWidth) / numVaosHoriz;
+                  const midX = (x1 + x2) / 2;
+                  const cellW = x2 - x1;
+
+                  return (
+                    <g key={`d3-int-cell-${j}`}>
+                      {cellW > 40 && (
+                        <>
+                          <line
+                            x1={x1 + 6}
+                            y1={startY + drawHeight / 2}
+                            x2={x2 - 6}
+                            y2={startY + drawHeight / 2}
+                            stroke="#b45309"
+                            strokeWidth="0.8"
+                            strokeDasharray="2 2"
+                            markerStart="url(#d3-int-start)"
+                            markerEnd="url(#d3-int-end)"
+                          />
+                          <rect
+                            x={midX - 22}
+                            y={startY + drawHeight / 2 - 5.5}
+                            width="44"
+                            height="11"
+                            rx="2"
+                            fill="#ffffff"
+                            stroke="#b45309"
+                            strokeWidth="0.7"
+                          />
+                          <text
+                            x={midX}
+                            y={startY + drawHeight / 2 + 2.5}
+                            fill="#92400e"
+                            fontSize="6.5"
+                            fontWeight="bold"
+                            textAnchor="middle"
+                          >
+                            Vão: {vaoHorizCmStr} cm
+                          </text>
+                        </>
+                      )}
+                    </g>
+                  );
+                })}
+
+                {/* === COTAS EXTERNAS DO DIAGRAMA 3 === */}
+                {/* Linhas de Extensão Superiores */}
+                <line x1={startX} y1={startY} x2={startX} y2={startY - 32} stroke="#94a3b8" strokeWidth="0.7" strokeDasharray="2 2" />
+                <line x1={startX + drawWidth} y1={startY} x2={startX + drawWidth} y2={startY - 32} stroke="#94a3b8" strokeWidth="0.7" strokeDasharray="2 2" />
+
                 {/* Cota Geral Superior */}
-                <line x1={startX} y1={startY - 24} x2={startX + drawWidth} y2={startY - 24} stroke="#0f172a" strokeWidth="1" />
-                <line x1={startX} y1={startY - 29} x2={startX} y2={startY - 19} stroke="#0f172a" strokeWidth="1" />
-                <line x1={startX + drawWidth} y1={startY - 29} x2={startX + drawWidth} y2={startY - 19} stroke="#0f172a" strokeWidth="1" />
+                <line x1={startX} y1={startY - 25} x2={startX + drawWidth} y2={startY - 25} stroke="#0f172a" strokeWidth="1" />
+                <line x1={startX} y1={startY - 29} x2={startX} y2={startY - 21} stroke="#0f172a" strokeWidth="1" />
+                <line x1={startX + drawWidth} y1={startY - 29} x2={startX + drawWidth} y2={startY - 21} stroke="#0f172a" strokeWidth="1" />
                 <rect
-                  x={startX + drawWidth / 2 - 55}
-                  y={startY - 31}
-                  width="110"
-                  height="14"
+                  x={startX + drawWidth / 2 - 60}
+                  y={startY - 32}
+                  width="120"
+                  height="13"
                   fill="#ffffff"
+                  stroke="#0f172a"
+                  strokeWidth="0.7"
                   rx="2"
                 />
-                <text x={startX + drawWidth / 2} y={startY - 21} fill="#0f172a" fontSize="8" fontWeight="bold" textAnchor="middle">
+                <text x={startX + drawWidth / 2} y={startY - 23} fill="#0f172a" fontSize="7.5" fontWeight="bold" textAnchor="middle">
                   Largura Total: {largura.toFixed(2).replace('.', ',')} m ({colunasVerticais} Colunas)
                 </text>
 
-                {/* Cota de Corte Real da Coluna Vertical */}
-                <line x1={startX + drawWidth + 20} y1={startY + 2} x2={startX + drawWidth + 20} y2={startY + drawHeight - 2} stroke="#b45309" strokeWidth="1.2" />
-                <line x1={startX + drawWidth + 15} y1={startY + 2} x2={startX + drawWidth + 25} y2={startY + 2} stroke="#b45309" strokeWidth="1" />
-                <line x1={startX + drawWidth + 15} y1={startY + drawHeight - 2} x2={startX + drawWidth + 25} y2={startY + drawHeight - 2} stroke="#b45309" strokeWidth="1" />
+                {/* Cotas Parciais Superiores de Cada Vão */}
+                {Array.from({ length: numVaosHoriz }).map((_, j) => {
+                  const x1 = startX + (j * drawWidth) / numVaosHoriz;
+                  const x2 = startX + ((j + 1) * drawWidth) / numVaosHoriz;
+                  const midX = (x1 + x2) / 2;
+                  return (
+                    <g key={`d3-ext-span-dim-${j}`}>
+                      <line x1={x1} y1={startY - 10} x2={x2} y2={startY - 10} stroke="#475569" strokeWidth="0.8" />
+                      <line x1={x1} y1={startY - 13} x2={x1} y2={startY - 7} stroke="#475569" strokeWidth="0.8" />
+                      <line x1={x2} y1={startY - 13} x2={x2} y2={startY - 7} stroke="#475569" strokeWidth="0.8" />
+                      {drawWidth / numVaosHoriz > 35 && (
+                        <text
+                          x={midX}
+                          y={startY - 12}
+                          fill="#475569"
+                          fontSize="6.5"
+                          fontWeight="bold"
+                          textAnchor="middle"
+                        >
+                          {vaoHorizCmStr} cm
+                        </text>
+                      )}
+                    </g>
+                  );
+                })}
+
+                {/* Linhas de Extensão Laterais Direitas */}
+                <line x1={startX + drawWidth} y1={startY} x2={startX + drawWidth + 42} y2={startY} stroke="#94a3b8" strokeWidth="0.7" strokeDasharray="2 2" />
+                <line x1={startX + drawWidth} y1={startY + drawHeight} x2={startX + drawWidth + 42} y2={startY + drawHeight} stroke="#94a3b8" strokeWidth="0.7" strokeDasharray="2 2" />
+
+                {/* Cota Geral Lateral (Altura Total) */}
+                <line x1={startX + drawWidth + 34} y1={startY} x2={startX + drawWidth + 34} y2={startY + drawHeight} stroke="#0f172a" strokeWidth="1" />
+                <line x1={startX + drawWidth + 30} y1={startY} x2={startX + drawWidth + 38} y2={startY} stroke="#0f172a" strokeWidth="1" />
+                <line x1={startX + drawWidth + 30} y1={startY + drawHeight} x2={startX + drawWidth + 38} y2={startY + drawHeight} stroke="#0f172a" strokeWidth="1" />
                 <text
-                  x={startX + drawWidth + 34}
+                  x={startX + drawWidth + 45}
                   y={startY + drawHeight / 2}
-                  fill="#92400e"
-                  fontSize="8"
+                  fill="#0f172a"
+                  fontSize="7.5"
                   fontWeight="bold"
                   textAnchor="middle"
                   dominantBaseline="central"
-                  transform={`rotate(90, ${startX + drawWidth + 34}, ${startY + drawHeight / 2})`}
+                  transform={`rotate(90, ${startX + drawWidth + 45}, ${startY + drawHeight / 2})`}
                 >
-                  Corte Real: {vertCutLength.toFixed(2).replace('.', ',')} m
+                  Altura Total: {altura.toFixed(2).replace('.', ',')} m
+                </text>
+
+                {/* Cota de Corte Real da Coluna Vertical */}
+                <line x1={startX + drawWidth + 12} y1={startY + 2} x2={startX + drawWidth + 12} y2={startY + drawHeight - 2} stroke="#b45309" strokeWidth="1.2" />
+                <line x1={startX + drawWidth + 8} y1={startY + 2} x2={startX + drawWidth + 16} y2={startY + 2} stroke="#b45309" strokeWidth="1" />
+                <line x1={startX + drawWidth + 8} y1={startY + drawHeight - 2} x2={startX + drawWidth + 16} y2={startY + drawHeight - 2} stroke="#b45309" strokeWidth="1" />
+                <text
+                  x={startX + drawWidth + 22}
+                  y={startY + drawHeight / 2}
+                  fill="#92400e"
+                  fontSize="6.5"
+                  fontWeight="bold"
+                  textAnchor="middle"
+                  dominantBaseline="central"
+                  transform={`rotate(90, ${startX + drawWidth + 22}, ${startY + drawHeight / 2})`}
+                >
+                  Corte: {vertCutLength.toFixed(2).replace('.', ',')} m
                 </text>
               </svg>
             </div>
@@ -753,13 +1086,22 @@ export const StructureVisualizer: React.FC<VisualizerProps> = ({ input, part = '
                   {d4.aproveitamentoPct.toFixed(1).replace('.', ',')}% aproveitamento
                 </span>
                 <span className="bg-amber-50 text-amber-900 px-2 py-0.5 rounded border border-amber-300 font-bold">
-                  {d4.weldsCount} pontos de solda (~{d4.weldingTimeFormatted})
+                  {d4.weldsCount} pontos de solda
                 </span>
               </div>
             </div>
 
             <div className="relative flex justify-center items-center bg-white rounded-lg p-2 border border-slate-200 overflow-x-auto">
               <svg width={svgWidth} height={svgHeight} className="max-w-full h-auto">
+                <defs>
+                  <marker id="d4-int-start" viewBox="0 0 10 10" refX="2" refY="5" markerWidth="3" markerHeight="3" orient="auto-start-reverse">
+                    <path d="M 10 1 L 0 5 L 10 9 z" fill="#0f766e" />
+                  </marker>
+                  <marker id="d4-int-end" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="3" markerHeight="3" orient="auto">
+                    <path d="M 0 1 L 10 5 L 0 9 z" fill="#0f766e" />
+                  </marker>
+                </defs>
+
                 {/* Outer Bounding Box */}
                 <rect
                   x={startX}
@@ -838,38 +1180,196 @@ export const StructureVisualizer: React.FC<VisualizerProps> = ({ input, part = '
                   );
                 })}
 
+                {/* === COTAS INTERNAS DO DIAGRAMA 4 === */}
+                {Array.from({ length: numVaosVert }).map((_, i) => {
+                  const y1 = startY + (i * drawHeight) / numVaosVert;
+                  const y2 = startY + ((i + 1) * drawHeight) / numVaosVert;
+                  const midY = (y1 + y2) / 2;
+                  const cellH = y2 - y1;
+
+                  return (
+                    <g key={`d4-int-row-${i}`}>
+                      {Array.from({ length: numVaosHoriz }).map((_, j) => {
+                        const x1 = startX + (j * drawWidth) / numVaosHoriz;
+                        const x2 = startX + ((j + 1) * drawWidth) / numVaosHoriz;
+                        const midX = (x1 + x2) / 2;
+                        const cellW = x2 - x1;
+
+                        return (
+                          <g key={`d4-int-cell-${i}-${j}`}>
+                            {cellW > 45 && cellH > 24 && (
+                              <>
+                                <line
+                                  x1={x1 + 6}
+                                  y1={midY - (cellH > 36 ? 4 : 0)}
+                                  x2={x2 - 6}
+                                  y2={midY - (cellH > 36 ? 4 : 0)}
+                                  stroke="#0f766e"
+                                  strokeWidth="0.8"
+                                  strokeDasharray="2 2"
+                                  markerStart="url(#d4-int-start)"
+                                  markerEnd="url(#d4-int-end)"
+                                />
+                                <rect
+                                  x={midX - 22}
+                                  y={midY - (cellH > 36 ? 10 : 5.5)}
+                                  width="44"
+                                  height="11"
+                                  rx="2"
+                                  fill="#ffffff"
+                                  stroke="#0f766e"
+                                  strokeWidth="0.7"
+                                />
+                                <text
+                                  x={midX}
+                                  y={midY - (cellH > 36 ? 2 : -2.5)}
+                                  fill="#134e4a"
+                                  fontSize="6.5"
+                                  fontWeight="bold"
+                                  textAnchor="middle"
+                                >
+                                  Vão: {vaoHorizCmStr} cm
+                                </text>
+
+                                {j === 0 && cellH > 36 && (
+                                  <>
+                                    <line
+                                      x1={x1 + 14}
+                                      y1={y1 + 6}
+                                      x2={x1 + 14}
+                                      y2={y2 - 6}
+                                      stroke="#0f766e"
+                                      strokeWidth="0.8"
+                                      strokeDasharray="2 2"
+                                      markerStart="url(#d4-int-start)"
+                                      markerEnd="url(#d4-int-end)"
+                                    />
+                                    <rect
+                                      x={x1 + 16}
+                                      y={midY + 2}
+                                      width="42"
+                                      height="10"
+                                      rx="2"
+                                      fill="#ffffff"
+                                      stroke="#0f766e"
+                                      strokeWidth="0.6"
+                                    />
+                                    <text
+                                      x={x1 + 37}
+                                      y={midY + 9.5}
+                                      fill="#134e4a"
+                                      fontSize="6"
+                                      fontWeight="bold"
+                                      textAnchor="middle"
+                                    >
+                                      Alt: {vaoVertCmStr} cm
+                                    </text>
+                                  </>
+                                )}
+                              </>
+                            )}
+                          </g>
+                        );
+                      })}
+                    </g>
+                  );
+                })}
+
+                {/* === COTAS EXTERNAS DO DIAGRAMA 4 === */}
+                {/* Linhas de Extensão Superiores */}
+                <line x1={startX} y1={startY} x2={startX} y2={startY - 30} stroke="#94a3b8" strokeWidth="0.7" strokeDasharray="2 2" />
+                <line x1={startX + drawWidth} y1={startY} x2={startX + drawWidth} y2={startY - 30} stroke="#94a3b8" strokeWidth="0.7" strokeDasharray="2 2" />
+
                 {/* Cota Geral Superior */}
-                <line x1={startX} y1={startY - 20} x2={startX + drawWidth} y2={startY - 20} stroke="#0f172a" strokeWidth="1" />
-                <line x1={startX} y1={startY - 25} x2={startX} y2={startY - 15} stroke="#0f172a" strokeWidth="1" />
-                <line x1={startX + drawWidth} y1={startY - 25} x2={startX + drawWidth} y2={startY - 15} stroke="#0f172a" strokeWidth="1" />
+                <line x1={startX} y1={startY - 25} x2={startX + drawWidth} y2={startY - 25} stroke="#0f172a" strokeWidth="1" />
+                <line x1={startX} y1={startY - 29} x2={startX} y2={startY - 21} stroke="#0f172a" strokeWidth="1" />
+                <line x1={startX + drawWidth} y1={startY - 29} x2={startX + drawWidth} y2={startY - 21} stroke="#0f172a" strokeWidth="1" />
                 <rect
                   x={startX + drawWidth / 2 - 70}
-                  y={startY - 29}
+                  y={startY - 32}
                   width="140"
-                  height="14"
+                  height="13"
                   fill="#ffffff"
+                  stroke="#0f172a"
+                  strokeWidth="0.7"
                   rx="2"
                 />
-                <text x={startX + drawWidth / 2} y={startY - 19} fill="#0f172a" fontSize="8" fontWeight="bold" textAnchor="middle">
+                <text x={startX + drawWidth / 2} y={startY - 23} fill="#0f172a" fontSize="7.5" fontWeight="bold" textAnchor="middle">
                   Largura Total: {largura.toFixed(2).replace('.', ',')} m ({colunasVerticais} Colunas Passantes)
                 </text>
 
+                {/* Cotas Parciais Superiores de Cada Vão */}
+                {Array.from({ length: numVaosHoriz }).map((_, j) => {
+                  const x1 = startX + (j * drawWidth) / numVaosHoriz;
+                  const x2 = startX + ((j + 1) * drawWidth) / numVaosHoriz;
+                  const midX = (x1 + x2) / 2;
+                  return (
+                    <g key={`d4-ext-span-dim-${j}`}>
+                      <line x1={x1} y1={startY - 10} x2={x2} y2={startY - 10} stroke="#475569" strokeWidth="0.8" />
+                      <line x1={x1} y1={startY - 13} x2={x1} y2={startY - 7} stroke="#475569" strokeWidth="0.8" />
+                      <line x1={x2} y1={startY - 13} x2={x2} y2={startY - 7} stroke="#475569" strokeWidth="0.8" />
+                      {drawWidth / numVaosHoriz > 35 && (
+                        <text
+                          x={midX}
+                          y={startY - 12}
+                          fill="#475569"
+                          fontSize="6.5"
+                          fontWeight="bold"
+                          textAnchor="middle"
+                        >
+                          {vaoHorizCmStr} cm
+                        </text>
+                      )}
+                    </g>
+                  );
+                })}
+
+                {/* Linhas de Extensão Laterais Direitas */}
+                <line x1={startX + drawWidth} y1={startY} x2={startX + drawWidth + 38} y2={startY} stroke="#94a3b8" strokeWidth="0.7" strokeDasharray="2 2" />
+                <line x1={startX + drawWidth} y1={startY + drawHeight} x2={startX + drawWidth + 38} y2={startY + drawHeight} stroke="#94a3b8" strokeWidth="0.7" strokeDasharray="2 2" />
+
                 {/* Cota Geral Lateral (Altura Total da Coluna) */}
-                <line x1={startX + drawWidth + 20} y1={startY} x2={startX + drawWidth + 20} y2={startY + drawHeight} stroke="#0f766e" strokeWidth="1.2" />
-                <line x1={startX + drawWidth + 15} y1={startY} x2={startX + drawWidth + 25} y2={startY} stroke="#0f766e" strokeWidth="1" />
-                <line x1={startX + drawWidth + 15} y1={startY + drawHeight} x2={startX + drawWidth + 25} y2={startY + drawHeight} stroke="#0f766e" strokeWidth="1" />
+                <line x1={startX + drawWidth + 30} y1={startY} x2={startX + drawWidth + 30} y2={startY + drawHeight} stroke="#0f766e" strokeWidth="1.2" />
+                <line x1={startX + drawWidth + 26} y1={startY} x2={startX + drawWidth + 34} y2={startY} stroke="#0f766e" strokeWidth="1" />
+                <line x1={startX + drawWidth + 26} y1={startY + drawHeight} x2={startX + drawWidth + 34} y2={startY + drawHeight} stroke="#0f766e" strokeWidth="1" />
                 <text
-                  x={startX + drawWidth + 34}
+                  x={startX + drawWidth + 42}
                   y={startY + drawHeight / 2}
                   fill="#0f766e"
-                  fontSize="8"
+                  fontSize="7.5"
                   fontWeight="bold"
                   textAnchor="middle"
                   dominantBaseline="central"
-                  transform={`rotate(90, ${startX + drawWidth + 34}, ${startY + drawHeight / 2})`}
+                  transform={`rotate(90, ${startX + drawWidth + 42}, ${startY + drawHeight / 2})`}
                 >
                   Altura Total: {altura.toFixed(2).replace('.', ',')} m
                 </text>
+
+                {/* Cotas Parciais Verticais dos Vãos */}
+                {Array.from({ length: numVaosVert }).map((_, i) => {
+                  const y1 = startY + (i * drawHeight) / numVaosVert;
+                  const y2 = startY + ((i + 1) * drawHeight) / numVaosVert;
+                  const midY = (y1 + y2) / 2;
+                  return (
+                    <g key={`d4-ext-vspan-dim-${i}`}>
+                      <line x1={startX + drawWidth + 10} y1={y1} x2={startX + drawWidth + 10} y2={y2} stroke="#475569" strokeWidth="0.8" />
+                      <line x1={startX + drawWidth + 7} y1={y1} x2={startX + drawWidth + 13} y2={y1} stroke="#475569" strokeWidth="0.8" />
+                      <line x1={startX + drawWidth + 7} y1={y2} x2={startX + drawWidth + 13} y2={y2} stroke="#475569" strokeWidth="0.8" />
+                      {drawHeight / numVaosVert > 16 && (
+                        <text
+                          x={startX + drawWidth + 16}
+                          y={midY + 2.5}
+                          fill="#475569"
+                          fontSize="6"
+                          fontWeight="bold"
+                          textAnchor="start"
+                        >
+                          {vaoVertCmStr} cm
+                        </text>
+                      )}
+                    </g>
+                  );
+                })}
               </svg>
             </div>
           </div>
