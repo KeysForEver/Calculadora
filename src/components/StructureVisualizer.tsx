@@ -34,15 +34,21 @@ export const StructureVisualizer: React.FC<VisualizerProps> = ({ input }) => {
     vaoLivreHoriz,
     vaoLivreVert,
     vertCutLength,
+    profileExt,
+    profileInt,
+    totalBarrasOtimizado,
+    weldsCountHorizTopology,
+    weldsCountVertTopology,
+    transportLogistics,
   } = calc;
 
-  // Optimized SVG dimensions fitting A4 width perfectly (720px)
+  // SVG Dimension Constants tailored for A4 readability
   const svgWidth = 720;
-  const svgHeight = 160;
+  const svgHeight = 210;
 
   const padLeft = 85;
   const padRight = 55;
-  const padTop = 32;
+  const padTop = 38;
   const padBottom = 32;
 
   const availWidth = svgWidth - padLeft - padRight;
@@ -60,34 +66,55 @@ export const StructureVisualizer: React.FC<VisualizerProps> = ({ input }) => {
   const startX = padLeft + (availWidth - drawWidth) / 2;
   const startY = padTop + (availHeight - drawHeight) / 2;
 
+  // Spans count
+  const numVaosHoriz = Math.max(1, colunasVerticais - 1);
+  const numVaosVert = Math.max(1, linhasHorizontais - 1);
+
+  // Partial span dimensions in cm
+  const vaoHorizCmStr = (vaoLivreHoriz * 100).toFixed(1).replace('.', ',');
+  const vaoVertCmStr = (vaoLivreVert * 100).toFixed(1).replace('.', ',');
+
   return (
-    <div className="space-y-4">
-      {/* Section Title */}
+    <div className="space-y-4 font-serif">
+      {/* Section Header */}
       <div className="border-b border-slate-700 pb-1 flex items-center justify-between font-serif">
         <h3 className="text-base font-bold text-slate-900 font-serif flex items-center gap-2">
           <span>5.</span>
-          Esquemas Estruturais Individuais com Numeração de Barras
+          Esquemas Estruturais Detalhados com Cotas em Todos os Pontos (4 Diagramas)
         </h3>
         <span className="text-[11px] font-medium text-slate-700 font-serif">
-          Barras B01 a B{String(calc.totalComEmendaComOpt).padStart(2, '0')} (Tabela 7)
+          Barras B01 a B{String(totalBarrasOtimizado).padStart(2, '0')} • Cotas Técnicas Completas
         </span>
       </div>
 
-      <div className="flex flex-col gap-3.5 font-serif">
-        {/* 5.1 Desenho da Estrutura Horizontal */}
-        <div className="bg-white text-slate-900 rounded-lg p-2.5 border border-slate-300">
+      {/* Logistics Banner */}
+      <div className="bg-slate-50 border border-slate-200 rounded-lg p-2.5 flex items-center justify-between text-xs text-slate-700">
+        <div className="flex items-center gap-2">
+          <span className="font-bold text-slate-900">Gabarito de Caminhão (4,30 m × 2,00 m):</span>
+          <span>{transportLogistics.statusText}</span>
+        </div>
+        <span className="font-semibold text-slate-800 bg-white px-2 py-0.5 rounded border border-slate-300">
+          {transportLogistics.totalModulesCount === 1 ? 'Peça Única' : `${transportLogistics.totalModulesCount} Módulos de Transporte`}
+        </span>
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 font-serif">
+        {/* ========================================================================= */}
+        {/* DIAGRAMA 1: Estrutura Horizontal - Topologia Linhas Contínuas (Solda Horiz) */}
+        {/* ========================================================================= */}
+        <div className="bg-white text-slate-900 rounded-lg p-3 border border-slate-300">
           <div className="flex items-center justify-between mb-1.5 font-serif">
             <h4 className="text-xs font-bold text-slate-900 flex items-center gap-1.5 font-serif">
-              Figura 1 — Esquema da Estrutura Horizontal (Emendas e Barras da Tabela 7)
+              Figura 1 — Estrutura Horizontal (Topologia: Linhas Contínuas / Solda Horizontal)
             </h4>
             <span className="text-[11px] font-serif text-slate-700">
-              {linhasHorizontais} linhas • {largura.toFixed(2)} m cada • Vão livre vertical: ~{(vaoLivreVert * 100).toFixed(1)} cm
+              {linhasHorizontais} linhas contínuas de {largura.toFixed(2).replace('.', ',')} m • {weldsCountHorizTopology} nós de solda
             </span>
           </div>
 
           <div className="relative flex justify-center items-center bg-white rounded-lg p-2 border border-slate-200 overflow-x-auto">
             <svg width={svgWidth} height={svgHeight} className="max-w-full h-auto">
-              {/* Outer Frame Bounding Box */}
+              {/* Outer Reference Box */}
               <rect
                 x={startX}
                 y={startY}
@@ -95,19 +122,47 @@ export const StructureVisualizer: React.FC<VisualizerProps> = ({ input }) => {
                 height={drawHeight}
                 fill="#f8fafc"
                 stroke="#cbd5e1"
-                strokeWidth="1.2"
+                strokeWidth="1"
                 strokeDasharray="3 3"
                 rx="2"
               />
 
-              {/* Horizontal Lines with Segmented Bars & Splices */}
+              {/* Ghost Columns for Intersection & Welding Context */}
+              {verticalElements.map((_, j) => {
+                const x = startX + (j * drawWidth) / numVaosHoriz;
+                return (
+                  <line
+                    key={`d1-vghost-${j}`}
+                    x1={x}
+                    y1={startY}
+                    x2={x}
+                    y2={startY + drawHeight}
+                    stroke="#e2e8f0"
+                    strokeWidth="1.2"
+                    strokeDasharray="2 2"
+                  />
+                );
+              })}
+
+              {/* Horizontal Lines (Continuous Pass-Through) */}
               {horizontalElements.map((elem, i) => {
-                const y = startY + (i * drawHeight) / (linhasHorizontais - 1 || 1);
+                const y = startY + (i * drawHeight) / numVaosVert;
                 const isBorder = i === 0 || i === linhasHorizontais - 1;
 
                 return (
-                  <g key={`h-group-${i}`}>
-                    {/* Left Line Label with Bar Number Summary */}
+                  <g key={`d1-h-${i}`}>
+                    {/* Continuous Bar Line */}
+                    <line
+                      x1={startX}
+                      y1={y}
+                      x2={startX + drawWidth}
+                      y2={y}
+                      stroke={isBorder ? '#1d4ed8' : '#2563eb'}
+                      strokeWidth={isBorder ? '3' : '2'}
+                      strokeLinecap="round"
+                    />
+
+                    {/* Left Identifier Tag */}
                     <g>
                       <rect
                         x={startX - 78}
@@ -131,64 +186,272 @@ export const StructureVisualizer: React.FC<VisualizerProps> = ({ input }) => {
                       </text>
                     </g>
 
-                    {/* Segments across this horizontal line */}
-                    {elem.segments.map((seg, sIdx) => {
-                      const segX1 = startX + (seg.startM / largura) * drawWidth;
-                      const segX2 = startX + (seg.endM / largura) * drawWidth;
-                      const segMidX = (segX1 + segX2) / 2;
-                      const segWidth = segX2 - segX1;
-                      const isEvenSeg = sIdx % 2 === 0;
+                    {/* Center Dimension Badge on Bar */}
+                    <g>
+                      <rect
+                        x={startX + drawWidth / 2 - 28}
+                        y={y - 6.5}
+                        width="56"
+                        height="13"
+                        rx="2.5"
+                        fill="#ffffff"
+                        stroke="#2563eb"
+                        strokeWidth="0.8"
+                      />
+                      <text
+                        x={startX + drawWidth / 2}
+                        y={y + 2.5}
+                        fill="#0f172a"
+                        fontSize="7"
+                        fontWeight="bold"
+                        textAnchor="middle"
+                      >
+                        {largura.toFixed(2).replace('.', ',')} m • B{String(elem.segments[0]?.barNumber || 1).padStart(2, '0')}
+                      </text>
+                    </g>
+
+                    {/* Horizontal Welding Points at Column Intersections */}
+                    {verticalElements.map((_, j) => {
+                      const x = startX + (j * drawWidth) / numVaosHoriz;
+                      return (
+                        <g key={`d1-weld-${i}-${j}`}>
+                          <circle cx={x} cy={y} r="2.8" fill="#ef4444" stroke="#ffffff" strokeWidth="1" />
+                        </g>
+                      );
+                    })}
+                  </g>
+                );
+              })}
+
+              {/* === COTAS TÉCNICAS DO DIAGRAMA 1 === */}
+              {/* Cota Geral Superior (Largura Total) */}
+              <line
+                x1={startX}
+                y1={startY - 22}
+                x2={startX + drawWidth}
+                y2={startY - 22}
+                stroke="#0f172a"
+                strokeWidth="1"
+              />
+              <line x1={startX} y1={startY - 27} x2={startX} y2={startY - 17} stroke="#0f172a" strokeWidth="1" />
+              <line
+                x1={startX + drawWidth}
+                y1={startY - 27}
+                x2={startX + drawWidth}
+                y2={startY - 17}
+                stroke="#0f172a"
+                strokeWidth="1"
+              />
+              <rect
+                x={startX + drawWidth / 2 - 40}
+                y={startY - 29}
+                width="80"
+                height="13"
+                fill="#ffffff"
+                rx="2"
+              />
+              <text
+                x={startX + drawWidth / 2}
+                y={startY - 20}
+                fill="#0f172a"
+                fontSize="8"
+                fontWeight="bold"
+                textAnchor="middle"
+              >
+                Largura Total: {largura.toFixed(2).replace('.', ',')} m
+              </text>
+
+              {/* Cotas Parciais Superiores de Cada Vão Livre */}
+              {numVaosHoriz > 1 &&
+                Array.from({ length: numVaosHoriz }).map((_, j) => {
+                  const x1 = startX + (j * drawWidth) / numVaosHoriz;
+                  const x2 = startX + ((j + 1) * drawWidth) / numVaosHoriz;
+                  const midX = (x1 + x2) / 2;
+                  return (
+                    <g key={`d1-span-dim-${j}`}>
+                      <line x1={x1} y1={startY - 8} x2={x2} y2={startY - 8} stroke="#475569" strokeWidth="0.8" />
+                      <line x1={x1} y1={startY - 11} x2={x1} y2={startY - 5} stroke="#475569" strokeWidth="0.8" />
+                      <line x1={x2} y1={startY - 11} x2={x2} y2={startY - 5} stroke="#475569" strokeWidth="0.8" />
+                      {drawWidth / numVaosHoriz > 35 && (
+                        <text
+                          x={midX}
+                          y={startY - 11}
+                          fill="#475569"
+                          fontSize="6.5"
+                          fontWeight="bold"
+                          textAnchor="middle"
+                        >
+                          {vaoHorizCmStr} cm
+                        </text>
+                      )}
+                    </g>
+                  );
+                })}
+
+              {/* Cota Geral Lateral Direita (Altura Total) */}
+              <line
+                x1={startX + drawWidth + 22}
+                y1={startY}
+                x2={startX + drawWidth + 22}
+                y2={startY + drawHeight}
+                stroke="#0f172a"
+                strokeWidth="1"
+              />
+              <line
+                x1={startX + drawWidth + 17}
+                y1={startY}
+                x2={startX + drawWidth + 27}
+                y2={startY}
+                stroke="#0f172a"
+                strokeWidth="1"
+              />
+              <line
+                x1={startX + drawWidth + 17}
+                y1={startY + drawHeight}
+                x2={startX + drawWidth + 27}
+                y2={startY + drawHeight}
+                stroke="#0f172a"
+                strokeWidth="1"
+              />
+              <text
+                x={startX + drawWidth + 36}
+                y={startY + drawHeight / 2}
+                fill="#0f172a"
+                fontSize="8"
+                fontWeight="bold"
+                textAnchor="middle"
+                dominantBaseline="central"
+                transform={`rotate(90, ${startX + drawWidth + 36}, ${startY + drawHeight / 2})`}
+              >
+                Altura: {altura.toFixed(2).replace('.', ',')} m
+              </text>
+
+              {/* Cotas Parciais Verticais dos Vãos */}
+              {numVaosVert > 1 &&
+                Array.from({ length: numVaosVert }).map((_, i) => {
+                  const y1 = startY + (i * drawHeight) / numVaosVert;
+                  const y2 = startY + ((i + 1) * drawHeight) / numVaosVert;
+                  const midY = (y1 + y2) / 2;
+                  return (
+                    <g key={`d1-vspan-dim-${i}`}>
+                      <line x1={startX + drawWidth + 7} y1={y1} x2={startX + drawWidth + 7} y2={y2} stroke="#475569" strokeWidth="0.8" />
+                      <line x1={startX + drawWidth + 4} y1={y1} x2={startX + drawWidth + 10} y2={y1} stroke="#475569" strokeWidth="0.8" />
+                      <line x1={startX + drawWidth + 4} y1={y2} x2={startX + drawWidth + 10} y2={y2} stroke="#475569" strokeWidth="0.8" />
+                      {drawHeight / numVaosVert > 18 && (
+                        <text
+                          x={startX + drawWidth + 12}
+                          y={midY + 2.5}
+                          fill="#475569"
+                          fontSize="6"
+                          fontWeight="bold"
+                          textAnchor="start"
+                        >
+                          {vaoVertCmStr} cm
+                        </text>
+                      )}
+                    </g>
+                  );
+                })}
+            </svg>
+          </div>
+        </div>
+
+        {/* ========================================================================= */}
+        {/* DIAGRAMA 2: Estrutura Horizontal - Topologia Colunas Contínuas (Solda Vert) */}
+        {/* ========================================================================= */}
+        <div className="bg-white text-slate-900 rounded-lg p-3 border border-slate-300">
+          <div className="flex items-center justify-between mb-1.5 font-serif">
+            <h4 className="text-xs font-bold text-slate-900 flex items-center gap-1.5 font-serif">
+              Figura 2 — Estrutura Horizontal (Topologia: Colunas Contínuas / Solda Vertical)
+            </h4>
+            <span className="text-[11px] font-serif text-slate-700">
+              Travessas seccionadas nos vãos livres ({vaoHorizCmStr} cm) • {weldsCountVertTopology} nós de solda lateral
+            </span>
+          </div>
+
+          <div className="relative flex justify-center items-center bg-white rounded-lg p-2 border border-slate-200 overflow-x-auto">
+            <svg width={svgWidth} height={svgHeight} className="max-w-full h-auto">
+              {/* Outer Frame */}
+              <rect
+                x={startX}
+                y={startY}
+                width={drawWidth}
+                height={drawHeight}
+                fill="#f8fafc"
+                stroke="#cbd5e1"
+                strokeWidth="1"
+                strokeDasharray="3 3"
+                rx="2"
+              />
+
+              {/* Pass-Through Columns */}
+              {verticalElements.map((elem, j) => {
+                const x = startX + (j * drawWidth) / numVaosHoriz;
+                const isOuter = j === 0 || j === colunasVerticais - 1;
+                return (
+                  <line
+                    key={`d2-col-${j}`}
+                    x1={x}
+                    y1={startY}
+                    x2={x}
+                    y2={startY + drawHeight}
+                    stroke={isOuter ? '#047857' : '#059669'}
+                    strokeWidth={isOuter ? '2.8' : '2'}
+                    strokeLinecap="round"
+                  />
+                );
+              })}
+
+              {/* Sectioned Horizontal Crossbeams (Travessas Cortadas entre Colunas) */}
+              {Array.from({ length: linhasHorizontais }).map((_, i) => {
+                const y = startY + (i * drawHeight) / numVaosVert;
+                return (
+                  <g key={`d2-row-${i}`}>
+                    {Array.from({ length: numVaosHoriz }).map((_, j) => {
+                      const x1 = startX + (j * drawWidth) / numVaosHoriz;
+                      const x2 = startX + ((j + 1) * drawWidth) / numVaosHoriz;
+                      const midX = (x1 + x2) / 2;
 
                       return (
-                        <g key={`h-seg-${i}-${sIdx}`}>
+                        <g key={`d2-crossbeam-${i}-${j}`}>
                           {/* Segment Line */}
                           <line
-                            x1={segX1}
+                            x1={x1 + 2}
                             y1={y}
-                            x2={segX2}
+                            x2={x2 - 2}
                             y2={y}
-                            stroke={isEvenSeg ? '#2563eb' : '#4f46e5'}
-                            strokeWidth={isBorder ? '3' : '2'}
+                            stroke="#0284c7"
+                            strokeWidth="2"
                             strokeLinecap="round"
                           />
 
-                          {/* Bar Number Tag on Segment */}
-                          {segWidth > 26 && (
+                          {/* Vertical Solder Welds at Column Junctions */}
+                          <line x1={x1 + 1} y1={y - 4} x2={x1 + 1} y2={y + 4} stroke="#ef4444" strokeWidth="2" />
+                          <line x1={x2 - 1} y1={y - 4} x2={x2 - 1} y2={y + 4} stroke="#ef4444" strokeWidth="2" />
+
+                          {/* Span Dimension Tag on Crossbeam */}
+                          {drawWidth / numVaosHoriz > 42 && (
                             <g>
                               <rect
-                                x={segMidX - 16}
-                                y={y - 8}
+                                x={midX - 16}
+                                y={y - 5.5}
                                 width="32"
                                 height="11"
-                                rx="2.5"
+                                rx="2"
                                 fill="#ffffff"
-                                stroke={isEvenSeg ? '#2563eb' : '#4f46e5'}
-                                strokeWidth="0.9"
+                                stroke="#0284c7"
+                                strokeWidth="0.7"
                               />
                               <text
-                                x={segMidX}
-                                y={y - 0.2}
-                                fill="#0f172a"
-                                fontSize="7"
+                                x={midX}
+                                y={y + 2.5}
+                                fill="#0369a1"
+                                fontSize="6.5"
                                 fontWeight="bold"
                                 textAnchor="middle"
                               >
-                                B{String(seg.barNumber).padStart(2, '0')}
+                                {vaoHorizCmStr} cm
                               </text>
-                            </g>
-                          )}
-
-                          {/* Solder/Splice marker at connection between segments */}
-                          {sIdx < elem.segments.length - 1 && (
-                            <g>
-                              <circle
-                                cx={segX2}
-                                y={y}
-                                r="3.5"
-                                fill="#ef4444"
-                                stroke="#ffffff"
-                                strokeWidth="1.2"
-                              />
                             </g>
                           )}
                         </g>
@@ -198,49 +461,50 @@ export const StructureVisualizer: React.FC<VisualizerProps> = ({ input }) => {
                 );
               })}
 
-              {/* Dimension Label Top */}
-              <text
-                x={startX + drawWidth / 2}
-                y={Math.max(14, startY - 10)}
-                fill="#334155"
-                fontSize="9.5"
-                fontWeight="bold"
-                textAnchor="middle"
-              >
-                Largura Total: {largura.toFixed(2)} m ({linhasHorizontais} Linhas Horizontais)
+              {/* Cota Geral Superior */}
+              <line x1={startX} y1={startY - 20} x2={startX + drawWidth} y2={startY - 20} stroke="#0f172a" strokeWidth="1" />
+              <line x1={startX} y1={startY - 25} x2={startX} y2={startY - 15} stroke="#0f172a" strokeWidth="1" />
+              <line x1={startX + drawWidth} y1={startY - 25} x2={startX + drawWidth} y2={startY - 15} stroke="#0f172a" strokeWidth="1" />
+              <text x={startX + drawWidth / 2} y={startY - 23} fill="#0f172a" fontSize="8" fontWeight="bold" textAnchor="middle">
+                Largura Total: {largura.toFixed(2).replace('.', ',')} m ({numVaosHoriz} Travessas por Linha)
               </text>
 
-              {/* Dimension Label Right */}
+              {/* Cota Geral Lateral */}
+              <line x1={startX + drawWidth + 20} y1={startY} x2={startX + drawWidth + 20} y2={startY + drawHeight} stroke="#0f172a" strokeWidth="1" />
+              <line x1={startX + drawWidth + 15} y1={startY} x2={startX + drawWidth + 25} y2={startY} stroke="#0f172a" strokeWidth="1" />
+              <line x1={startX + drawWidth + 15} y1={startY + drawHeight} x2={startX + drawWidth + 25} y2={startY + drawHeight} stroke="#0f172a" strokeWidth="1" />
               <text
-                x={startX + drawWidth + 18}
+                x={startX + drawWidth + 34}
                 y={startY + drawHeight / 2}
-                fill="#334155"
-                fontSize="9.5"
+                fill="#0f172a"
+                fontSize="8"
                 fontWeight="bold"
                 textAnchor="middle"
                 dominantBaseline="central"
-                transform={`rotate(90, ${startX + drawWidth + 18}, ${startY + drawHeight / 2})`}
+                transform={`rotate(90, ${startX + drawWidth + 34}, ${startY + drawHeight / 2})`}
               >
-                Altura: {altura.toFixed(2)} m
+                Altura: {altura.toFixed(2).replace('.', ',')} m
               </text>
             </svg>
           </div>
         </div>
 
-        {/* 5.2 Desenho da Estrutura Vertical */}
-        <div className="bg-white text-slate-900 rounded-lg p-2.5 border border-slate-300">
+        {/* ========================================================================= */}
+        {/* DIAGRAMA 3: Estrutura Vertical - Topologia Linhas Contínuas (Solda Horiz) */}
+        {/* ========================================================================= */}
+        <div className="bg-white text-slate-900 rounded-lg p-3 border border-slate-300">
           <div className="flex items-center justify-between mb-1.5 font-serif">
             <h4 className="text-xs font-bold text-slate-900 flex items-center gap-1.5 font-serif">
-              Figura 2 — Esquema da Estrutura Vertical (Colunas e Numeração de Barras)
+              Figura 3 — Estrutura Vertical (Topologia: Linhas Contínuas / Solda Horizontal)
             </h4>
             <span className="text-[11px] font-serif text-slate-700">
-              {colunasVerticais} colunas • {vertCutLength.toFixed(2)} m cada • Vão livre horizontal: ~{(vaoLivreHoriz * 100).toFixed(1)} cm
+              {colunasVerticais} colunas cortadas com {vertCutLength.toFixed(2).replace('.', ',')} m (desconto do perfil de contorno)
             </span>
           </div>
 
           <div className="relative flex justify-center items-center bg-white rounded-lg p-2 border border-slate-200 overflow-x-auto">
             <svg width={svgWidth} height={svgHeight} className="max-w-full h-auto">
-              {/* Outer Frame Bounding Box */}
+              {/* Outer Bounding Box */}
               <rect
                 x={startX}
                 y={startY}
@@ -248,32 +512,39 @@ export const StructureVisualizer: React.FC<VisualizerProps> = ({ input }) => {
                 height={drawHeight}
                 fill="#f8fafc"
                 stroke="#cbd5e1"
-                strokeWidth="1.2"
+                strokeWidth="1"
                 strokeDasharray="3 3"
                 rx="2"
               />
 
-              {/* Vertical Columns with Column Number and Bar Number */}
+              {/* Continuous Top and Bottom Border Lines (Linhas Passantes) */}
+              <line x1={startX} y1={startY} x2={startX + drawWidth} y2={startY} stroke="#1e293b" strokeWidth="3" />
+              <line x1={startX} y1={startY + drawHeight} x2={startX + drawWidth} y2={startY + drawHeight} stroke="#1e293b" strokeWidth="3" />
+
+              {/* Vertical Columns Cut to Inner Span */}
               {verticalElements.map((elem, j) => {
-                const x = startX + (j * drawWidth) / (colunasVerticais - 1 || 1);
+                const x = startX + (j * drawWidth) / numVaosHoriz;
                 const isOuter = j === 0 || j === colunasVerticais - 1;
-                // Smart 2-tier staggering to prevent ANY label overlap when many columns exist
                 const isStaggered = colunasVerticais > 12 && j % 2 === 1;
 
                 return (
-                  <g key={`v-group-${j}`}>
-                    {/* Column Line */}
+                  <g key={`d3-col-${j}`}>
+                    {/* Vertical Column Bar */}
                     <line
                       x1={x}
-                      y1={startY}
+                      y1={startY + 2}
                       x2={x}
-                      y2={startY + drawHeight}
+                      y2={startY + drawHeight - 2}
                       stroke={isOuter ? '#b45309' : '#d97706'}
-                      strokeWidth={isOuter ? '2.5' : '1.8'}
+                      strokeWidth={isOuter ? '2.8' : '2'}
                       strokeLinecap="round"
                     />
 
-                    {/* Top Column Identifier Tag (C1, C2...) */}
+                    {/* Horizontal Weld Joints Top and Bottom */}
+                    <line x1={x - 4} y1={startY} x2={x + 4} y2={startY} stroke="#ef4444" strokeWidth="2.5" />
+                    <line x1={x - 4} y1={startY + drawHeight} x2={x + 4} y2={startY + drawHeight} stroke="#ef4444" strokeWidth="2.5" />
+
+                    {/* Column Tag Top (C1, C2...) */}
                     <g>
                       <rect
                         x={x - 10}
@@ -297,7 +568,7 @@ export const StructureVisualizer: React.FC<VisualizerProps> = ({ input }) => {
                       </text>
                     </g>
 
-                    {/* Bottom Bar Number Tag (B19, B20...) */}
+                    {/* Column Bar Tag Bottom (B01, B02...) */}
                     <g>
                       <rect
                         x={x - 10}
@@ -324,42 +595,152 @@ export const StructureVisualizer: React.FC<VisualizerProps> = ({ input }) => {
                 );
               })}
 
-              {/* Dimension Label Top */}
-              <text
-                x={startX + drawWidth / 2}
-                y={Math.max(12, startY - 23)}
-                fill="#334155"
-                fontSize="9.5"
-                fontWeight="bold"
-                textAnchor="middle"
-              >
-                Largura Total: {largura.toFixed(2)} m ({colunasVerticais} Colunas Verticais)
+              {/* Cota Geral Superior */}
+              <line x1={startX} y1={startY - 24} x2={startX + drawWidth} y2={startY - 24} stroke="#0f172a" strokeWidth="1" />
+              <line x1={startX} y1={startY - 29} x2={startX} y2={startY - 19} stroke="#0f172a" strokeWidth="1" />
+              <line x1={startX + drawWidth} y1={startY - 29} x2={startX + drawWidth} y2={startY - 19} stroke="#0f172a" strokeWidth="1" />
+              <text x={startX + drawWidth / 2} y={startY - 26} fill="#0f172a" fontSize="8" fontWeight="bold" textAnchor="middle">
+                Largura Total: {largura.toFixed(2).replace('.', ',')} m ({colunasVerticais} Colunas)
               </text>
 
-              {/* Dimension Label Right */}
+              {/* Cota de Corte Real da Coluna Vertical */}
+              <line x1={startX + drawWidth + 20} y1={startY + 2} x2={startX + drawWidth + 20} y2={startY + drawHeight - 2} stroke="#b45309" strokeWidth="1.2" />
+              <line x1={startX + drawWidth + 15} y1={startY + 2} x2={startX + drawWidth + 25} y2={startY + 2} stroke="#b45309" strokeWidth="1" />
+              <line x1={startX + drawWidth + 15} y1={startY + drawHeight - 2} x2={startX + drawWidth + 25} y2={startY + drawHeight - 2} stroke="#b45309" strokeWidth="1" />
               <text
-                x={startX + drawWidth + 18}
+                x={startX + drawWidth + 34}
                 y={startY + drawHeight / 2}
-                fill="#334155"
-                fontSize="9.5"
+                fill="#92400e"
+                fontSize="8"
                 fontWeight="bold"
                 textAnchor="middle"
                 dominantBaseline="central"
-                transform={`rotate(90, ${startX + drawWidth + 18}, ${startY + drawHeight / 2})`}
+                transform={`rotate(90, ${startX + drawWidth + 34}, ${startY + drawHeight / 2})`}
               >
-                Corte: {calc.vertCutLength.toFixed(2)} m
+                Corte Real: {vertCutLength.toFixed(2).replace('.', ',')} m
               </text>
             </svg>
           </div>
+        </div>
 
-          {/* Column reference note */}
-          <div className="mt-2 text-[10px] text-slate-600 bg-white p-1.5 rounded border border-slate-200 flex items-center justify-between">
-            <span>
-              <strong>Colunas C1 a C{colunasVerticais}:</strong> {colunasVerticais} peças de corte com <strong>{vertCutLength.toFixed(2)} m</strong> cada.
+        {/* ========================================================================= */}
+        {/* DIAGRAMA 4: Estrutura Vertical - Topologia Colunas Contínuas (Solda Vert) */}
+        {/* ========================================================================= */}
+        <div className="bg-white text-slate-900 rounded-lg p-3 border border-slate-300">
+          <div className="flex items-center justify-between mb-1.5 font-serif">
+            <h4 className="text-xs font-bold text-slate-900 flex items-center gap-1.5 font-serif">
+              Figura 4 — Estrutura Vertical (Topologia: Colunas Contínuas / Solda Vertical)
+            </h4>
+            <span className="text-[11px] font-serif text-slate-700">
+              Colunas verticais inteiriças de {altura.toFixed(2).replace('.', ',')} m • Travessas soldadas lateralmente
             </span>
-            <span>
-              <strong>Barras de Produção:</strong> {verticalElements[0]?.barNumbersSummary} a {verticalElements[verticalElements.length - 1]?.barNumbersSummary} (Tabela 7)
-            </span>
+          </div>
+
+          <div className="relative flex justify-center items-center bg-white rounded-lg p-2 border border-slate-200 overflow-x-auto">
+            <svg width={svgWidth} height={svgHeight} className="max-w-full h-auto">
+              {/* Outer Bounding Box */}
+              <rect
+                x={startX}
+                y={startY}
+                width={drawWidth}
+                height={drawHeight}
+                fill="#f8fafc"
+                stroke="#cbd5e1"
+                strokeWidth="1"
+                strokeDasharray="3 3"
+                rx="2"
+              />
+
+              {/* Full Height Vertical Columns */}
+              {verticalElements.map((elem, j) => {
+                const x = startX + (j * drawWidth) / numVaosHoriz;
+                const isOuter = j === 0 || j === colunasVerticais - 1;
+
+                return (
+                  <g key={`d4-col-${j}`}>
+                    <line
+                      x1={x}
+                      y1={startY}
+                      x2={x}
+                      y2={startY + drawHeight}
+                      stroke={isOuter ? '#0f766e' : '#14b8a6'}
+                      strokeWidth={isOuter ? '3' : '2'}
+                      strokeLinecap="round"
+                    />
+
+                    {/* Column Center Tag */}
+                    <g>
+                      <rect
+                        x={x - 14}
+                        y={startY + drawHeight / 2 - 6}
+                        width="28"
+                        height="12"
+                        rx="2"
+                        fill="#ffffff"
+                        stroke="#0f766e"
+                        strokeWidth="0.8"
+                      />
+                      <text
+                        x={x}
+                        y={startY + drawHeight / 2 + 2.5}
+                        fill="#134e4a"
+                        fontSize="6.5"
+                        fontWeight="bold"
+                        textAnchor="middle"
+                      >
+                        C{elem.index}
+                      </text>
+                    </g>
+                  </g>
+                );
+              })}
+
+              {/* Intermediary Crossbeams with Vertical Welds */}
+              {Array.from({ length: linhasHorizontais }).map((_, i) => {
+                const y = startY + (i * drawHeight) / numVaosVert;
+                return (
+                  <g key={`d4-h-${i}`}>
+                    {Array.from({ length: numVaosHoriz }).map((_, j) => {
+                      const x1 = startX + (j * drawWidth) / numVaosHoriz;
+                      const x2 = startX + ((j + 1) * drawWidth) / numVaosHoriz;
+
+                      return (
+                        <g key={`d4-cross-${i}-${j}`}>
+                          <line x1={x1 + 2} y1={y} x2={x2 - 2} y2={y} stroke="#64748b" strokeWidth="1.5" strokeDasharray="3 2" />
+                          <circle cx={x1} cy={y} r="2.2" fill="#ef4444" />
+                          <circle cx={x2} cy={y} r="2.2" fill="#ef4444" />
+                        </g>
+                      );
+                    })}
+                  </g>
+                );
+              })}
+
+              {/* Cota Geral Superior */}
+              <line x1={startX} y1={startY - 20} x2={startX + drawWidth} y2={startY - 20} stroke="#0f172a" strokeWidth="1" />
+              <line x1={startX} y1={startY - 25} x2={startX} y2={startY - 15} stroke="#0f172a" strokeWidth="1" />
+              <line x1={startX + drawWidth} y1={startY - 25} x2={startX + drawWidth} y2={startY - 15} stroke="#0f172a" strokeWidth="1" />
+              <text x={startX + drawWidth / 2} y={startY - 23} fill="#0f172a" fontSize="8" fontWeight="bold" textAnchor="middle">
+                Largura Total: {largura.toFixed(2).replace('.', ',')} m ({colunasVerticais} Colunas Passantes)
+              </text>
+
+              {/* Cota Geral Lateral (Altura Total da Coluna) */}
+              <line x1={startX + drawWidth + 20} y1={startY} x2={startX + drawWidth + 20} y2={startY + drawHeight} stroke="#0f766e" strokeWidth="1.2" />
+              <line x1={startX + drawWidth + 15} y1={startY} x2={startX + drawWidth + 25} y2={startY} stroke="#0f766e" strokeWidth="1" />
+              <line x1={startX + drawWidth + 15} y1={startY + drawHeight} x2={startX + drawWidth + 25} y2={startY + drawHeight} stroke="#0f766e" strokeWidth="1" />
+              <text
+                x={startX + drawWidth + 34}
+                y={startY + drawHeight / 2}
+                fill="#0f766e"
+                fontSize="8"
+                fontWeight="bold"
+                textAnchor="middle"
+                dominantBaseline="central"
+                transform={`rotate(90, ${startX + drawWidth + 34}, ${startY + drawHeight / 2})`}
+              >
+                Altura Total: {altura.toFixed(2).replace('.', ',')} m
+              </text>
+            </svg>
           </div>
         </div>
       </div>

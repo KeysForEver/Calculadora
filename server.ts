@@ -134,18 +134,14 @@ app.post("/api/calculate", async (req, res) => {
       metragemIntTotal,
       totalMetragemLinear,
       teoricoBarrasGeral,
-      totalSemEmendaSemOpt,
-      totalSemEmendaComOpt,
-      totalComEmendaComOpt,
-      extScenario1,
-      extScenario2,
-      extScenario3,
-      intScenario1,
-      intScenario2,
-      intScenario3,
-      weldsCountScenario1,
-      weldsCountScenario2,
-      weldsCountScenario3,
+      totalBarrasOtimizado,
+      sobraTotalM,
+      aproveitamentoPct,
+      extBarrasOtimizado,
+      intBarrasOtimizado,
+      weldsCountHorizTopology,
+      weldsCountVertTopology,
+      transportLogistics,
     } = calcResult;
 
     const extFaceMmStr = (profileExt.faceSizeM * 1000).toFixed(0);
@@ -154,7 +150,7 @@ app.post("/api/calculate", async (req, res) => {
     const heightStr = numAltura.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
     const prompt = `Atue como um engenheiro calculista e especialista em estruturas metálicas. 
-Elabore o memorial técnico de cálculo para a estrutura de metalon com as seções harmonizadas rigorosamente com o Cenário Otimizado Definitivo (Cenário 3), apresentando o quadro comparativo na Seção 4 onde fica explícito que os Cenários 1 e 2 são apenas referências comparativas e o Cenário 3 é o DEFINITIVO / OFICIAL DE PRODUÇÃO.
+Elabore o memorial técnico de cálculo para a estrutura de metalon considerando exclusivamente o padrão de Otimização de Corte de Peças Inteiras (Sem Emenda) e o gabarito logístico de transporte (caminhão de 4,30 m × 2,00 m).
 
 OS VALORES MATEMÁTICOS DESTE PROJETO JÁ FORAM RIGOROSAMENTE CALCULADOS PELO MOTOR DE OTIMIZAÇÃO (BIN-PACKING) E DEVEM SER UTILIZADOS OBRIGATORIAMENTE SEM NENHUMA MODIFICAÇÃO OU CONTRADIÇÃO:
 - Dimensões: ${widthStr} m × ${heightStr} m
@@ -162,15 +158,16 @@ OS VALORES MATEMÁTICOS DESTE PROJETO JÁ FORAM RIGOROSAMENTE CALCULADOS PELO MO
 - Estrutura Vertical: ${colunasVerticais} colunas (${vaosHorizontais} vãos de ${vaoLivreHoriz.toLocaleString("pt-BR")} m de vão livre)
 - Comprimento real de corte por coluna: ${vertCutLength.toLocaleString("pt-BR")} m (com desconto de 2× ${extFaceMmStr} mm do perfil de borda)
 - Metragem Linear Total: ${totalMetragemLinear.toLocaleString("pt-BR")} m (Consumo teórico: ${teoricoBarrasGeral} barras de 6m)
-- Cenário 1 (Sem Emenda e Sem Otimização - Comparativo): ${totalSemEmendaSemOpt} barras (${weldsCountScenario1} soldas)
-- Cenário 2 (Sem Emenda com Otimização - Comparativo): ${totalSemEmendaComOpt} barras (${weldsCountScenario2} soldas)
-- Cenário 3 (Com Emenda e Otimização Total - DEFINITIVO / OFICIAL DE PRODUÇÃO): ${totalComEmendaComOpt} barras (${weldsCountScenario3} soldas)
+- Total de Barras Comerciais de 6,00 m Necessárias: ${totalBarrasOtimizado} barras
+- Aproveitamento de Aço: ${aproveitamentoPct.toLocaleString("pt-BR")}% (Sobra total: ${sobraTotalM.toLocaleString("pt-BR")} m)
+- Nós de Solda: ${weldsCountHorizTopology} soldas (Topologia de Linhas Contínuas) / ${weldsCountVertTopology} soldas (Topologia de Colunas Contínuas)
+- Gabarito de Caminhão (4,30 m × 2,00 m): ${transportLogistics.statusText} (${transportLogistics.jointDetailsText})
 
 ${
   !isSameProfile
     ? `- Divisão por Perfil:
-  * Perfil Externo (${profileExt.name}): Cenário 1 = ${extScenario1} barras, Cenário 2 = ${extScenario2} barras, Cenário 3 (Definitivo) = ${extScenario3} barras.
-  * Perfil Interno (${profileInt.name}): Cenário 1 = ${intScenario1} barras, Cenário 2 = ${intScenario2} barras, Cenário 3 (Definitivo) = ${intScenario3} barras.`
+  * Perfil Externo (${profileExt.name}): ${extBarrasOtimizado} barras de 6m (${metragemExtTotal.toLocaleString("pt-BR")} m)
+  * Perfil Interno (${profileInt.name}): ${intBarrasOtimizado} barras de 6m (${metragemIntTotal.toLocaleString("pt-BR")} m)`
     : ""
 }
 
@@ -189,25 +186,34 @@ ${horizIntCount > 0 ? `* Linhas Internas (${profileInt.name}): **${horizIntCount
 ${vertIntCount > 0 ? `* Colunas Internas (${profileInt.name}): **${vertIntCount} colunas** = **${metragemIntVert.toLocaleString("pt-BR")} m**\n` : ""}
 ---
 
-## 3. Plano de Corte Otimizado (Reaproveitamento de Sobras)
-(Explicação técnica clara da memória de cálculo e lógica de otimização, detalhando que as ${colunasVerticais} colunas verticais são cortadas em peças integrais preservando a integridade estrutural, enquanto as sobras de corte são reaproveitadas para compor as ${linhasHorizontais} linhas horizontais, resultando no consumo oficial definitivo de exatamente ${totalComEmendaComOpt} barras de 6m, conforme detalhado na Tabela de Corte e no Roteiro de Montagem. Explique com clareza que os Cenários 1 e 2 são apenas referências comparativas de descarte).
+## 3. Plano de Corte Otimizado e Logística de Transporte
+
+### 3.1 Otimização de Corte de Peças Inteiras (Sem Emenda)
+(Explicação técnica clara detalhando o corte de peças inteiras a partir de barras comerciais de 6,00 m, totalizando ${totalBarrasOtimizado} barras com aproveitamento de ${aproveitamentoPct.toLocaleString("pt-BR")}% e ${sobraTotalM.toLocaleString("pt-BR")} m de sobra, conforme Tabela de Corte da Seção 7).
+
+### 3.2 Gabarito de Transporte (Caminhão 4,30 m × 2,00 m)
+(${transportLogistics.statusText} - ${transportLogistics.jointDetailsText})
 
 ---
 
-## 4. Resultado e Quadro Comparativo de Consumo
+## 4. Resumo Técnico de Consumo e Dimensionamento
 
 ${
   isSameProfile
-    ? `| Cenário / Método de Corte | Pontos de Solda / Emendas | Total de Barras (6m) |
-| :------------------------ | :-----------------------: | :------------------: |
-| **Cenário 1: "Sem Emenda e Sem Otimização" (Comparativo)** | ${weldsCountScenario1} solda(s) | **${totalSemEmendaSemOpt} barras** |
-| **Cenário 2: "Sem Emenda com Otimização de Corte" (Comparativo)** | ${weldsCountScenario2} solda(s) | **${totalSemEmendaComOpt} barras** |
-| **Cenário 3: "Com Emenda e Otimização Total" (DEFINITIVO - Produção)** | ${weldsCountScenario3} solda(s) | **${totalComEmendaComOpt} barras** |`
-    : `| Cenário / Método de Corte | Perfil Externo (${profileExt.name}) | Perfil Interno (${profileInt.name}) | Total de Barras (6m) |
-| :------------------------ | :---------------------------------: | :---------------------------------: | :------------------: |
-| **Cenário 1: "Sem Emenda e Sem Otimização" (Comparativo)** | ${extScenario1} barra(s) | ${intScenario1} barra(s) | **${totalSemEmendaSemOpt} barras** |
-| **Cenário 2: "Sem Emenda com Otimização de Corte" (Comparativo)** | ${extScenario2} barra(s) | ${intScenario2} barra(s) | **${totalSemEmendaComOpt} barras** |
-| **Cenário 3: "Com Emenda e Otimização Total" (DEFINITIVO - Produção)** | ${extScenario3} barra(s) | ${intScenario3} barra(s) | **${totalComEmendaComOpt} barras** |`
+    ? `| Item de Especificação | Valor Calculado |
+| :------------------- | :-------------: |
+| **Total de Barras Comerciais (6,00 m)** | **${totalBarrasOtimizado} barras** |
+| **Metragem Linear Total** | **${totalMetragemLinear.toLocaleString("pt-BR")} m** |
+| **Aproveitamento de Aço** | **${aproveitamentoPct.toLocaleString("pt-BR")}%** |
+| **Pontos de Solda (Topologia Linhas Contínuas)** | **${weldsCountHorizTopology} soldas** |
+| **Pontos de Solda (Topologia Colunas Contínuas)** | **${weldsCountVertTopology} soldas** |
+| **Gabarito de Transporte (Caminhão 4,30m × 2,00m)** | **${transportLogistics.totalModulesCount === 1 ? "Peça Única (Direta)" : `${transportLogistics.totalModulesCount} Módulos Transportáveis`}** |`
+    : `| Item de Especificação | Perfil Externo (${profileExt.name}) | Perfil Interno (${profileInt.name}) | Total Geral |
+| :------------------- | :---------------------------------: | :---------------------------------: | :---------: |
+| **Barras Comerciais (6,00 m)** | ${extBarrasOtimizado} barra(s) | ${intBarrasOtimizado} barra(s) | **${totalBarrasOtimizado} barras** |
+| **Metragem Linear** | ${metragemExtTotal.toLocaleString("pt-BR")} m | ${metragemIntTotal.toLocaleString("pt-BR")} m | **${totalMetragemLinear.toLocaleString("pt-BR")} m** |
+| **Aproveitamento Médio** | — | — | **${aproveitamentoPct.toLocaleString("pt-BR")}%** |
+| **Logística de Transporte** | — | — | **${transportLogistics.totalModulesCount === 1 ? "Peça Única" : `${transportLogistics.totalModulesCount} Módulos`}** |`
 }
 
 CRÍTICO: NÃO INCLUA NENHUMA SEÇÃO DE 'Considerações Técnicas do Perfil', 'Metragem Comprada' OU 'Avaliação de Custo'. O relatório em Markdown termina rigorosamente após a Seção 4.
@@ -278,14 +284,15 @@ GABARITO MATEMÁTICO E REGRAS OFICIAIS DE AUDITORIA:
 - Estrutura Vertical: ${colunasVerticais} colunas (${vaosHorizontais} vãos de ${vaoLivreHoriz.toLocaleString("pt-BR")} m de vão livre)
 - Comprimento de corte por coluna vertical: ${vertCutLength.toLocaleString("pt-BR")} m (com desconto de 2× ${extFaceMmStr} mm)
 - Metragem linear total: ${totalMetragemLinear.toLocaleString("pt-BR")} m
-- Cenário 1 (Sem Emenda / Sem Otimização): ${totalSemEmendaSemOpt} barra(s) (${weldsCountScenario1} solda(s))
-- Cenário 2 (Sem Emenda / Com Otimização): ${totalSemEmendaComOpt} barra(s) (${weldsCountScenario2} solda(s))
-- Cenário 3 (Com Emenda / Otimização Total): ${totalComEmendaComOpt} barra(s) (${weldsCountScenario3} solda(s))
+- Total de Barras Comerciais de 6,00 m: ${totalBarrasOtimizado} barras
+- Aproveitamento de Aço: ${aproveitamentoPct.toLocaleString("pt-BR")}%
+- Nós de Solda: ${weldsCountHorizTopology} soldas (Linhas Contínuas) / ${weldsCountVertTopology} soldas (Colunas Contínuas)
+- Gabarito de Caminhão (4,30 m × 2,00 m): ${transportLogistics.statusText} (${transportLogistics.jointDetailsText})
 
 ${
   !isSameProfile
-    ? `- Perfil Externo (${profileExt.name}): C1 = ${extScenario1}, C2 = ${extScenario2}, C3 = ${extScenario3} barras.
-- Perfil Interno (${profileInt.name}): C1 = ${intScenario1}, C2 = ${intScenario2}, C3 = ${intScenario3} barras.`
+    ? `- Perfil Externo (${profileExt.name}): ${extBarrasOtimizado} barras.
+- Perfil Interno (${profileInt.name}): ${intBarrasOtimizado} barras.`
     : ""
 }
 
@@ -324,16 +331,20 @@ Retorne exclusivamente o RELATÓRIO TÉCNICO FINAL CORRIGIDO E AUDITADO em forma
           }
 
           const canonicalSection4Table = isSameProfile
-            ? `| Cenário / Método de Corte | Pontos de Solda / Emendas | Total de Barras (6m) |
-| :------------------------ | :-----------------------: | :------------------: |
-| **Cenário 1: "Sem Emenda e Sem Otimização"** | ${weldsCountScenario1} solda(s) | **${totalSemEmendaSemOpt} barras** |
-| **Cenário 2: "Sem Emenda com Otimização de Corte"** | ${weldsCountScenario2} solda(s) | **${totalSemEmendaComOpt} barras** |
-| **Cenário 3: "Com Emenda e Otimização Total"** | ${weldsCountScenario3} solda(s) | **${totalComEmendaComOpt} barras** |`
-            : `| Cenário / Método de Corte | Perfil Externo (${profileExt.name}) | Perfil Interno (${profileInt.name}) | Total de Barras (6m) |
-| :------------------------ | :---------------------------------: | :---------------------------------: | :------------------: |
-| **Cenário 1: "Sem Emenda e Sem Otimização"** | ${extScenario1} barra(s) | ${intScenario1} barra(s) | **${totalSemEmendaSemOpt} barras** |
-| **Cenário 2: "Sem Emenda com Otimização de Corte"** | ${extScenario2} barra(s) | ${intScenario2} barra(s) | **${totalSemEmendaComOpt} barras** |
-| **Cenário 3: "Com Emenda e Otimização Total"** | ${extScenario3} barra(s) | ${intScenario3} barra(s) | **${totalComEmendaComOpt} barras** |`;
+            ? `| Item de Especificação | Valor Calculado |
+| :------------------- | :-------------: |
+| **Total de Barras Comerciais (6,00 m)** | **${totalBarrasOtimizado} barras** |
+| **Metragem Linear Total** | **${totalMetragemLinear.toLocaleString("pt-BR")} m** |
+| **Aproveitamento de Aço** | **${aproveitamentoPct.toLocaleString("pt-BR")}%** |
+| **Pontos de Solda (Topologia Linhas Contínuas)** | **${weldsCountHorizTopology} soldas** |
+| **Pontos de Solda (Topologia Colunas Contínuas)** | **${weldsCountVertTopology} soldas** |
+| **Gabarito de Transporte (Caminhão 4,30m × 2,00m)** | **${transportLogistics.totalModulesCount === 1 ? "Peça Única (Direta)" : `${transportLogistics.totalModulesCount} Módulos Transportáveis`}** |`
+            : `| Item de Especificação | Perfil Externo (${profileExt.name}) | Perfil Interno (${profileInt.name}) | Total Geral |
+| :------------------- | :---------------------------------: | :---------------------------------: | :---------: |
+| **Barras Comerciais (6,00 m)** | ${extBarrasOtimizado} barra(s) | ${intBarrasOtimizado} barra(s) | **${totalBarrasOtimizado} barras** |
+| **Metragem Linear** | ${metragemExtTotal.toLocaleString("pt-BR")} m | ${metragemIntTotal.toLocaleString("pt-BR")} m | **${totalMetragemLinear.toLocaleString("pt-BR")} m** |
+| **Aproveitamento Médio** | — | — | **${aproveitamentoPct.toLocaleString("pt-BR")}%** |
+| **Logística de Transporte** | — | — | **${transportLogistics.totalModulesCount === 1 ? "Peça Única" : `${transportLogistics.totalModulesCount} Módulos`}** |`;
 
           // Post-processing: Remove Considerações Técnicas if generated, remove forbidden sections & columns
           finalText = finalText.replace(/(?:^|\n)#*\s*Considera[çc][õo]es\s+T[ée]cnicas[^\n]*(?:\n[\s\S]*?)?(?=\n#*\s*1[\.\s])/si, '').trim();
@@ -343,10 +354,10 @@ Retorne exclusivamente o RELATÓRIO TÉCNICO FINAL CORRIGIDO E AUDITADO em forma
           if (finalText.search(/(?:^|\n)##\s*4[\.\s]/i) >= 0) {
             finalText = finalText.replace(
               /(?:^|\n)(##\s*4[\.\s][^\n]*\n+)[\s\S]*$/i,
-              `\n\n## 4. Resultado e Quadro Comparativo de Consumo\n\n${canonicalSection4Table}`
+              `\n\n## 4. Resumo Técnico de Consumo e Dimensionamento\n\n${canonicalSection4Table}`
             ).trim();
           } else {
-            finalText = `${finalText}\n\n---\n\n## 4. Resultado e Quadro Comparativo de Consumo\n\n${canonicalSection4Table}`;
+            finalText = `${finalText}\n\n---\n\n## 4. Resumo Técnico de Consumo e Dimensionamento\n\n${canonicalSection4Table}`;
           }
 
           successfulModel = modelName;
