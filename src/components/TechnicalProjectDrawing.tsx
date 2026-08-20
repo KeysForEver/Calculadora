@@ -326,10 +326,10 @@ export const TechnicalProjectDrawing: React.FC<TechnicalProjectDrawingProps> = (
 
       {/* Scenario Comparison Footer Banner */}
       <div className="bg-slate-100/90 border border-slate-200 rounded-lg px-3 py-1.5 flex items-center justify-between text-[10px] text-slate-700">
-        <span><strong>Cenário 1 (Sem Otimização):</strong> {totalSemEmendaSemOpt} barras</span>
-        <span><strong>Cenário 2 (Peças Inteiras):</strong> {totalSemEmendaComOpt} barras</span>
+        <span><strong>Cenário 1 (Comparativo):</strong> {totalSemEmendaSemOpt} barras</span>
+        <span><strong>Cenário 2 (Comparativo):</strong> {totalSemEmendaComOpt} barras</span>
         <span className="text-emerald-800 font-bold bg-emerald-100 px-2 py-0.5 rounded border border-emerald-300">
-          Cenário 3 (Produção com Emenda): {totalComEmendaComOpt} barras (Economia Máxima)
+          Cenário 3 (Definitivo / Produção): {totalComEmendaComOpt} barras
         </span>
       </div>
     </div>

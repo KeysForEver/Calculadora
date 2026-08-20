@@ -153,24 +153,24 @@ app.post("/api/calculate", async (req, res) => {
     const widthStr = numLargura.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     const heightStr = numAltura.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-    const prompt = `Atue como um serralheiro e calculista de estruturas metálicas experiente. 
-Preciso calcular a quantidade exata de barras de metalon para uma estrutura retangular, apresentando OBRIGATORIAMENTE OS 3 CENÁRIOS DE CORTE no quadro comparativo final (Seção 4) para que o cliente defina o método desejado.
+    const prompt = `Atue como um engenheiro calculista e especialista em estruturas metálicas. 
+Elabore o memorial técnico de cálculo para a estrutura de metalon com as seções harmonizadas rigorosamente com o Cenário Otimizado Definitivo (Cenário 3), apresentando o quadro comparativo na Seção 4 onde fica explícito que os Cenários 1 e 2 são apenas referências comparativas e o Cenário 3 é o DEFINITIVO / OFICIAL DE PRODUÇÃO.
 
-OS VALORES MATEMÁTICOS DESTE PROJETO JÁ FORAM RIGOROSAMENTE CALCULADOS PELO MOTOR DE OTIMIZAÇÃO (BIN-PACKING) E DEVEM SER UTILIZADOS OBRIGATORIAMENTE SEM ALTERAÇÃO:
+OS VALORES MATEMÁTICOS DESTE PROJETO JÁ FORAM RIGOROSAMENTE CALCULADOS PELO MOTOR DE OTIMIZAÇÃO (BIN-PACKING) E DEVEM SER UTILIZADOS OBRIGATORIAMENTE SEM NENHUMA MODIFICAÇÃO OU CONTRADIÇÃO:
 - Dimensões: ${widthStr} m × ${heightStr} m
 - Estrutura Horizontal: ${linhasHorizontais} linhas (${vaosVerticais} vãos de ${vaoLivreVert.toLocaleString("pt-BR")} m de vão livre)
 - Estrutura Vertical: ${colunasVerticais} colunas (${vaosHorizontais} vãos de ${vaoLivreHoriz.toLocaleString("pt-BR")} m de vão livre)
 - Comprimento real de corte por coluna: ${vertCutLength.toLocaleString("pt-BR")} m (com desconto de 2× ${extFaceMmStr} mm do perfil de borda)
 - Metragem Linear Total: ${totalMetragemLinear.toLocaleString("pt-BR")} m (Consumo teórico: ${teoricoBarrasGeral} barras de 6m)
-- Cenário 1 (Sem Emenda e Sem Otimização): ${totalSemEmendaSemOpt} barras (${weldsCountScenario1} soldas)
-- Cenário 2 (Sem Emenda com Otimização): ${totalSemEmendaComOpt} barras (${weldsCountScenario2} soldas)
-- Cenário 3 (Com Emenda e Otimização Total - Melhor Cenário): ${totalComEmendaComOpt} barras (${weldsCountScenario3} soldas)
+- Cenário 1 (Sem Emenda e Sem Otimização - Comparativo): ${totalSemEmendaSemOpt} barras (${weldsCountScenario1} soldas)
+- Cenário 2 (Sem Emenda com Otimização - Comparativo): ${totalSemEmendaComOpt} barras (${weldsCountScenario2} soldas)
+- Cenário 3 (Com Emenda e Otimização Total - DEFINITIVO / OFICIAL DE PRODUÇÃO): ${totalComEmendaComOpt} barras (${weldsCountScenario3} soldas)
 
 ${
   !isSameProfile
     ? `- Divisão por Perfil:
-  * Perfil Externo (${profileExt.name}): Cenário 1 = ${extScenario1} barras, Cenário 2 = ${extScenario2} barras, Cenário 3 = ${extScenario3} barras.
-  * Perfil Interno (${profileInt.name}): Cenário 1 = ${intScenario1} barras, Cenário 2 = ${intScenario2} barras, Cenário 3 = ${intScenario3} barras.`
+  * Perfil Externo (${profileExt.name}): Cenário 1 = ${extScenario1} barras, Cenário 2 = ${extScenario2} barras, Cenário 3 (Definitivo) = ${extScenario3} barras.
+  * Perfil Interno (${profileInt.name}): Cenário 1 = ${intScenario1} barras, Cenário 2 = ${intScenario2} barras, Cenário 3 (Definitivo) = ${intScenario3} barras.`
     : ""
 }
 
@@ -190,7 +190,7 @@ ${vertIntCount > 0 ? `* Colunas Internas (${profileInt.name}): **${vertIntCount}
 ---
 
 ## 3. Plano de Corte Otimizado (Reaproveitamento de Sobras)
-(Explicação técnica clara da recombinação de sobras de cortes maiores com peças verticais menores e da lógica de otimização de barras, destacando que a Tabela de Corte de Barras para a Produção na Seção 7 reflete o Cenário 3 com exatamente ${totalComEmendaComOpt} barras).
+(Explicação técnica clara da memória de cálculo e lógica de otimização, detalhando que as ${colunasVerticais} colunas verticais são cortadas em peças integrais preservando a integridade estrutural, enquanto as sobras de corte são reaproveitadas para compor as ${linhasHorizontais} linhas horizontais, resultando no consumo oficial definitivo de exatamente ${totalComEmendaComOpt} barras de 6m, conforme detalhado na Tabela de Corte e no Roteiro de Montagem. Explique com clareza que os Cenários 1 e 2 são apenas referências comparativas de descarte).
 
 ---
 
@@ -200,17 +200,17 @@ ${
   isSameProfile
     ? `| Cenário / Método de Corte | Pontos de Solda / Emendas | Total de Barras (6m) |
 | :------------------------ | :-----------------------: | :------------------: |
-| **Cenário 1: "Sem Emenda e Sem Otimização"** | ${weldsCountScenario1} solda(s) | **${totalSemEmendaSemOpt} barras** |
-| **Cenário 2: "Sem Emenda com Otimização de Corte"** | ${weldsCountScenario2} solda(s) | **${totalSemEmendaComOpt} barras** |
-| **Cenário 3: "Com Emenda e Otimização Total"** | ${weldsCountScenario3} solda(s) | **${totalComEmendaComOpt} barras** |`
+| **Cenário 1: "Sem Emenda e Sem Otimização" (Comparativo)** | ${weldsCountScenario1} solda(s) | **${totalSemEmendaSemOpt} barras** |
+| **Cenário 2: "Sem Emenda com Otimização de Corte" (Comparativo)** | ${weldsCountScenario2} solda(s) | **${totalSemEmendaComOpt} barras** |
+| **Cenário 3: "Com Emenda e Otimização Total" (DEFINITIVO - Produção)** | ${weldsCountScenario3} solda(s) | **${totalComEmendaComOpt} barras** |`
     : `| Cenário / Método de Corte | Perfil Externo (${profileExt.name}) | Perfil Interno (${profileInt.name}) | Total de Barras (6m) |
 | :------------------------ | :---------------------------------: | :---------------------------------: | :------------------: |
-| **Cenário 1: "Sem Emenda e Sem Otimização"** | ${extScenario1} barra(s) | ${intScenario1} barra(s) | **${totalSemEmendaSemOpt} barras** |
-| **Cenário 2: "Sem Emenda com Otimização de Corte"** | ${extScenario2} barra(s) | ${intScenario2} barra(s) | **${totalSemEmendaComOpt} barras** |
-| **Cenário 3: "Com Emenda e Otimização Total"** | ${extScenario3} barra(s) | ${intScenario3} barra(s) | **${totalComEmendaComOpt} barras** |`
+| **Cenário 1: "Sem Emenda e Sem Otimização" (Comparativo)** | ${extScenario1} barra(s) | ${intScenario1} barra(s) | **${totalSemEmendaSemOpt} barras** |
+| **Cenário 2: "Sem Emenda com Otimização de Corte" (Comparativo)** | ${extScenario2} barra(s) | ${intScenario2} barra(s) | **${totalSemEmendaComOpt} barras** |
+| **Cenário 3: "Com Emenda e Otimização Total" (DEFINITIVO - Produção)** | ${extScenario3} barra(s) | ${intScenario3} barra(s) | **${totalComEmendaComOpt} barras** |`
 }
 
-CRÍTICO: NÃO INCLUA NENHUMA SEÇÃO DE 'Considerações Técnicas', 'Metragem Comprada' OU 'Avaliação de Custo'. O relatório em Markdown termina rigorosamente após a Seção 4.
+CRÍTICO: NÃO INCLUA NENHUMA SEÇÃO DE 'Considerações Técnicas do Perfil', 'Metragem Comprada' OU 'Avaliação de Custo'. O relatório em Markdown termina rigorosamente após a Seção 4.
 `;
 
     // Call Gemini API

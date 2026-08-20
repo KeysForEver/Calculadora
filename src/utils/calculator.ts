@@ -113,66 +113,6 @@ export interface AllocatedBar {
   pieces: PieceToCut[];
 }
 
-export function optimizePiecesPlan(inputPieces: PieceToCut[]) {
-  let full6mBarsCount = 0;
-  const fullBarsList: { type: 'Horizontal' | 'Vertical'; length: number; pieceDescription: string }[] = [];
-  const subPieces: PieceToCut[] = [];
-
-  for (const piece of inputPieces) {
-    const fullBars = Math.floor(piece.length / 6.0);
-    const remLength = Number((piece.length - fullBars * 6.0).toFixed(3));
-    full6mBarsCount += fullBars;
-    for (let fb = 0; fb < fullBars; fb++) {
-      fullBarsList.push({
-        type: piece.type,
-        length: 6.0,
-        pieceDescription: piece.description,
-      });
-    }
-    if (remLength > 0) {
-      subPieces.push({
-        type: piece.type,
-        length: remLength,
-        description: piece.description,
-      });
-    }
-  }
-
-  subPieces.sort((a, b) => b.length - a.length);
-
-  const allocatedBars: AllocatedBar[] = [];
-
-  for (const piece of subPieces) {
-    let placed = false;
-    for (const bar of allocatedBars) {
-      if (bar.remainingLength >= piece.length - 0.001) {
-        bar.pieces.push(piece);
-        bar.usedLength = Number((bar.usedLength + piece.length).toFixed(3));
-        bar.remainingLength = Number((6.0 - bar.usedLength).toFixed(3));
-        placed = true;
-        break;
-      }
-    }
-    if (!placed) {
-      allocatedBars.push({
-        id: allocatedBars.length + 1,
-        remainingLength: Number((6.0 - piece.length).toFixed(3)),
-        usedLength: piece.length,
-        pieces: [piece],
-      });
-    }
-  }
-
-  const totalComEmenda = full6mBarsCount + allocatedBars.length;
-
-  return {
-    full6mBarsCount,
-    fullBarsList,
-    allocatedBars,
-    totalComEmenda,
-  };
-}
-
 export function optimizeWholePiecesPlan(inputPieces: PieceToCut[]) {
   const wholeItems: PieceToCut[] = [];
   let longBarsCount = 0;
@@ -213,6 +153,215 @@ export function optimizeWholePiecesPlan(inputPieces: PieceToCut[]) {
   return {
     totalBars: longBarsCount + allocatedBars.length,
     allocatedBars,
+  };
+}
+
+export interface SplicedStructuralPlanResult {
+  totalBars: number;
+  totalWelds: number;
+  allocatedBars: {
+    barNumber: number;
+    profileName: string;
+    initialLength: number;
+    usedLength: number;
+    remainingLength: number;
+    pieces: PieceToCut[];
+  }[];
+}
+
+/**
+ * Intelligent Structural Cutting & Splicing Engine for Metalon (Scenario 3 - Definitivo)
+ * Prioritizes cutting whole vertical columns to preserve load-bearing strength,
+ * and systematically recombines all resulting offcuts to construct horizontal lines.
+ */
+export function optimizeStructuralPlanWithSplicing(params: {
+  profileName: string;
+  horizontalCount: number;
+  horizontalLength: number;
+  verticalCount: number;
+  verticalLength: number;
+  startBarIndex?: number;
+}): SplicedStructuralPlanResult {
+  const { profileName, horizontalCount, horizontalLength, verticalCount, verticalLength } = params;
+  const startIdx = params.startBarIndex || 1;
+
+  interface InternalBar {
+    barNumber: number;
+    profileName: string;
+    initialLength: number;
+    usedLength: number;
+    remainingLength: number;
+    pieces: PieceToCut[];
+  }
+
+  const bars: InternalBar[] = [];
+
+  // Step 1: Allocate vertical columns (whole cuts where possible)
+  if (verticalLength <= 6.0 && verticalCount > 0) {
+    for (let j = 1; j <= verticalCount; j++) {
+      let placed = false;
+      for (const bar of bars) {
+        if (bar.remainingLength >= verticalLength - 0.001) {
+          bar.pieces.push({
+            type: 'Vertical',
+            length: verticalLength,
+            description: `1x Coluna Vert. ${j} (${verticalLength.toFixed(2).replace('.', ',')} m)`,
+          });
+          bar.usedLength = Number((bar.usedLength + verticalLength).toFixed(3));
+          bar.remainingLength = Number((6.0 - bar.usedLength).toFixed(3));
+          placed = true;
+          break;
+        }
+      }
+      if (!placed) {
+        const newBarNum = startIdx + bars.length;
+        bars.push({
+          barNumber: newBarNum,
+          profileName,
+          initialLength: 6.0,
+          usedLength: verticalLength,
+          remainingLength: Number((6.0 - verticalLength).toFixed(3)),
+          pieces: [
+            {
+              type: 'Vertical',
+              length: verticalLength,
+              description: `1x Coluna Vert. ${j} (${verticalLength.toFixed(2).replace('.', ',')} m)`,
+            },
+          ],
+        });
+      }
+    }
+  } else if (verticalLength > 6.0 && verticalCount > 0) {
+    // For very tall structures (>6m), vertical columns also require splicing
+    for (let j = 1; j <= verticalCount; j++) {
+      let vertRem = verticalLength;
+      while (vertRem > 0.001) {
+        const cut = Number(Math.min(6.0, vertRem).toFixed(3));
+        const newBarNum = startIdx + bars.length;
+        bars.push({
+          barNumber: newBarNum,
+          profileName,
+          initialLength: 6.0,
+          usedLength: cut,
+          remainingLength: Number((6.0 - cut).toFixed(3)),
+          pieces: [
+            {
+              type: 'Vertical',
+              length: cut,
+              description: `1x Coluna Vert. ${j} (Trecho ${cut.toFixed(2).replace('.', ',')} m)`,
+            },
+          ],
+        });
+        vertRem = Number((vertRem - cut).toFixed(3));
+      }
+    }
+  }
+
+  // Step 2: Allocate horizontal lines using full 6m bars + offcuts from existing bars
+  for (let i = 1; i <= horizontalCount; i++) {
+    let needed = horizontalLength;
+
+    // Use full 6m bars for 6m segments if project demand warrants it
+    while (needed >= 6.0) {
+      const newBarNum = startIdx + bars.length;
+      bars.push({
+        barNumber: newBarNum,
+        profileName,
+        initialLength: 6.0,
+        usedLength: 6.0,
+        remainingLength: 0.0,
+        pieces: [
+          {
+            type: 'Horizontal',
+            length: 6.0,
+            description: `1x Linha Horiz. ${i} (Trecho Inteiro 6,00 m)`,
+          },
+        ],
+      });
+      needed = Number((needed - 6.0).toFixed(3));
+    }
+
+    // Fulfill remaining length by reusing offcuts from existing bars first
+    while (needed > 0.001) {
+      // Find largest available offcut in existing bars (>= 5cm)
+      const availableOffcutBars = bars
+        .filter((b) => b.remainingLength >= 0.049)
+        .sort((a, b) => b.remainingLength - a.remainingLength);
+
+      if (availableOffcutBars.length > 0) {
+        const targetBar = availableOffcutBars[0];
+        const cutLen = Number(Math.min(targetBar.remainingLength, needed).toFixed(3));
+        targetBar.pieces.push({
+          type: 'Horizontal',
+          length: cutLen,
+          description: `1x Linha Horiz. ${i} (Trecho Emenda ${cutLen.toFixed(2).replace('.', ',')} m)`,
+        });
+        targetBar.usedLength = Number((targetBar.usedLength + cutLen).toFixed(3));
+        targetBar.remainingLength = Number((6.0 - targetBar.usedLength).toFixed(3));
+        needed = Number((needed - cutLen).toFixed(3));
+      } else {
+        // No offcuts available, open a new 6m bar
+        const newBarNum = startIdx + bars.length;
+        const cutLen = Number(Math.min(6.0, needed).toFixed(3));
+        bars.push({
+          barNumber: newBarNum,
+          profileName,
+          initialLength: 6.0,
+          usedLength: cutLen,
+          remainingLength: Number((6.0 - cutLen).toFixed(3)),
+          pieces: [
+            {
+              type: 'Horizontal',
+              length: cutLen,
+              description:
+                cutLen >= 5.999
+                  ? `1x Linha Horiz. ${i} (Trecho Inteiro 6,00 m)`
+                  : `1x Linha Horiz. ${i} (Trecho Emenda ${cutLen.toFixed(2).replace('.', ',')} m)`,
+            },
+          ],
+        });
+        needed = Number((needed - cutLen).toFixed(3));
+      }
+    }
+  }
+
+  // Sort bars sequentially by barNumber
+  bars.sort((a, b) => a.barNumber - b.barNumber);
+
+  // Calculate total splice welds in Scenario 3
+  let totalSpliceWelds = 0;
+  for (let i = 1; i <= horizontalCount; i++) {
+    let segmentCount = 0;
+    for (const b of bars) {
+      for (const p of b.pieces) {
+        if (p.type === 'Horizontal' && p.description.includes(`Linha Horiz. ${i}`)) {
+          segmentCount++;
+        }
+      }
+    }
+    if (segmentCount > 1) {
+      totalSpliceWelds += segmentCount - 1;
+    }
+  }
+
+  for (let j = 1; j <= verticalCount; j++) {
+    let segmentCount = 0;
+    for (const b of bars) {
+      for (const p of b.pieces) {
+        if (p.type === 'Vertical' && p.description.includes(`Coluna Vert. ${j}`)) {
+          segmentCount++;
+        }
+      }
+    }
+    if (segmentCount > 1) {
+      totalSpliceWelds += segmentCount - 1;
+    }
+  }
+
+  return {
+    totalBars: bars.length,
+    totalWelds: totalSpliceWelds,
+    allocatedBars: bars,
   };
 }
 
@@ -491,6 +640,7 @@ export function calculateMetalonStructure(params: {
   let totalSemEmendaSemOpt = 0;
   let totalSemEmendaComOpt = 0;
   let totalComEmendaComOpt = 0;
+  let weldsCountScenario3 = 0;
 
   let extScenario1 = 0, extScenario2 = 0, extScenario3 = 0;
   let intScenario1 = 0, intScenario2 = 0, intScenario3 = 0;
@@ -507,146 +657,66 @@ export function calculateMetalonStructure(params: {
   let currentBarIndex = 1;
 
   if (isSameProfile) {
-    const allPieces: PieceToCut[] = [
-      ...Array(linhasHorizontais)
-        .fill(0)
-        .map((_, i) => ({ type: 'Horizontal' as const, length: largura, description: `Linha Horiz. ${i + 1}` })),
-      ...Array(colunasVerticais)
-        .fill(0)
-        .map((_, i) => ({ type: 'Vertical' as const, length: vertCutLength, description: `Coluna Vert. ${i + 1}` })),
-    ];
-
-    // Scenario 1: Sem Emenda & Sem Otimização
+    // Scenario 1: Sem Emenda & Sem Otimização (Referência Comparativa - Alto Desperdício)
     totalSemEmendaSemOpt =
       linhasHorizontais * Math.ceil(largura / 6.0) + colunasVerticais * Math.ceil(vertCutLength / 6.0);
 
-    // Scenario 2: Sem Emenda & Com Otimização de Peças Inteiras
-    const optWholeUnified = optimizeWholePiecesPlan(allPieces);
-    totalSemEmendaComOpt = optWholeUnified.totalBars;
+    // Scenario 2: Sem Emenda & Com Otimização de Peças Inteiras (Referência Comparativa - Sem Reaproveitamento de Sobras)
+    const piecesPerBarVert = Math.max(1, Math.floor(6.0 / vertCutLength));
+    totalSemEmendaComOpt =
+      linhasHorizontais * Math.ceil(largura / 6.0) + Math.ceil(colunasVerticais / piecesPerBarVert);
 
-    // Scenario 3: Com Emenda & Com Otimização Total (Melhor Cenário)
-    const optSpliceUnified = optimizePiecesPlan(allPieces);
-    totalComEmendaComOpt = optSpliceUnified.totalComEmenda;
-
-    // Build detailed production cut bars list matching Scenario 3
-    for (const fullBar of optSpliceUnified.fullBarsList) {
-      allocatedBarsDetailed.push({
-        barNumber: currentBarIndex++,
-        profileName: profileExt.name,
-        initialLength: 6.0,
-        usedLength: 6.0,
-        remainingLength: 0.0,
-        pieces: [
-          {
-            type: fullBar.type,
-            length: 6.0,
-            description: `1x ${fullBar.pieceDescription} (Trecho Inteiro 6,00 m)`,
-          },
-        ],
-      });
-    }
-    optSpliceUnified.allocatedBars.forEach((bar) => {
-      allocatedBarsDetailed.push({
-        barNumber: currentBarIndex++,
-        profileName: profileExt.name,
-        initialLength: 6.0,
-        usedLength: bar.usedLength,
-        remainingLength: bar.remainingLength,
-        pieces: bar.pieces,
-      });
+    // Scenario 3: Com Emenda e Otimização Total (DEFINITIVO / OFICIAL DE PRODUÇÃO - Economia Máxima)
+    const optSpliceResult = optimizeStructuralPlanWithSplicing({
+      profileName: profileExt.name,
+      horizontalCount: linhasHorizontais,
+      horizontalLength: largura,
+      verticalCount: colunasVerticais,
+      verticalLength: vertCutLength,
+      startBarIndex: 1,
     });
-  } else {
-    const piecesExt: PieceToCut[] = [
-      ...Array(horizExtCount)
-        .fill(0)
-        .map((_, i) => ({ type: 'Horizontal' as const, length: largura, description: `Horiz. Borda ${i + 1}` })),
-      ...Array(vertExtCount)
-        .fill(0)
-        .map((_, i) => ({ type: 'Vertical' as const, length: vertCutLength, description: `Vert. Borda ${i + 1}` })),
-    ];
-    const piecesInt: PieceToCut[] = [
-      ...Array(horizIntCount)
-        .fill(0)
-        .map((_, i) => ({ type: 'Horizontal' as const, length: largura, description: `Horiz. Interna ${i + 1}` })),
-      ...Array(vertIntCount)
-        .fill(0)
-        .map((_, i) => ({ type: 'Vertical' as const, length: vertCutLength, description: `Vert. Interna ${i + 1}` })),
-    ];
 
+    totalComEmendaComOpt = optSpliceResult.totalBars;
+    allocatedBarsDetailed.push(...optSpliceResult.allocatedBars);
+    weldsCountScenario3 = optSpliceResult.totalWelds;
+  } else {
     // External profile scenarios
     extScenario1 = horizExtCount * Math.ceil(largura / 6.0) + vertExtCount * Math.ceil(vertCutLength / 6.0);
-    extScenario2 = optimizeWholePiecesPlan(piecesExt).totalBars;
-    const optExtResult = optimizePiecesPlan(piecesExt);
-    extScenario3 = optExtResult.totalComEmenda;
+    const extPiecesPerBar = Math.max(1, Math.floor(6.0 / vertCutLength));
+    extScenario2 = horizExtCount * Math.ceil(largura / 6.0) + Math.ceil(vertExtCount / extPiecesPerBar);
+    const optExtResult = optimizeStructuralPlanWithSplicing({
+      profileName: `${profileExt.name} (Borda)`,
+      horizontalCount: horizExtCount,
+      horizontalLength: largura,
+      verticalCount: vertExtCount,
+      verticalLength: vertCutLength,
+      startBarIndex: 1,
+    });
+    extScenario3 = optExtResult.totalBars;
 
     // Internal profile scenarios
     intScenario1 = horizIntCount * Math.ceil(largura / 6.0) + vertIntCount * Math.ceil(vertCutLength / 6.0);
-    intScenario2 = optimizeWholePiecesPlan(piecesInt).totalBars;
-    const optIntResult = optimizePiecesPlan(piecesInt);
-    intScenario3 = optIntResult.totalComEmenda;
+    const intPiecesPerBar = Math.max(1, Math.floor(6.0 / vertCutLength));
+    intScenario2 = horizIntCount * Math.ceil(largura / 6.0) + Math.ceil(vertIntCount / intPiecesPerBar);
+    const optIntResult = optimizeStructuralPlanWithSplicing({
+      profileName: `${profileInt.name} (Interno)`,
+      horizontalCount: horizIntCount,
+      horizontalLength: largura,
+      verticalCount: vertIntCount,
+      verticalLength: vertCutLength,
+      startBarIndex: optExtResult.totalBars + 1,
+    });
+    intScenario3 = optIntResult.totalBars;
 
     totalSemEmendaSemOpt = extScenario1 + intScenario1;
     totalSemEmendaComOpt = extScenario2 + intScenario2;
     totalComEmendaComOpt = extScenario3 + intScenario3;
 
-    // External detailed bars
-    for (const fullBar of optExtResult.fullBarsList) {
-      allocatedBarsDetailed.push({
-        barNumber: currentBarIndex++,
-        profileName: `${profileExt.name} (Borda)`,
-        initialLength: 6.0,
-        usedLength: 6.0,
-        remainingLength: 0.0,
-        pieces: [
-          {
-            type: fullBar.type,
-            length: 6.0,
-            description: `1x ${fullBar.pieceDescription} (Trecho Inteiro 6,00 m)`,
-          },
-        ],
-      });
-    }
-    optExtResult.allocatedBars.forEach((bar) => {
-      allocatedBarsDetailed.push({
-        barNumber: currentBarIndex++,
-        profileName: `${profileExt.name} (Borda)`,
-        initialLength: 6.0,
-        usedLength: bar.usedLength,
-        remainingLength: bar.remainingLength,
-        pieces: bar.pieces,
-      });
-    });
-
-    // Internal detailed bars
-    for (const fullBar of optIntResult.fullBarsList) {
-      allocatedBarsDetailed.push({
-        barNumber: currentBarIndex++,
-        profileName: `${profileInt.name} (Interno)`,
-        initialLength: 6.0,
-        usedLength: 6.0,
-        remainingLength: 0.0,
-        pieces: [
-          {
-            type: fullBar.type,
-            length: 6.0,
-            description: `1x ${fullBar.pieceDescription} (Trecho Inteiro 6,00 m)`,
-          },
-        ],
-      });
-    }
-    optIntResult.allocatedBars.forEach((bar) => {
-      allocatedBarsDetailed.push({
-        barNumber: currentBarIndex++,
-        profileName: `${profileInt.name} (Interno)`,
-        initialLength: 6.0,
-        usedLength: bar.usedLength,
-        remainingLength: bar.remainingLength,
-        pieces: bar.pieces,
-      });
-    });
+    allocatedBarsDetailed.push(...optExtResult.allocatedBars, ...optIntResult.allocatedBars);
+    weldsCountScenario3 = optExtResult.totalWelds + optIntResult.totalWelds;
   }
 
-  // Welds & Splices calculations
+  // Welds & Splices calculations for Scenarios 1 & 2
   const horizSplicesPerPiece = Math.floor(largura / 6.0);
   const vertSplicesPerPiece = Math.floor(vertCutLength / 6.0);
   const baseLongPieceWelds = linhasHorizontais * horizSplicesPerPiece + colunasVerticais * vertSplicesPerPiece;
@@ -655,7 +725,6 @@ export function calculateMetalonStructure(params: {
   const weldsCountScenario2 = baseLongPieceWelds;
 
   const barsSavedScenario3 = Math.max(0, totalSemEmendaComOpt - totalComEmendaComOpt);
-  const weldsCountScenario3 = baseLongPieceWelds + (barsSavedScenario3 > 0 ? barsSavedScenario3 * 1 : 0);
 
   const { horizontalElements, verticalElements } = buildElementsMapping({
     isSameProfile,
@@ -797,37 +866,37 @@ export function generateReportMarkdown(
   let planoDeCorteTexto = '';
 
   if (isSameProfile) {
-    planoDeCorteTexto = `### Memória de Cálculo e Lógica de Otimização
+    planoDeCorteTexto = `### Memória de Cálculo e Lógica de Otimização (Cenário Otimizado Definitivo)
 
 - **Demanda Linear e Consumo Teórico:**
   - **Metragem Linear Total:** ${totalMetragemLinear.toLocaleString('pt-BR')} m (${linhasHorizontais} linhas horizontais de ${widthFormatted} m + ${colunasVerticais} colunas verticais de ${vertCutLength.toLocaleString('pt-BR')} m).
-  - **Consumo Teórico Mínimo:** ${teoricoBarrasGeral} barras comerciais de 6,00 m (sem considerar perdas de ponta).
+  - **Consumo Teórico Mínimo:** ${teoricoBarrasGeral} barras comerciais de 6,00 m (${(totalComEmendaComOpt * 6.0).toLocaleString('pt-BR')} m de material disponível no lote de **${totalComEmendaComOpt} barras**).
 
-- **Estratégia de Recombinação de Retalhos (Bin-Packing):**
-  - As peças mais longas (${linhasHorizontais} linhas de ${widthFormatted} m) são priorizadas para o primeiro corte em barras novas de 6,00 m.
-  - As sobras de comprimento útil geradas em cada barra são imediatamente combinadas para cortar as colunas verticais menores (${vertCutLength.toLocaleString('pt-BR')} m), evitando a abertura desnecessária de barras adicionais.
-  - O detalhamento peça a peça de cada barra está consolidado na **Tabela de Corte de Barras para a Produção (Seção 7)** com exatamente **${totalComEmendaComOpt} barras**.
+- **Estratégia de Engenharia de Corte e Reaproveitamento de Sobras:**
+  - As ${colunasVerticais} colunas verticais (${vertCutLength.toLocaleString('pt-BR')} m) são cortadas em peças integrais preservando 100% da resistência mecânica aos esforços verticais.
+  - O estoque de retalhos gerado pelo corte das colunas é reaproveitado na confecção das ${linhasHorizontais} linhas horizontais (${widthFormatted} m), eliminando o desperdício de pontas e reduzindo a compra total para exatamente **${totalComEmendaComOpt} barras de 6,00 m**.
+  - O plano de corte peça a peça está detalhado na **Tabela de Corte de Barras para a Produção (Seção 7)**.
 
-- **Critério de Avaliação Técnica (Emenda vs. Mão de Obra):**
-  - **Cenário Sem Emenda (Peças Inteiras):** Mantém as barras cortadas em peças integrais sem soldas de união em peças longas, totalizando **${totalSemEmendaComOpt} barra(s)**.
-  - **Cenário Com Emenda (Otimização Máxima):** Permite reaproveitamento de retalhos com solda para alcançar o menor volume de compra de aço comercial (**${totalComEmendaComOpt} barra(s)**).`;
+- **Definição de Cenários (Comparativo vs. Definitivo):**
+  - **Cenários 1 e 2 (Apenas Referências Comparativas):** Representam métodos de corte sem reaproveitamento integral de sobras (${totalSemEmendaComOpt} barras), gerando sobras ociosas.
+  - **Cenário 3 (Definitivo / Oficial de Produção):** Otimização completa com reaproveitamento de retalhos (**${totalComEmendaComOpt} barras de 6,00 m**), proporcionando economia máxima de material.`;
   } else {
     const teoricoExt = (metragemExtTotal / 6.0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     const teoricoInt = (metragemIntTotal / 6.0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-    planoDeCorteTexto = `### Memória de Cálculo e Lógica de Otimização
+    planoDeCorteTexto = `### Memória de Cálculo e Lógica de Otimização (Cenário Otimizado Definitivo)
 
 - **Demanda Linear por Perfil:**
-  - **Perfil Externo (${profileExt.name}):** Metragem total de ${metragemExtTotal.toLocaleString('pt-BR')} m (${horizExtCount} linhas de ${widthFormatted} m + ${vertExtCount} colunas de ${vertCutLength.toLocaleString('pt-BR')} m) -> Consumo Teórico: ${teoricoExt} barras de 6,00 m.
-  - **Perfil Interno (${profileInt.name}):** Metragem total de ${metragemIntTotal.toLocaleString('pt-BR')} m (${horizIntCount} linhas de ${widthFormatted} m + ${vertIntCount} colunas de ${vertCutLength.toLocaleString('pt-BR')} m) -> Consumo Teórico: ${teoricoInt} barras de 6,00 m.
+  - **Perfil Externo (${profileExt.name}):** ${metragemExtTotal.toLocaleString('pt-BR')} m (${horizExtCount} linhas de ${widthFormatted} m + ${vertExtCount} colunas de ${vertCutLength.toLocaleString('pt-BR')} m) -> Consumo: **${extScenario3} barras de 6m** (Teórico: ${teoricoExt}).
+  - **Perfil Interno (${profileInt.name}):** ${metragemIntTotal.toLocaleString('pt-BR')} m (${horizIntCount} linhas de ${widthFormatted} m + ${vertIntCount} colunas de ${vertCutLength.toLocaleString('pt-BR')} m) -> Consumo: **${intScenario3} barras de 6m** (Teórico: ${teoricoInt}).
 
-- **Estratégia de Recombinação de Retalhos:**
-  - Os cálculos de corte são segregados por tipo de perfil para evitar misturas de bitolas na montagem.
-  - As sobras das linhas de borda externa de ${widthFormatted} m são aproveitadas para as colunas laterais (${vertCutLength.toLocaleString('pt-BR')} m); similarmente, as sobras das travessas internas são utilizadas nas colunas internas.
-  - A alocação peça a peça para cada perfil está detalhada na **Tabela de Corte de Barras para a Produção (Seção 7)** com exatamente **${totalComEmendaComOpt} barras**.
+- **Estratégia de Engenharia de Corte e Reaproveitamento:**
+  - Cortes segregados por bitola de perfil para garantir conformidade dimensional.
+  - As sobras das colunas são recombinadas nas travessas do respectivo perfil, totalizando exatamente **${totalComEmendaComOpt} barras de 6,00 m**.
 
-- **Critério de Avaliação Técnica:**
-  - Compara a redução de custo de barras no Cenário 3 (${totalComEmendaComOpt} barras) contra a agilidade do Cenário 2 (${totalSemEmendaComOpt} barras), favorecendo o corte sem emenda quando a quantidade total de barras de 6m for equivalente.`;
+- **Definição de Cenários (Comparativo vs. Definitivo):**
+  - **Cenários 1 e 2:** Referências comparativas de compra com descarte de retalhos (${totalSemEmendaComOpt} barras).
+  - **Cenário 3 (Definitivo / Oficial de Produção):** Otimização total com reaproveitamento de sobras (**${totalComEmendaComOpt} barras**).`;
   }
 
   return `## 1. Estrutura Horizontal
@@ -854,13 +923,13 @@ ${
   isSameProfile
     ? `| Cenário / Método de Corte | Pontos de Solda / Emendas | Total de Barras (6m) |
 | :------------------------ | :-----------------------: | :------------------: |
-| **Cenário 1: "Sem Emenda e Sem Otimização"** | ${weldsCountScenario1} solda(s) | **${totalSemEmendaSemOpt} barras** |
-| **Cenário 2: "Sem Emenda com Otimização de Corte"** | ${weldsCountScenario2} solda(s) | **${totalSemEmendaComOpt} barras** |
-| **Cenário 3: "Com Emenda e Otimização Total"** | ${weldsCountScenario3} solda(s) | **${totalComEmendaComOpt} barras** |`
+| **Cenário 1: "Sem Emenda e Sem Otimização" (Comparativo)** | ${weldsCountScenario1} solda(s) | **${totalSemEmendaSemOpt} barras** |
+| **Cenário 2: "Sem Emenda com Otimização de Corte" (Comparativo)** | ${weldsCountScenario2} solda(s) | **${totalSemEmendaComOpt} barras** |
+| **Cenário 3: "Com Emenda e Otimização Total" (DEFINITIVO - Produção)** | ${weldsCountScenario3} solda(s) | **${totalComEmendaComOpt} barras** |`
     : `| Cenário / Método de Corte | Perfil Externo (${profileExt.name}) | Perfil Interno (${profileInt.name}) | Total de Barras (6m) |
 | :------------------------ | :---------------------------------: | :---------------------------------: | :------------------: |
-| **Cenário 1: "Sem Emenda e Sem Otimização"** | ${extScenario1} barra(s) | ${intScenario1} barra(s) | **${totalSemEmendaSemOpt} barras** |
-| **Cenário 2: "Sem Emenda com Otimização de Corte"** | ${extScenario2} barra(s) | ${intScenario2} barra(s) | **${totalSemEmendaComOpt} barras** |
-| **Cenário 3: "Com Emenda e Otimização Total"** | ${extScenario3} barra(s) | ${intScenario3} barra(s) | **${totalComEmendaComOpt} barras** |`
+| **Cenário 1: "Sem Emenda e Sem Otimização" (Comparativo)** | ${extScenario1} barra(s) | ${intScenario1} barra(s) | **${totalSemEmendaSemOpt} barras** |
+| **Cenário 2: "Sem Emenda com Otimização de Corte" (Comparativo)** | ${extScenario2} barra(s) | ${intScenario2} barra(s) | **${totalSemEmendaComOpt} barras** |
+| **Cenário 3: "Com Emenda e Otimização Total" (DEFINITIVO - Produção)** | ${extScenario3} barra(s) | ${intScenario3} barra(s) | **${totalComEmendaComOpt} barras** |`
 }`;
 }
