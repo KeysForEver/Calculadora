@@ -24,5 +24,6 @@ export interface CalculationResult {
   createdAt: string;
   dateStr: string;
   source: 'gemini' | 'calculator';
+  modelUsed?: string;
   doubleCheckVerified?: boolean;
 }

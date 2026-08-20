@@ -174,6 +174,7 @@ export default function App() {
         createdAt: new Date().toISOString(),
         dateStr: dateString,
         source: sourceTag,
+        modelUsed: data.modelUsed || 'gemini-3.7-flash',
         doubleCheckVerified: Boolean(data?.doubleCheckVerified),
       };
 

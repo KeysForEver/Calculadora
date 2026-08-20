@@ -36,15 +36,111 @@ function getGeminiClient(): { client: GoogleGenAI; key: string } | null {
   }
 }
 
-app.get("/api/calculate", (req, res) => {
+// Cache for dynamically discovered Gemini models from Google API
+let cachedCandidateModels: { models: string[]; timestamp: number } | null = null;
+const MODEL_CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour
+
+// Dynamic model discovery and smart prioritization function
+async function getPrioritizedGeminiModels(client: GoogleGenAI): Promise<string[]> {
+  const now = Date.now();
+  if (cachedCandidateModels && now - cachedCandidateModels.timestamp < MODEL_CACHE_TTL_MS) {
+    return cachedCandidateModels.models;
+  }
+
+  // Base priority list ensuring newest flagship and reasoning models are tried FIRST
+  const basePriorityOrder = [
+    "gemini-3.7-flash",
+    "gemini-3.1-pro-preview",
+    "gemini-flash-latest",
+    "gemini-3.1-flash-lite",
+  ];
+
+  try {
+    console.log("[Gemini Dynamic Discovery] Querying Google API for current active models...");
+    const response = await client.models.list();
+    const discoveredModels: string[] = [];
+
+    // The SDK models.list() returns an async iterable / page of model objects
+    for await (const model of response) {
+      if (model && model.name) {
+        const cleanName = model.name.replace(/^models\//, "");
+        // Filter for text/multimodal generation models
+        const isUnsupportedType =
+          cleanName.includes("image") ||
+          cleanName.includes("tts") ||
+          cleanName.includes("embedding") ||
+          cleanName.includes("live-translate") ||
+          cleanName.includes("veo") ||
+          cleanName.includes("lyria");
+
+        // Prohibited deprecated models filter
+        const isDeprecated =
+          cleanName.startsWith("gemini-1.5") ||
+          cleanName.startsWith("gemini-2.0") ||
+          cleanName === "gemini-pro";
+
+        if (cleanName.startsWith("gemini-") && !isUnsupportedType && !isDeprecated) {
+          discoveredModels.push(cleanName);
+        }
+      }
+    }
+
+    if (discoveredModels.length > 0) {
+      console.log("[Gemini Dynamic Discovery] Available candidate models from Google API:", discoveredModels);
+
+      // Score models so the newest versions (3.7+, 3.1-pro, etc.) are at the top
+      const scoredModels = [...discoveredModels].sort((a, b) => {
+        const score = (name: string) => {
+          let s = 0;
+          if (name.includes("3.7-flash")) s += 1000;
+          else if (name.includes("3.7")) s += 950;
+          else if (name.includes("3.8") || name.includes("4.")) s += 980;
+          else if (name.includes("3.1-pro")) s += 850;
+          else if (name.includes("flash-latest")) s += 800;
+          else if (name.includes("3.1-flash")) s += 700;
+          else if (name.includes("3.")) s += 600;
+          else s += 100;
+
+          if (name.includes("lite")) s -= 60;
+          return s;
+        };
+        return score(b) - score(a);
+      });
+
+      // Merge base priority order with discovered models, removing duplicates
+      const merged = Array.from(new Set([...basePriorityOrder, ...scoredModels]));
+      cachedCandidateModels = { models: merged, timestamp: now };
+      console.log("[Gemini Dynamic Discovery] Final prioritized execution queue:", merged);
+      return merged;
+    }
+  } catch (discoveryErr) {
+    console.warn("[Gemini Dynamic Discovery] Could not list models dynamically (falling back to standard premier priority list):", discoveryErr);
+  }
+
+  cachedCandidateModels = { models: basePriorityOrder, timestamp: now };
+  return basePriorityOrder;
+}
+
+app.get("/api/calculate", async (req, res) => {
   const geminiInfo = getGeminiClient();
   const hasKey = Boolean(geminiInfo);
+  let availableModels: string[] = [];
+  if (geminiInfo) {
+    try {
+      availableModels = await getPrioritizedGeminiModels(geminiInfo.client);
+    } catch (_) {
+      availableModels = ["gemini-3.7-flash", "gemini-3.1-pro-preview", "gemini-flash-latest"];
+    }
+  }
+
   return res.status(200).json({
     status: 'online',
     geminiConfigured: hasKey,
     keyPrefix: hasKey && geminiInfo ? `${geminiInfo.key.substring(0, 5)}...` : null,
+    preferredModel: availableModels[0] || "gemini-3.7-flash",
+    modelsQueue: availableModels,
     message: hasKey
-      ? 'API do Gemini configurada e ativa no ambiente!'
+      ? `API do Gemini configurada e ativa no ambiente! Modelo prioritário: ${availableModels[0] || "gemini-3.7-flash"}`
       : 'GEMINI_API_KEY não foi encontrada ou é inválida nas variáveis de ambiente.'
   });
 });
@@ -142,34 +238,31 @@ app.post("/api/calculate", async (req, res) => {
       weldsCountHorizTopology,
       weldsCountVertTopology,
       transportLogistics,
+      diagrams,
+      winnerDiagram,
     } = calcResult;
 
     const extFaceMmStr = (profileExt.faceSizeM * 1000).toFixed(0);
-    const intFaceMmStr = (profileInt.faceSizeM * 1000).toFixed(0);
     const widthStr = numLargura.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     const heightStr = numAltura.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
     const prompt = `Atue como um engenheiro calculista e especialista em estruturas metálicas. 
-Elabore o memorial técnico de cálculo para a estrutura de metalon considerando exclusivamente o padrão de Otimização de Corte de Peças Inteiras (Sem Emenda) e o gabarito logístico de transporte (caminhão de 4,30 m × 2,00 m).
+Elabore o memorial técnico de cálculo para a estrutura de metalon considerando a análise comparativa dos 4 modelos estruturais construtivos (Diagramas 1 a 4), a priorização de MÍNIMO DE PONTOS DE SOLDA / MENOR TEMPO DE FABRICAÇÃO EM SERRALHERIA e o gabarito logístico de transporte (caminhão de 4,30 m × 2,00 m).
 
-OS VALORES MATEMÁTICOS DESTE PROJETO JÁ FORAM RIGOROSAMENTE CALCULADOS PELO MOTOR DE OTIMIZAÇÃO (BIN-PACKING) E DEVEM SER UTILIZADOS OBRIGATORIAMENTE SEM NENHUMA MODIFICAÇÃO OU CONTRADIÇÃO:
+GABARITO TÉCNICO OFICIAL CALCULADO PELO MOTOR DE OTIMIZAÇÃO:
 - Dimensões: ${widthStr} m × ${heightStr} m
 - Estrutura Horizontal: ${linhasHorizontais} linhas (${vaosVerticais} vãos de ${vaoLivreVert.toLocaleString("pt-BR")} m de vão livre)
 - Estrutura Vertical: ${colunasVerticais} colunas (${vaosHorizontais} vãos de ${vaoLivreHoriz.toLocaleString("pt-BR")} m de vão livre)
 - Comprimento real de corte por coluna: ${vertCutLength.toLocaleString("pt-BR")} m (com desconto de 2× ${extFaceMmStr} mm do perfil de borda)
 - Metragem Linear Total: ${totalMetragemLinear.toLocaleString("pt-BR")} m (Consumo teórico: ${teoricoBarrasGeral} barras de 6m)
-- Total de Barras Comerciais de 6,00 m Necessárias: ${totalBarrasOtimizado} barras
-- Aproveitamento de Aço: ${aproveitamentoPct.toLocaleString("pt-BR")}% (Sobra total: ${sobraTotalM.toLocaleString("pt-BR")} m)
-- Nós de Solda: ${weldsCountHorizTopology} soldas (Topologia de Linhas Contínuas) / ${weldsCountVertTopology} soldas (Topologia de Colunas Contínuas)
-- Gabarito de Caminhão (4,30 m × 2,00 m): ${transportLogistics.statusText} (${transportLogistics.jointDetailsText})
 
-${
-  !isSameProfile
-    ? `- Divisão por Perfil:
-  * Perfil Externo (${profileExt.name}): ${extBarrasOtimizado} barras de 6m (${metragemExtTotal.toLocaleString("pt-BR")} m)
-  * Perfil Interno (${profileInt.name}): ${intBarrasOtimizado} barras de 6m (${metragemIntTotal.toLocaleString("pt-BR")} m)`
-    : ""
-}
+ANÁLISE DOS 4 DIAGRAMAS / MODELOS CONSTRUTIVOS:
+${diagrams.map(d => `- ${d.title} (${d.shortTitle}): ${d.totalBars} barras de 6,00 m | ${d.totalMetragemLinear.toLocaleString("pt-BR")} m | ${d.aproveitamentoPct.toLocaleString("pt-BR")}% aproveitamento | ${d.weldsCount} pontos de solda (~${d.weldingTimeFormatted}) | ${d.isWinner ? '★ MODELO VITORIOSO (RECOMENDADO)' : 'Alternativa'}`).join('\n')}
+
+CRITÉRIO DE DECISÃO E MODELO ELEITO:
+- Prioridade: Mínimo de solda possível (menor tempo de mão de obra de serralheiro), mantendo consumo de aço equilibrado.
+- Modelo Vitorioso: **${winnerDiagram.title}** (${winnerDiagram.shortTitle}) com ${winnerDiagram.totalBars} barras de 6,00 m e ${winnerDiagram.weldsCount} pontos de solda (~${winnerDiagram.weldingTimeFormatted}).
+- Gabarito de Caminhão (4,30 m × 2,00 m): ${transportLogistics.statusText} (${transportLogistics.jointDetailsText})
 
 Formato da resposta (obrigatório em Markdown, iniciando diretamente na Seção 1):
 
@@ -186,35 +279,35 @@ ${horizIntCount > 0 ? `* Linhas Internas (${profileInt.name}): **${horizIntCount
 ${vertIntCount > 0 ? `* Colunas Internas (${profileInt.name}): **${vertIntCount} colunas** = **${metragemIntVert.toLocaleString("pt-BR")} m**\n` : ""}
 ---
 
-## 3. Plano de Corte Otimizado e Logística de Transporte
+## 3. Análise Comparativa dos 4 Modelos Estruturais e Critério de Decisão
 
-### 3.1 Otimização de Corte de Peças Inteiras (Sem Emenda)
-(Explicação técnica clara detalhando o corte de peças inteiras a partir de barras comerciais de 6,00 m, totalizando ${totalBarrasOtimizado} barras com aproveitamento de ${aproveitamentoPct.toLocaleString("pt-BR")}% e ${sobraTotalM.toLocaleString("pt-BR")} m de sobra, conforme Tabela de Corte da Seção 7).
+### 3.1 Priorização Técnica: Mínimo de Solda e Menor Tempo de Fabricação
+(Explicação da priorização de solda mínima em serralheria, apresentando a análise dos 4 diagramas e o motivo pelo qual o ${winnerDiagram.shortTitle} foi eleito como modelo vitorioso com ${winnerDiagram.totalBars} barras de 6,00 m e ${winnerDiagram.weldsCount} pontos de solda).
 
 ### 3.2 Gabarito de Transporte (Caminhão 4,30 m × 2,00 m)
 (${transportLogistics.statusText} - ${transportLogistics.jointDetailsText})
 
 ---
 
-## 4. Resumo Técnico de Consumo e Dimensionamento
+## 4. Comparativo dos 4 Diagramas e Lista Técnica de Produção
 
-${
-  isSameProfile
-    ? `| Item de Especificação | Valor Calculado |
-| :------------------- | :-------------: |
-| **Total de Barras Comerciais (6,00 m)** | **${totalBarrasOtimizado} barras** |
-| **Metragem Linear Total** | **${totalMetragemLinear.toLocaleString("pt-BR")} m** |
-| **Aproveitamento de Aço** | **${aproveitamentoPct.toLocaleString("pt-BR")}%** |
-| **Pontos de Solda (Topologia Linhas Contínuas)** | **${weldsCountHorizTopology} soldas** |
-| **Pontos de Solda (Topologia Colunas Contínuas)** | **${weldsCountVertTopology} soldas** |
-| **Gabarito de Transporte (Caminhão 4,30m × 2,00m)** | **${transportLogistics.totalModulesCount === 1 ? "Peça Única (Direta)" : `${transportLogistics.totalModulesCount} Módulos Transportáveis`}** |`
-    : `| Item de Especificação | Perfil Externo (${profileExt.name}) | Perfil Interno (${profileInt.name}) | Total Geral |
-| :------------------- | :---------------------------------: | :---------------------------------: | :---------: |
-| **Barras Comerciais (6,00 m)** | ${extBarrasOtimizado} barra(s) | ${intBarrasOtimizado} barra(s) | **${totalBarrasOtimizado} barras** |
-| **Metragem Linear** | ${metragemExtTotal.toLocaleString("pt-BR")} m | ${metragemIntTotal.toLocaleString("pt-BR")} m | **${totalMetragemLinear.toLocaleString("pt-BR")} m** |
-| **Aproveitamento Médio** | — | — | **${aproveitamentoPct.toLocaleString("pt-BR")}%** |
-| **Logística de Transporte** | — | — | **${transportLogistics.totalModulesCount === 1 ? "Peça Única" : `${transportLogistics.totalModulesCount} Módulos`}** |`
-}
+| Diagrama / Modelo Construtivo | Topologia Estrutural | Barras (6,00m) | Metragem Linear | Aproveitamento | Pontos de Solda | Tempo Estimado | Classificação |
+| :---------------------------- | :------------------: | :------------: | :-------------: | :------------: | :-------------: | :------------: | :-----------: |
+${diagrams.map(d => `| **${d.shortTitle}** | ${d.topologyName} | **${d.totalBars} barras** | ${d.totalMetragemLinear.toLocaleString("pt-BR")} m | ${d.aproveitamentoPct.toLocaleString("pt-BR")}% | **${d.weldsCount} soldas** | ~${d.weldingTimeFormatted} | ${d.isWinner ? '**★ MODELO VITORIOSO**' : 'Alternativa'} |`).join('\n')}
+
+### Lista Técnica de Quantitativos e Soldagem (Modelo Eleito: ${winnerDiagram.shortTitle}):
+- **Total de Barras Comerciais (6,00 m):** **${winnerDiagram.totalBars} barras de 6,00 m** (${(winnerDiagram.totalBars * 6.0).toLocaleString("pt-BR")} m lineares adquiridos).
+- **Consumo Teórico de Projeto:** **${teoricoBarrasGeral} barras** (${winnerDiagram.totalMetragemLinear.toLocaleString("pt-BR")} m de demanda linear efetiva).
+- **Índice de Aproveitamento de Aço:** **${winnerDiagram.aproveitamentoPct.toLocaleString("pt-BR")}%** (Sobra total de retalhos: **${winnerDiagram.sobraTotalM.toLocaleString("pt-BR")} m**).
+- **Total de Pontos / Nós de Solda:** **${winnerDiagram.weldsCount} pontos de solda** (Tempo de soldagem estimado: **~${winnerDiagram.weldingTimeFormatted}** a 2,5 min/nó).
+- **Topologia Estrutural:** **${winnerDiagram.topologyName}** (Solução de menor esforço operacional e máxima rigidez mecânica).
+- **Gabarito Logístico de Transporte:** **${transportLogistics.totalModulesCount === 1 ? 'Peça Única (Transporte Direto em Caminhão Padrão)' : `${transportLogistics.totalModulesCount} Módulos Transportáveis com Flanges de Fixação`}** (${transportLogistics.statusText}).
+
+### Lista Técnica Comparativa por Topologia Construtiva:
+- **Figura 1 (${diagrams[0].shortTitle} — ${diagrams[0].topologyName}):** **${diagrams[0].totalBars} barras de 6,00 m** • **${diagrams[0].totalMetragemLinear.toLocaleString("pt-BR")} m** • **${diagrams[0].weldsCount} soldas** (~${diagrams[0].weldingTimeFormatted}) • **${diagrams[0].aproveitamentoPct.toLocaleString("pt-BR")}%** aproveitamento.
+- **Figura 2 (${diagrams[1].shortTitle} — ${diagrams[1].topologyName}):** **${diagrams[1].totalBars} barras de 6,00 m** • **${diagrams[1].totalMetragemLinear.toLocaleString("pt-BR")} m** • **${diagrams[1].weldsCount} soldas** (~${diagrams[1].weldingTimeFormatted}) • **${diagrams[1].aproveitamentoPct.toLocaleString("pt-BR")}%** aproveitamento.
+- **Figura 3 (${diagrams[2].shortTitle} — ${diagrams[2].topologyName}):** **${diagrams[2].totalBars} barras de 6,00 m** • **${diagrams[2].totalMetragemLinear.toLocaleString("pt-BR")} m** • **${diagrams[2].weldsCount} soldas** (~${diagrams[2].weldingTimeFormatted}) • **${diagrams[2].aproveitamentoPct.toLocaleString("pt-BR")}%** aproveitamento.
+- **Figura 4 (${diagrams[3].shortTitle} — ${diagrams[3].topologyName}):** **${diagrams[3].totalBars} barras de 6,00 m** • **${diagrams[3].totalMetragemLinear.toLocaleString("pt-BR")} m** • **${diagrams[3].weldsCount} soldas** (~${diagrams[3].weldingTimeFormatted}) • **${diagrams[3].aproveitamentoPct.toLocaleString("pt-BR")}%** aproveitamento.
 
 CRÍTICO: NÃO INCLUA NENHUMA SEÇÃO DE 'Considerações Técnicas do Perfil', 'Metragem Comprada' OU 'Avaliação de Custo'. O relatório em Markdown termina rigorosamente após a Seção 4.
 `;
@@ -244,13 +337,8 @@ CRÍTICO: NÃO INCLUA NENHUMA SEÇÃO DE 'Considerações Técnicas do Perfil', 
       });
     }
 
-    // Candidate models ordered for optimal availability and speed with instant fallback on spikes
-    const candidateModels = [
-      "gemini-flash-latest",
-      "gemini-3.1-flash-lite",
-      "gemini-3.7-flash",
-      "gemini-3.1-pro-preview",
-    ];
+    // Candidate models dynamically discovered and prioritized (3.7 Flagship -> 3.1 Pro -> Flash Latest -> Flash Lite)
+    const candidateModels = await getPrioritizedGeminiModels(geminiInfo.client);
     let lastGeminiError: string | null = null;
     let successfulModel: string | null = null;
 
@@ -330,21 +418,16 @@ Retorne exclusivamente o RELATÓRIO TÉCNICO FINAL CORRIGIDO E AUDITADO em forma
             console.warn(`[Gemini Pass 2] Audit pass skipped due to high demand, using verified Pass 1 draft:`, auditErr);
           }
 
-          const canonicalSection4Table = isSameProfile
-            ? `| Item de Especificação | Valor Calculado |
-| :------------------- | :-------------: |
-| **Total de Barras Comerciais (6,00 m)** | **${totalBarrasOtimizado} barras** |
-| **Metragem Linear Total** | **${totalMetragemLinear.toLocaleString("pt-BR")} m** |
-| **Aproveitamento de Aço** | **${aproveitamentoPct.toLocaleString("pt-BR")}%** |
-| **Pontos de Solda (Topologia Linhas Contínuas)** | **${weldsCountHorizTopology} soldas** |
-| **Pontos de Solda (Topologia Colunas Contínuas)** | **${weldsCountVertTopology} soldas** |
-| **Gabarito de Transporte (Caminhão 4,30m × 2,00m)** | **${transportLogistics.totalModulesCount === 1 ? "Peça Única (Direta)" : `${transportLogistics.totalModulesCount} Módulos Transportáveis`}** |`
-            : `| Item de Especificação | Perfil Externo (${profileExt.name}) | Perfil Interno (${profileInt.name}) | Total Geral |
-| :------------------- | :---------------------------------: | :---------------------------------: | :---------: |
-| **Barras Comerciais (6,00 m)** | ${extBarrasOtimizado} barra(s) | ${intBarrasOtimizado} barra(s) | **${totalBarrasOtimizado} barras** |
-| **Metragem Linear** | ${metragemExtTotal.toLocaleString("pt-BR")} m | ${metragemIntTotal.toLocaleString("pt-BR")} m | **${totalMetragemLinear.toLocaleString("pt-BR")} m** |
-| **Aproveitamento Médio** | — | — | **${aproveitamentoPct.toLocaleString("pt-BR")}%** |
-| **Logística de Transporte** | — | — | **${transportLogistics.totalModulesCount === 1 ? "Peça Única" : `${transportLogistics.totalModulesCount} Módulos`}** |`;
+          const canonicalSection4Table = `| Diagrama / Modelo Construtivo | Topologia Estrutural | Barras (6,00m) | Metragem Linear | Aproveitamento | Pontos de Solda | Tempo Estimado | Classificação |
+| :---------------------------- | :------------------: | :------------: | :-------------: | :------------: | :-------------: | :------------: | :-----------: |
+${diagrams.map(d => `| **${d.shortTitle}** | ${d.topologyName} | **${d.totalBars} barras** | ${d.totalMetragemLinear.toLocaleString("pt-BR")} m | ${d.aproveitamentoPct.toLocaleString("pt-BR")}% | **${d.weldsCount} soldas** | ~${d.weldingTimeFormatted} | ${d.isWinner ? '**★ MODELO VITORIOSO**' : 'Alternativa'} |`).join('\n')}
+
+### Resumo de Produção do Modelo Eleito (${winnerDiagram.shortTitle}):
+- **Demanda Linear Total:** **${winnerDiagram.totalMetragemLinear.toLocaleString("pt-BR")} m** (Consumo teórico: ${teoricoBarrasGeral} barras de 6,00 m).
+- **Lote Comercial de Compra:** **${winnerDiagram.totalBars} barras de 6,00 m** (${(winnerDiagram.totalBars * 6.0).toLocaleString("pt-BR")} m comprados).
+- **Aproveitamento Efetivo de Aço:** **${winnerDiagram.aproveitamentoPct.toLocaleString("pt-BR")}%** (Sobra total de retalhos: ${winnerDiagram.sobraTotalM.toLocaleString("pt-BR")} m).
+- **Total de Soldas Estruturais:** **${winnerDiagram.weldsCount} nós de solda** (~${winnerDiagram.weldingTimeFormatted} de tempo estimado).
+- **Logística:** ${transportLogistics.totalModulesCount === 1 ? 'Peça Única (Transporte Direto)' : `${transportLogistics.totalModulesCount} Módulos Transportáveis`}.`;
 
           // Post-processing: Remove Considerações Técnicas if generated, remove forbidden sections & columns
           finalText = finalText.replace(/(?:^|\n)#*\s*Considera[çc][õo]es\s+T[ée]cnicas[^\n]*(?:\n[\s\S]*?)?(?=\n#*\s*1[\.\s])/si, '').trim();
@@ -354,10 +437,10 @@ Retorne exclusivamente o RELATÓRIO TÉCNICO FINAL CORRIGIDO E AUDITADO em forma
           if (finalText.search(/(?:^|\n)##\s*4[\.\s]/i) >= 0) {
             finalText = finalText.replace(
               /(?:^|\n)(##\s*4[\.\s][^\n]*\n+)[\s\S]*$/i,
-              `\n\n## 4. Resumo Técnico de Consumo e Dimensionamento\n\n${canonicalSection4Table}`
+              `\n\n## 4. Comparativo dos 4 Diagramas e Resumo do Modelo Vitorioso\n\n${canonicalSection4Table}`
             ).trim();
           } else {
-            finalText = `${finalText}\n\n---\n\n## 4. Resumo Técnico de Consumo e Dimensionamento\n\n${canonicalSection4Table}`;
+            finalText = `${finalText}\n\n---\n\n## 4. Comparativo dos 4 Diagramas e Resumo do Modelo Vitorioso\n\n${canonicalSection4Table}`;
           }
 
           successfulModel = modelName;

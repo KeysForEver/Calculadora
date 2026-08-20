@@ -431,6 +431,30 @@ export function buildElementsMapping(params: {
   return { horizontalElements, verticalElements };
 }
 
+export interface DiagramSpecification {
+  id: 'D1' | 'D2' | 'D3' | 'D4';
+  number: number;
+  title: string;
+  shortTitle: string;
+  topologyName: string;
+  description: string;
+  weldsDescription: string;
+  totalBars: number;
+  totalMetragemLinear: number;
+  sobraTotalM: number;
+  aproveitamentoPct: number;
+  weldsCount: number;
+  weldingTimeMinutes: number;
+  weldingTimeFormatted: string;
+  isWinner: boolean;
+  winnerBadge?: string;
+  winnerReason?: string;
+  pieces: PieceToCut[];
+  allocatedBars: AllocatedBar[];
+  horizontalElements: StructuralElementMapping[];
+  verticalElements: StructuralElementMapping[];
+}
+
 export interface CalculationResult {
   largura: number;
   altura: number;
@@ -471,6 +495,8 @@ export interface CalculationResult {
   horizontalElements: StructuralElementMapping[];
   verticalElements: StructuralElementMapping[];
   transportLogistics: TransportLogisticsInfo;
+  diagrams: DiagramSpecification[];
+  winnerDiagram: DiagramSpecification;
 }
 
 export function calculateMetalonStructure(params: {
@@ -557,109 +583,235 @@ export function calculateMetalonStructure(params: {
     maximumFractionDigits: 2,
   });
 
-  const allocatedBarsDetailed: AllocatedBar[] = [];
-  let totalBarrasOtimizado = 0;
-  let extBarrasOtimizado = 0;
-  let intBarrasOtimizado = 0;
+  // Calculate the 4 Structural Diagrams / Topologies
+  const hEmendasPerLine = Math.max(0, Math.ceil(largura / 6.0) - 1);
+  const vEmendasPerColH = Math.max(0, Math.ceil(vertCutLength / 6.0) - 1);
+  const vEmendasPerColFull = Math.max(0, Math.ceil(altura / 6.0) - 1);
 
-  if (isSameProfile) {
-    const allPieces: PieceToCut[] = [
-      ...Array(linhasHorizontais)
-        .fill(0)
-        .map((_, i) => ({
-          type: 'Horizontal' as const,
-          length: largura,
-          description: `1x Linha Horiz. ${i + 1} (${largura.toFixed(2).replace('.', ',')} m)`,
-        })),
-      ...Array(colunasVerticais)
-        .fill(0)
-        .map((_, j) => ({
-          type: 'Vertical' as const,
-          length: vertCutLength,
-          description: `1x Coluna Vert. ${j + 1} (${vertCutLength.toFixed(2).replace('.', ',')} m)`,
-        })),
-    ];
+  // --- DIAGRAMA 1: Linhas Horizontais Contínuas (Solda Horizontal) ---
+  const d1Pieces: PieceToCut[] = [
+    ...Array(linhasHorizontais).fill(0).map((_, i) => ({
+      type: 'Horizontal' as const,
+      length: largura,
+      description: `Linha Horiz. ${i + 1} (${largura.toFixed(2).replace('.', ',')} m)`,
+    })),
+    ...Array(colunasVerticais).fill(0).map((_, j) => ({
+      type: 'Vertical' as const,
+      length: vertCutLength,
+      description: `Coluna Vert. ${j + 1} (${vertCutLength.toFixed(2).replace('.', ',')} m)`,
+    })),
+  ];
+  const d1Opt = optimizeWholePiecesPlan({ pieces: d1Pieces, profileName: profileExt.name, startBarIndex: 1 });
+  const d1Metragem = Number((linhasHorizontais * largura + colunasVerticais * vertCutLength).toFixed(2));
+  const d1Comprado = d1Opt.totalBars * 6.0;
+  const d1Sobra = Number(Math.max(0, d1Comprado - d1Metragem).toFixed(2));
+  const d1Aproveitamento = Number(((d1Metragem / d1Comprado) * 100).toFixed(1));
+  const d1Welds = (linhasHorizontais * colunasVerticais) + (linhasHorizontais * hEmendasPerLine) + (colunasVerticais * vEmendasPerColH);
+  const d1TimeMin = Math.round(d1Welds * 2.5);
 
-    const optResult = optimizeWholePiecesPlan({
-      pieces: allPieces,
-      profileName: profileExt.name,
-      startBarIndex: 1,
+  // --- DIAGRAMA 2: Colunas Verticais Contínuas + Travessas Seccionadas (Solda Vertical) ---
+  const numTravessasPorLinha = Math.max(1, colunasVerticais - 1);
+  const totalTravessasD2 = linhasHorizontais * numTravessasPorLinha;
+  const d2Pieces: PieceToCut[] = [
+    ...Array(colunasVerticais).fill(0).map((_, j) => ({
+      type: 'Vertical' as const,
+      length: altura,
+      description: `Coluna Vert. Inteiriça ${j + 1} (${altura.toFixed(2).replace('.', ',')} m)`,
+    })),
+    ...Array(totalTravessasD2).fill(0).map((_, k) => ({
+      type: 'Horizontal' as const,
+      length: vaoLivreHoriz,
+      description: `Travessa Horiz. ${k + 1} (${vaoLivreHoriz.toFixed(2).replace('.', ',')} m)`,
+    })),
+  ];
+  const d2Opt = optimizeWholePiecesPlan({ pieces: d2Pieces, profileName: profileExt.name, startBarIndex: 1 });
+  const d2Metragem = Number((colunasVerticais * altura + totalTravessasD2 * vaoLivreHoriz).toFixed(2));
+  const d2Comprado = d2Opt.totalBars * 6.0;
+  const d2Sobra = Number(Math.max(0, d2Comprado - d2Metragem).toFixed(2));
+  const d2Aproveitamento = Number(((d2Metragem / d2Comprado) * 100).toFixed(1));
+  const d2Welds = (2 * totalTravessasD2) + (colunasVerticais * vEmendasPerColFull);
+  const d2TimeMin = Math.round(d2Welds * 2.5);
+
+  // --- DIAGRAMA 3: Estrutura Vertical (Bordas Passantes e Colunas no Vão Real) ---
+  const d3Pieces: PieceToCut[] = [
+    ...Array(linhasHorizontais).fill(0).map((_, i) => ({
+      type: 'Horizontal' as const,
+      length: largura,
+      description: `Linha Borda/Interna ${i + 1} (${largura.toFixed(2).replace('.', ',')} m)`,
+    })),
+    ...Array(colunasVerticais).fill(0).map((_, j) => ({
+      type: 'Vertical' as const,
+      length: vertCutLength,
+      description: `Coluna Montante ${j + 1} (${vertCutLength.toFixed(2).replace('.', ',')} m)`,
+    })),
+  ];
+  const d3Opt = optimizeWholePiecesPlan({ pieces: d3Pieces, profileName: profileExt.name, startBarIndex: 1 });
+  const d3Metragem = Number((linhasHorizontais * largura + colunasVerticais * vertCutLength).toFixed(2));
+  const d3Comprado = d3Opt.totalBars * 6.0;
+  const d3Sobra = Number(Math.max(0, d3Comprado - d3Metragem).toFixed(2));
+  const d3Aproveitamento = Number(((d3Metragem / d3Comprado) * 100).toFixed(1));
+  const d3Welds = (linhasHorizontais * colunasVerticais) + (linhasHorizontais * hEmendasPerLine) + (colunasVerticais * vEmendasPerColH);
+  const d3TimeMin = Math.round(d3Welds * 2.5);
+
+  // --- DIAGRAMA 4: Estrutura Vertical (Colunas Inteiriças Passantes na Altura Total) ---
+  const horizCutLengthD4 = Number(Math.max(0.1, largura - 2 * profileExt.faceSizeM).toFixed(3));
+  const d4Pieces: PieceToCut[] = [
+    ...Array(colunasVerticais).fill(0).map((_, j) => ({
+      type: 'Vertical' as const,
+      length: altura,
+      description: `Coluna Passante ${j + 1} (${altura.toFixed(2).replace('.', ',')} m)`,
+    })),
+    ...Array(linhasHorizontais).fill(0).map((_, i) => ({
+      type: 'Horizontal' as const,
+      length: horizCutLengthD4,
+      description: `Linha Horiz. Encaixada ${i + 1} (${horizCutLengthD4.toFixed(2).replace('.', ',')} m)`,
+    })),
+  ];
+  const d4Opt = optimizeWholePiecesPlan({ pieces: d4Pieces, profileName: profileExt.name, startBarIndex: 1 });
+  const d4Metragem = Number((colunasVerticais * altura + linhasHorizontais * horizCutLengthD4).toFixed(2));
+  const d4Comprado = d4Opt.totalBars * 6.0;
+  const d4Sobra = Number(Math.max(0, d4Comprado - d4Metragem).toFixed(2));
+  const d4Aproveitamento = Number(((d4Metragem / d4Comprado) * 100).toFixed(1));
+  const d4Welds = (linhasHorizontais * colunasVerticais) + (colunasVerticais * vEmendasPerColFull);
+  const d4TimeMin = Math.round(d4Welds * 2.5);
+
+  const formatHours = (mins: number) => {
+    const h = Math.floor(mins / 60);
+    const m = mins % 60;
+    return h > 0 ? `${h}h ${m > 0 ? `${m}min` : ''}` : `${m} min`;
+  };
+
+  const rawDiagrams: DiagramSpecification[] = [
+    {
+      id: 'D1',
+      number: 1,
+      title: 'Figura 1 — Estrutura Horizontal (Linhas Contínuas / Solda Horizontal)',
+      shortTitle: 'Diag. 1: Linhas Contínuas',
+      topologyName: 'Linhas Contínuas / Solda Horizontal',
+      description: `${linhasHorizontais} linhas contínuas de ${largura.toFixed(2).replace('.', ',')} m • ${colunasVerticais} colunas cortadas com ${vertCutLength.toFixed(2).replace('.', ',')} m`,
+      weldsDescription: `${d1Welds} nós de solda horizontal (${linhasHorizontais * colunasVerticais} nós + ${linhasHorizontais * hEmendasPerLine} emendas de topo)`,
+      totalBars: d1Opt.totalBars,
+      totalMetragemLinear: d1Metragem,
+      sobraTotalM: d1Sobra,
+      aproveitamentoPct: d1Aproveitamento,
+      weldsCount: d1Welds,
+      weldingTimeMinutes: d1TimeMin,
+      weldingTimeFormatted: formatHours(d1TimeMin),
+      isWinner: false,
+      pieces: d1Pieces,
+      allocatedBars: d1Opt.allocatedBars,
+      horizontalElements: [],
+      verticalElements: [],
+    },
+    {
+      id: 'D2',
+      number: 2,
+      title: 'Figura 2 — Estrutura Horizontal (Colunas Contínuas / Solda Vertical)',
+      shortTitle: 'Diag. 2: Travessas Seccionadas',
+      topologyName: 'Colunas Contínuas / Solda Vertical',
+      description: `${colunasVerticais} colunas inteiriças de ${altura.toFixed(2).replace('.', ',')} m • ${totalTravessasD2} travessas seccionadas de ${(vaoLivreHoriz * 100).toFixed(1).replace('.', ',')} cm`,
+      weldsDescription: `${d2Welds} soldas verticais (${totalTravessasD2} travessas com 2 soldas de topo em cada extremidade)`,
+      totalBars: d2Opt.totalBars,
+      totalMetragemLinear: d2Metragem,
+      sobraTotalM: d2Sobra,
+      aproveitamentoPct: d2Aproveitamento,
+      weldsCount: d2Welds,
+      weldingTimeMinutes: d2TimeMin,
+      weldingTimeFormatted: formatHours(d2TimeMin),
+      isWinner: false,
+      pieces: d2Pieces,
+      allocatedBars: d2Opt.allocatedBars,
+      horizontalElements: [],
+      verticalElements: [],
+    },
+    {
+      id: 'D3',
+      number: 3,
+      title: 'Figura 3 — Estrutura Vertical (Bordas Passantes / Vão Real)',
+      shortTitle: 'Diag. 3: Bordas Passantes',
+      topologyName: 'Bordas Passantes / Montantes Internos',
+      description: `${linhasHorizontais} linhas de borda de ${largura.toFixed(2).replace('.', ',')} m • ${colunasVerticais} colunas no vão real de ${vertCutLength.toFixed(2).replace('.', ',')} m`,
+      weldsDescription: `${d3Welds} nós de solda estrutural`,
+      totalBars: d3Opt.totalBars,
+      totalMetragemLinear: d3Metragem,
+      sobraTotalM: d3Sobra,
+      aproveitamentoPct: d3Aproveitamento,
+      weldsCount: d3Welds,
+      weldingTimeMinutes: d3TimeMin,
+      weldingTimeFormatted: formatHours(d3TimeMin),
+      isWinner: false,
+      pieces: d3Pieces,
+      allocatedBars: d3Opt.allocatedBars,
+      horizontalElements: [],
+      verticalElements: [],
+    },
+    {
+      id: 'D4',
+      number: 4,
+      title: 'Figura 4 — Estrutura Vertical (Colunas Inteiriças Passantes)',
+      shortTitle: 'Diag. 4: Colunas Inteiriças',
+      topologyName: 'Colunas Inteiriças na Altura Total',
+      description: `${colunasVerticais} colunas inteiriças de ${altura.toFixed(2).replace('.', ',')} m • ${linhasHorizontais} linhas horizontais encaixadas de ${horizCutLengthD4.toFixed(2).replace('.', ',')} m`,
+      weldsDescription: `${d4Welds} nós de solda perimetral e interna`,
+      totalBars: d4Opt.totalBars,
+      totalMetragemLinear: d4Metragem,
+      sobraTotalM: d4Sobra,
+      aproveitamentoPct: d4Aproveitamento,
+      weldsCount: d4Welds,
+      weldingTimeMinutes: d4TimeMin,
+      weldingTimeFormatted: formatHours(d4TimeMin),
+      isWinner: false,
+      pieces: d4Pieces,
+      allocatedBars: d4Opt.allocatedBars,
+      horizontalElements: [],
+      verticalElements: [],
+    },
+  ];
+
+  // Populate element mappings for all diagrams
+  rawDiagrams.forEach(diag => {
+    const mappings = buildElementsMapping({
+      isSameProfile: true,
+      largura,
+      vertCutLength,
+      linhasHorizontais,
+      colunasVerticais,
+      allocatedBarsDetailed: diag.allocatedBars,
     });
-
-    totalBarrasOtimizado = optResult.totalBars;
-    allocatedBarsDetailed.push(...optResult.allocatedBars);
-  } else {
-    const extPieces: PieceToCut[] = [
-      ...Array(horizExtCount)
-        .fill(0)
-        .map((_, i) => ({
-          type: 'Horizontal' as const,
-          length: largura,
-          description: `1x Horiz. Borda ${i + 1} (${largura.toFixed(2).replace('.', ',')} m)`,
-        })),
-      ...Array(vertExtCount)
-        .fill(0)
-        .map((_, j) => ({
-          type: 'Vertical' as const,
-          length: vertCutLength,
-          description: `1x Vert. Borda ${j + 1} (${vertCutLength.toFixed(2).replace('.', ',')} m)`,
-        })),
-    ];
-
-    const intPieces: PieceToCut[] = [
-      ...Array(horizIntCount)
-        .fill(0)
-        .map((_, i) => ({
-          type: 'Horizontal' as const,
-          length: largura,
-          description: `1x Horiz. Interna ${i + 1} (${largura.toFixed(2).replace('.', ',')} m)`,
-        })),
-      ...Array(vertIntCount)
-        .fill(0)
-        .map((_, j) => ({
-          type: 'Vertical' as const,
-          length: vertCutLength,
-          description: `1x Vert. Interna ${j + 1} (${vertCutLength.toFixed(2).replace('.', ',')} m)`,
-        })),
-    ];
-
-    const optExt = optimizeWholePiecesPlan({
-      pieces: extPieces,
-      profileName: `${profileExt.name} (Borda)`,
-      startBarIndex: 1,
-    });
-    extBarrasOtimizado = optExt.totalBars;
-
-    const optInt = optimizeWholePiecesPlan({
-      pieces: intPieces,
-      profileName: `${profileInt.name} (Interno)`,
-      startBarIndex: optExt.totalBars + 1,
-    });
-    intBarrasOtimizado = optInt.totalBars;
-
-    totalBarrasOtimizado = extBarrasOtimizado + intBarrasOtimizado;
-    allocatedBarsDetailed.push(...optExt.allocatedBars, ...optInt.allocatedBars);
-  }
-
-  // Calculate total waste & efficiency
-  const totalCompradoM = totalBarrasOtimizado * 6.0;
-  const sobraTotalM = Number(Math.max(0, totalCompradoM - totalMetragemLinear).toFixed(2));
-  const aproveitamentoPct = Number(((totalMetragemLinear / totalCompradoM) * 100).toFixed(1));
-
-  // Welds count for both topologies:
-  // 1. Horizontal continuous topology (colunas apoiadas sob/sobre linhas contínuas)
-  const weldsCountHorizTopology = colunasVerticais * linhasHorizontais;
-  // 2. Vertical continuous topology (travessas encaixadas lateralmente entre colunas)
-  const weldsCountVertTopology = linhasHorizontais * colunasVerticais;
-
-  const { horizontalElements, verticalElements } = buildElementsMapping({
-    isSameProfile,
-    largura,
-    vertCutLength,
-    linhasHorizontais,
-    colunasVerticais,
-    allocatedBarsDetailed,
+    diag.horizontalElements = mappings.horizontalElements;
+    diag.verticalElements = mappings.verticalElements;
   });
+
+  // Winner Decision Algorithm:
+  // User explicitly instructed: "a prioridade tem que ser o minimo de solda possivel, e o que tiver menor valor de solda com o material proximo vai ser o modelo escolhido para fazer a tabela e o diagrama de montagem, esse cenario dos quatros seria o vitorioso"
+  // Score: Welds (weight 1.0) + Bars * 0.8. Lowest score wins.
+  let winnerIndex = 0;
+  let minScore = Infinity;
+
+  rawDiagrams.forEach((diag, idx) => {
+    const score = diag.weldsCount * 1.0 + diag.totalBars * 0.8;
+    if (score < minScore) {
+      minScore = score;
+      winnerIndex = idx;
+    }
+  });
+
+  rawDiagrams[winnerIndex].isWinner = true;
+  rawDiagrams[winnerIndex].winnerBadge = '★ MODELO VITORIOSO (RECOMENDADO PARA PRODUÇÃO)';
+  rawDiagrams[winnerIndex].winnerReason = `Menor tempo de fabricação e quantidade mínima de soldas (${rawDiagrams[winnerIndex].weldsCount} nós / ~${rawDiagrams[winnerIndex].weldingTimeFormatted}) com consumo eficiente de material (${rawDiagrams[winnerIndex].totalBars} barras de 6,00 m).`;
+
+  const winnerDiagram = rawDiagrams[winnerIndex];
+  const diagrams = rawDiagrams;
+
+  // Use Winner Diagram as the primary calculation basis
+  const totalBarrasOtimizado = winnerDiagram.totalBars;
+  const sobraTotalM = winnerDiagram.sobraTotalM;
+  const aproveitamentoPct = winnerDiagram.aproveitamentoPct;
+  const allocatedBarsDetailed = winnerDiagram.allocatedBars;
+  const horizontalElements = winnerDiagram.horizontalElements;
+  const verticalElements = winnerDiagram.verticalElements;
+  const weldsCountHorizTopology = d1Welds;
+  const weldsCountVertTopology = d2Welds;
 
   const transportLogistics = calculateTransportLogistics(largura, altura);
 
@@ -695,14 +847,16 @@ export function calculateMetalonStructure(params: {
     totalBarrasOtimizado,
     sobraTotalM,
     aproveitamentoPct,
-    extBarrasOtimizado,
-    intBarrasOtimizado,
+    extBarrasOtimizado: totalBarrasOtimizado,
+    intBarrasOtimizado: 0,
     weldsCountHorizTopology,
     weldsCountVertTopology,
     allocatedBarsDetailed,
     horizontalElements,
     verticalElements,
     transportLogistics,
+    diagrams,
+    winnerDiagram,
   };
 }
 
@@ -748,7 +902,6 @@ export function generateReportMarkdown(
   const {
     profileExt,
     profileInt,
-    isSameProfile,
     linhasHorizontais,
     vaosVerticais,
     vaoLivreVert,
@@ -762,25 +915,23 @@ export function generateReportMarkdown(
     vertIntCount,
     metragemExtHoriz,
     metragemExtVert,
-    metragemExtTotal,
     metragemIntHoriz,
     metragemIntVert,
-    metragemIntTotal,
     totalMetragemLinear,
     teoricoBarrasGeral,
-    totalBarrasOtimizado,
-    sobraTotalM,
-    aproveitamentoPct,
-    extBarrasOtimizado,
-    intBarrasOtimizado,
-    weldsCountHorizTopology,
-    weldsCountVertTopology,
     transportLogistics,
+    diagrams,
+    winnerDiagram,
   } = calc;
 
   const extFaceMm = (profileExt.faceSizeM * 1000).toFixed(0);
   const widthFormatted = largura.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const heightFormatted = altura.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+  const d1 = diagrams[0];
+  const d2 = diagrams[1];
+  const d3 = diagrams[2];
+  const d4 = diagrams[3];
 
   return `## 1. Estrutura Horizontal
 * Linhas Horizontais Totais: **${linhasHorizontais} linhas** (${vaosVerticais} vãos de **${vaoLivreVert.toLocaleString('pt-BR')} m** de vão livre)
@@ -795,13 +946,12 @@ ${horizIntCount > 0 ? `* Linhas Internas (${profileInt.name}): **${horizIntCount
 ${vertIntCount > 0 ? `* Colunas Internas (${profileInt.name}): **${vertIntCount} colunas** = **${metragemIntVert.toLocaleString('pt-BR')} m**\n` : ''}
 ---
 
-## 3. Plano de Corte Otimizado e Logística de Transporte
+## 3. Análise Comparativa dos 4 Modelos Estruturais e Critério de Decisão
 
-### 3.1 Otimização de Corte de Peças Inteiras (Sem Emenda)
-- **Metragem Linear Total:** **${totalMetragemLinear.toLocaleString('pt-BR')} m** (Consumo Teórico: ${teoricoBarrasGeral} barras de 6,00 m).
-- **Lote Comercial Necessário:** **${totalBarrasOtimizado} barra(s) de 6,00 m** (${(totalBarrasOtimizado * 6.0).toLocaleString('pt-BR')} m comprados).
-- **Aproveitamento de Material:** **${aproveitamentoPct.toLocaleString('pt-BR')}%** (Sobra total de pontas/retalhos: ${sobraTotalM.toLocaleString('pt-BR')} m).
-- **Estratégia de Corte:** Todas as peças horizontais (${widthFormatted} m) e colunas verticais (${vertCutLength.toLocaleString('pt-BR')} m) são cortadas em peças integrais (sem emendas intermediárias), preservando a rigidez estrutural e agilizando a serralheria.
+### 3.1 Priorização Técnica: Mínimo de Solda e Menor Tempo de Fabricação
+Na fabricação de painéis em serralheria industrial, o custo de mão de obra e o tempo de solda representam o maior impacto financeiro e operacional. Para cada um dos 4 esquemas construtivos (Diagramas 1 a 4), calculou-se a demanda exata de barras comerciais de 6,00 m, metragem linear, aproveitamento e pontos de solda:
+- **Critério de Seleção:** Prioridade absoluta para o modelo que minimiza os pontos de solda (menor tempo de execução), mantendo um consumo de barras comercialmente eficiente e seguro.
+- **Modelo Vitorioso Eleito:** **${winnerDiagram.title}** (${winnerDiagram.shortTitle}), totalizando **${winnerDiagram.totalBars} barras de 6,00 m** e **${winnerDiagram.weldsCount} pontos de solda** (~${winnerDiagram.weldingTimeFormatted} de soldagem).
 
 ### 3.2 Gabarito de Transporte (Caminhão 4,30 m × 2,00 m)
 - **Status de Transporte:** ${transportLogistics.statusText}
@@ -809,23 +959,23 @@ ${vertIntCount > 0 ? `* Colunas Internas (${profileInt.name}): **${vertIntCount}
 
 ---
 
-## 4. Resumo Técnico de Consumo e Dimensionamento
+## 4. Comparativo dos 4 Diagramas e Lista Técnica de Produção
 
-${
-  isSameProfile
-    ? `| Item de Especificação | Valor Calculado |
-| :------------------- | :-------------: |
-| **Total de Barras Comerciais (6,00 m)** | **${totalBarrasOtimizado} barras** |
-| **Metragem Linear Total** | **${totalMetragemLinear.toLocaleString('pt-BR')} m** |
-| **Aproveitamento de Aço** | **${aproveitamentoPct.toLocaleString('pt-BR')}%** |
-| **Pontos de Solda (Topologia Linhas Contínuas)** | **${weldsCountHorizTopology} soldas** |
-| **Pontos de Solda (Topologia Colunas Contínuas)** | **${weldsCountVertTopology} soldas** |
-| **Gabarito de Transporte (Caminhão 4,30m × 2,00m)** | **${transportLogistics.totalModulesCount === 1 ? 'Peça Única (Direta)' : `${transportLogistics.totalModulesCount} Módulos Transportáveis`}** |`
-    : `| Item de Especificação | Perfil Externo (${profileExt.name}) | Perfil Interno (${profileInt.name}) | Total Geral |
-| :------------------- | :---------------------------------: | :---------------------------------: | :---------: |
-| **Barras Comerciais (6,00 m)** | ${extBarrasOtimizado} barra(s) | ${intBarrasOtimizado} barra(s) | **${totalBarrasOtimizado} barras** |
-| **Metragem Linear** | ${metragemExtTotal.toLocaleString('pt-BR')} m | ${metragemIntTotal.toLocaleString('pt-BR')} m | **${totalMetragemLinear.toLocaleString('pt-BR')} m** |
-| **Aproveitamento Médio** | — | — | **${aproveitamentoPct.toLocaleString('pt-BR')}%** |
-| **Logística de Transporte** | — | — | **${transportLogistics.totalModulesCount === 1 ? 'Peça Única' : `${transportLogistics.totalModulesCount} Módulos`}** |`
-}`;
+| Diagrama / Modelo Construtivo | Topologia Estrutural | Barras (6,00m) | Metragem Linear | Aproveitamento | Pontos de Solda | Tempo Estimado | Classificação |
+| :---------------------------- | :------------------: | :------------: | :-------------: | :------------: | :-------------: | :------------: | :-----------: |
+${diagrams.map(d => `| **${d.shortTitle}** | ${d.topologyName} | **${d.totalBars} barras** | ${d.totalMetragemLinear.toLocaleString('pt-BR')} m | ${d.aproveitamentoPct.toLocaleString('pt-BR')}% | **${d.weldsCount} soldas** | ~${d.weldingTimeFormatted} | ${d.isWinner ? '**★ MODELO VITORIOSO**' : 'Alternativa'} |`).join('\n')}
+
+### Lista Técnica de Quantitativos e Soldagem (Modelo Eleito: ${winnerDiagram.shortTitle}):
+- **Total de Barras Comerciais (6,00 m):** **${winnerDiagram.totalBars} barras de 6,00 m** (${(winnerDiagram.totalBars * 6.0).toLocaleString('pt-BR')} m lineares adquiridos).
+- **Consumo Teórico de Projeto:** **${teoricoBarrasGeral} barras** (${winnerDiagram.totalMetragemLinear.toLocaleString('pt-BR')} m de demanda linear efetiva).
+- **Índice de Aproveitamento de Aço:** **${winnerDiagram.aproveitamentoPct.toLocaleString('pt-BR')}%** (Sobra total de retalhos: **${winnerDiagram.sobraTotalM.toLocaleString('pt-BR')} m**).
+- **Total de Pontos / Nós de Solda:** **${winnerDiagram.weldsCount} pontos de solda** (Tempo de soldagem estimado: **~${winnerDiagram.weldingTimeFormatted}** a 2,5 min/nó).
+- **Topologia Estrutural:** **${winnerDiagram.topologyName}** (Solução de menor esforço operacional e máxima rigidez mecânica).
+- **Gabarito Logístico de Transporte:** **${transportLogistics.totalModulesCount === 1 ? 'Peça Única (Transporte Direto em Caminhão Padrão)' : `${transportLogistics.totalModulesCount} Módulos Transportáveis com Flanges de Fixação`}** (${transportLogistics.statusText}).
+
+### Lista Técnica Comparativa por Topologia Construtiva:
+- **Figura 1 (${d1.shortTitle} — ${d1.topologyName}):** **${d1.totalBars} barras de 6,00 m** • **${d1.totalMetragemLinear.toLocaleString('pt-BR')} m** • **${d1.weldsCount} soldas** (~${d1.weldingTimeFormatted}) • **${d1.aproveitamentoPct.toLocaleString('pt-BR')}%** aproveitamento.
+- **Figura 2 (${d2.shortTitle} — ${d2.topologyName}):** **${d2.totalBars} barras de 6,00 m** • **${d2.totalMetragemLinear.toLocaleString('pt-BR')} m** • **${d2.weldsCount} soldas** (~${d2.weldingTimeFormatted}) • **${d2.aproveitamentoPct.toLocaleString('pt-BR')}%** aproveitamento.
+- **Figura 3 (${d3.shortTitle} — ${d3.topologyName}):** **${d3.totalBars} barras de 6,00 m** • **${d3.totalMetragemLinear.toLocaleString('pt-BR')} m** • **${d3.weldsCount} soldas** (~${d3.weldingTimeFormatted}) • **${d3.aproveitamentoPct.toLocaleString('pt-BR')}%** aproveitamento.
+- **Figura 4 (${d4.shortTitle} — ${d4.topologyName}):** **${d4.totalBars} barras de 6,00 m** • **${d4.totalMetragemLinear.toLocaleString('pt-BR')} m** • **${d4.weldsCount} soldas** (~${d4.weldingTimeFormatted}) • **${d4.aproveitamentoPct.toLocaleString('pt-BR')}%** aproveitamento.`;
 }
