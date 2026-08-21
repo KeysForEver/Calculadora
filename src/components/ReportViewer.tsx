@@ -7,7 +7,7 @@ import { MetalonInput } from '../types';
 import { StructureVisualizer } from './StructureVisualizer';
 import { TechnicalProjectDrawing } from './TechnicalProjectDrawing';
 import { ProductionCutTable } from './ProductionCutTable';
-import { calculateMetalonStructure, TABLE_ROWS_PER_PAGE } from '../utils/calculator';
+import { calculateMetalonStructure, calculateProductionTablePagesCount } from '../utils/calculator';
 
 interface ReportViewerProps {
   markdown: string;
@@ -85,9 +85,9 @@ function splitMarkdownIntoPages(markdown: string, calcResult: ReturnType<typeof 
   let textWithout567 = cleaned.replace(/(?:---|##)\s*#*\s*[567]\..*$/si, '').trim();
 
   // 4. Enforce Section 4 with only the 4-Diagram Summary Table
-  const canonicalSection4Table = `| Diagrama / Modelo Construtivo | Topologia Estrutural | Barras (6,00m) | Metragem Linear | Aproveitamento | Pontos de Solda | Classificação |
-| :---------------------------- | :------------------: | :------------: | :-------------: | :------------: | :-------------: | :-----------: |
-${calcResult.diagrams.map(d => `| **${d.shortTitle}** | ${d.topologyName} | **${d.totalBars} barras** | ${d.totalMetragemLinear.toLocaleString('pt-BR')} m | ${d.aproveitamentoPct.toLocaleString('pt-BR')}% | **${d.weldsCount} soldas** | ${d.isWinner ? '**★ MODELO VITORIOSO**' : 'Alternativa'} |`).join('\n')}`;
+  const canonicalSection4Table = `| Diagrama / Modelo Construtivo | Topologia Estrutural | Barras (6,00m) | Metragem Linear | Pontos de Solda | Classificação |
+| :---------------------------- | :------------------: | :------------: | :-------------: | :-------------: | :-----------: |
+${calcResult.diagrams.map(d => `| **${d.shortTitle}** | ${d.topologyName} | **${d.totalBars} barras** | ${d.totalMetragemLinear.toLocaleString('pt-BR')} m | **${d.weldsCount} soldas** | ${d.isWinner ? '**★ MODELO VITORIOSO**' : 'Alternativa'} |`).join('\n')}`;
 
   if (textWithout567.search(/(?:^|\n)##\s*4[\.\s]/i) >= 0) {
     textWithout567 = textWithout567.replace(
@@ -157,7 +157,7 @@ export const ReportViewer: React.FC<ReportViewerProps> = ({
     });
   }, [input]);
 
-  const totalTableChunks = Math.ceil(calcResult.allocatedBarsDetailed.length / TABLE_ROWS_PER_PAGE) || 1;
+  const totalTableChunks = calculateProductionTablePagesCount(calcResult.uniquePiecesSummary.length);
   const markdownPages = React.useMemo(() => splitMarkdownIntoPages(markdown, calcResult), [markdown, calcResult]);
 
   const markdownPagesCount = markdownPages.length;

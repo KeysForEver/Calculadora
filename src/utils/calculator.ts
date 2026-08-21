@@ -85,6 +85,22 @@ export interface PieceToCut {
   description: string;
 }
 
+export interface UniquePieceItem {
+  id: string;
+  itemNumber: number;
+  type: 'Horizontal' | 'Vertical';
+  length: number;
+  lengthFormatted: string;
+  lengthCmFormatted: string;
+  quantity: number;
+  profileName: string;
+  totalLength: number;
+  totalLengthFormatted: string;
+  description: string;
+  elementsList: string[];
+  elementsSummary: string;
+}
+
 export interface BarSegmentMapping {
   barNumber: number;
   length: number;
@@ -209,7 +225,7 @@ export function optimizeWholePiecesPlan(params: {
           {
             type: piece.type,
             length: 6.0,
-            description: `${piece.description} (Trecho ${segIndex} - 6,00 m)`,
+            description: `${piece.description} (Trecho ${segIndex})`,
           },
         ],
       });
@@ -222,7 +238,7 @@ export function optimizeWholePiecesPlan(params: {
         length: remLen,
         description:
           segIndex > 1
-            ? `${piece.description} (Trecho ${segIndex} - ${remLen.toFixed(2).replace('.', ',')} m)`
+            ? `${piece.description} (Trecho Final)`
             : piece.description,
       });
     }
@@ -494,6 +510,7 @@ export interface CalculationResult {
   allocatedBarsDetailed: AllocatedBar[];
   horizontalElements: StructuralElementMapping[];
   verticalElements: StructuralElementMapping[];
+  uniquePiecesSummary: UniquePieceItem[];
   transportLogistics: TransportLogisticsInfo;
   diagrams: DiagramSpecification[];
   winnerDiagram: DiagramSpecification;
@@ -593,12 +610,12 @@ export function calculateMetalonStructure(params: {
     ...Array(linhasHorizontais).fill(0).map((_, i) => ({
       type: 'Horizontal' as const,
       length: largura,
-      description: `Linha Horiz. ${i + 1} (${largura.toFixed(2).replace('.', ',')} m)`,
+      description: `Linha Horiz. ${i + 1}`,
     })),
     ...Array(colunasVerticais).fill(0).map((_, j) => ({
       type: 'Vertical' as const,
       length: vertCutLength,
-      description: `Coluna Vert. ${j + 1} (${vertCutLength.toFixed(2).replace('.', ',')} m)`,
+      description: `Coluna Vert. ${j + 1}`,
     })),
   ];
   const d1Opt = optimizeWholePiecesPlan({ pieces: d1Pieces, profileName: profileExt.name, startBarIndex: 1 });
@@ -616,12 +633,12 @@ export function calculateMetalonStructure(params: {
     ...Array(colunasVerticais).fill(0).map((_, j) => ({
       type: 'Vertical' as const,
       length: altura,
-      description: `Coluna Vert. Inteiriça ${j + 1} (${altura.toFixed(2).replace('.', ',')} m)`,
+      description: `Coluna Vert. Inteiriça ${j + 1}`,
     })),
     ...Array(totalTravessasD2).fill(0).map((_, k) => ({
       type: 'Horizontal' as const,
       length: vaoLivreHoriz,
-      description: `Travessa Horiz. ${k + 1} (${vaoLivreHoriz.toFixed(2).replace('.', ',')} m)`,
+      description: `Travessa Horiz. ${k + 1}`,
     })),
   ];
   const d2Opt = optimizeWholePiecesPlan({ pieces: d2Pieces, profileName: profileExt.name, startBarIndex: 1 });
@@ -637,12 +654,12 @@ export function calculateMetalonStructure(params: {
     ...Array(linhasHorizontais).fill(0).map((_, i) => ({
       type: 'Horizontal' as const,
       length: largura,
-      description: `Linha Borda/Interna ${i + 1} (${largura.toFixed(2).replace('.', ',')} m)`,
+      description: `Linha Borda/Interna ${i + 1}`,
     })),
     ...Array(colunasVerticais).fill(0).map((_, j) => ({
       type: 'Vertical' as const,
       length: vertCutLength,
-      description: `Coluna Montante ${j + 1} (${vertCutLength.toFixed(2).replace('.', ',')} m)`,
+      description: `Coluna Montante ${j + 1}`,
     })),
   ];
   const d3Opt = optimizeWholePiecesPlan({ pieces: d3Pieces, profileName: profileExt.name, startBarIndex: 1 });
@@ -659,12 +676,12 @@ export function calculateMetalonStructure(params: {
     ...Array(colunasVerticais).fill(0).map((_, j) => ({
       type: 'Vertical' as const,
       length: altura,
-      description: `Coluna Passante ${j + 1} (${altura.toFixed(2).replace('.', ',')} m)`,
+      description: `Coluna Passante ${j + 1}`,
     })),
     ...Array(linhasHorizontais).fill(0).map((_, i) => ({
       type: 'Horizontal' as const,
       length: horizCutLengthD4,
-      description: `Linha Horiz. Encaixada ${i + 1} (${horizCutLengthD4.toFixed(2).replace('.', ',')} m)`,
+      description: `Linha Horiz. Encaixada ${i + 1}`,
     })),
   ];
   const d4Opt = optimizeWholePiecesPlan({ pieces: d4Pieces, profileName: profileExt.name, startBarIndex: 1 });
@@ -814,6 +831,7 @@ export function calculateMetalonStructure(params: {
   const weldsCountVertTopology = d2Welds;
 
   const transportLogistics = calculateTransportLogistics(largura, altura);
+  const uniquePiecesSummary = calculateUniquePiecesSummary(allocatedBarsDetailed, profileExt.name);
 
   return {
     largura,
@@ -854,10 +872,119 @@ export function calculateMetalonStructure(params: {
     allocatedBarsDetailed,
     horizontalElements,
     verticalElements,
+    uniquePiecesSummary,
     transportLogistics,
     diagrams,
     winnerDiagram,
   };
+}
+
+export function calculateUniquePiecesSummary(
+  allocatedBars: AllocatedBar[],
+  profileName: string
+): UniquePieceItem[] {
+  // Aggregate all pieces across all bars by length (rounded to 3 decimal places)
+  const map: Map<string, { type: 'Horizontal' | 'Vertical'; length: number; count: number; descriptions: string[] }> = new Map();
+
+  for (const bar of allocatedBars) {
+    for (const p of bar.pieces) {
+      const lenKey = p.length.toFixed(3);
+      const existing = map.get(lenKey);
+      if (existing) {
+        existing.count += 1;
+        existing.descriptions.push(p.description);
+      } else {
+        map.set(lenKey, {
+          type: p.type,
+          length: p.length,
+          count: 1,
+          descriptions: [p.description],
+        });
+      }
+    }
+  }
+
+  // Sort descending by length
+  const entries = Array.from(map.values()).sort((a, b) => b.length - a.length);
+
+  return entries.map((item, idx) => {
+    const totalLen = Number((item.count * item.length).toFixed(3));
+    
+    // Group and summarize descriptions
+    const uniqueDescs = Array.from(new Set(item.descriptions));
+    let elementsSummary = uniqueDescs.join(', ');
+    if (uniqueDescs.length > 3) {
+      elementsSummary = `${uniqueDescs[0]} a ${uniqueDescs[uniqueDescs.length - 1]} (${item.count} un. no total)`;
+    }
+
+    let generalDesc = '';
+    if (item.type === 'Horizontal') {
+      if (Math.abs(item.length - 6.0) < 0.001) {
+        generalDesc = 'Linhas Horizontais (Trechos Inteiros de 6,00 m)';
+      } else {
+        generalDesc = 'Linhas / Travessas Horizontais';
+      }
+    } else {
+      if (Math.abs(item.length - 6.0) < 0.001) {
+        generalDesc = 'Colunas Verticais (Trechos Inteiros de 6,00 m)';
+      } else {
+        generalDesc = 'Colunas Verticais (Montantes Estruturais)';
+      }
+    }
+
+    return {
+      id: `piece-unique-${idx + 1}`,
+      itemNumber: idx + 1,
+      type: item.type,
+      length: item.length,
+      lengthFormatted: `${item.length.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} m`,
+      lengthCmFormatted: `${(item.length * 100).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} cm`,
+      quantity: item.count,
+      profileName,
+      totalLength: totalLen,
+      totalLengthFormatted: `${totalLen.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} m`,
+      description: generalDesc,
+      elementsList: uniqueDescs,
+      elementsSummary,
+    };
+  });
+}
+
+export function formatBarPiecesGrouped(pieces: PieceToCut[]): string {
+  if (!pieces || pieces.length === 0) return 'Nenhuma peça';
+
+  const groups: { [key: string]: { length: number; count: number; descriptions: string[] } } = {};
+
+  for (const p of pieces) {
+    const key = p.length.toFixed(3);
+    if (!groups[key]) {
+      groups[key] = { length: p.length, count: 0, descriptions: [] };
+    }
+    groups[key].count += 1;
+    groups[key].descriptions.push(p.description);
+  }
+
+  return Object.values(groups)
+    .sort((a, b) => b.length - a.length)
+    .map((g) => {
+      const lenStr = `${g.length.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} m`;
+      const uniqueNames = Array.from(new Set(g.descriptions));
+      let namesStr = '';
+      if (uniqueNames.length > 0) {
+        if (uniqueNames.length > 2) {
+          namesStr = ` (${uniqueNames[0]} a ${uniqueNames[uniqueNames.length - 1]})`;
+        } else {
+          namesStr = ` (${uniqueNames.join(', ')})`;
+        }
+      }
+      return `${g.count}× Peça${g.count > 1 ? 's' : ''} de ${lenStr}${namesStr}`;
+    })
+    .join(' + ');
+}
+
+export function calculateProductionTablePagesCount(uniquePiecesCount: number = 1): number {
+  if (uniquePiecesCount <= 0) return 1;
+  return Math.max(1, Math.ceil(uniquePiecesCount / 18));
 }
 
 export function getPortugueseDate(): string {
@@ -960,7 +1087,7 @@ Na fabricação de painéis em serralheria industrial, a quantidade de nós de s
 ---
 
 ## 4. Comparativo dos 4 Diagramas
-| Diagrama / Modelo Construtivo | Topologia Estrutural | Barras (6,00m) | Metragem Linear | Aproveitamento | Pontos de Solda | Classificação |
-| :---------------------------- | :------------------: | :------------: | :-------------: | :------------: | :-------------: | :-----------: |
-${diagrams.map(d => `| **${d.shortTitle}** | ${d.topologyName} | **${d.totalBars} barras** | ${d.totalMetragemLinear.toLocaleString('pt-BR')} m | ${d.aproveitamentoPct.toLocaleString('pt-BR')}% | **${d.weldsCount} soldas** | ${d.isWinner ? '**★ MODELO VITORIOSO**' : 'Alternativa'} |`).join('\n')}`;
+| Diagrama / Modelo Construtivo | Topologia Estrutural | Barras (6,00m) | Metragem Linear | Pontos de Solda | Classificação |
+| :---------------------------- | :------------------: | :------------: | :-------------: | :-------------: | :-----------: |
+${diagrams.map(d => `| **${d.shortTitle}** | ${d.topologyName} | **${d.totalBars} barras** | ${d.totalMetragemLinear.toLocaleString('pt-BR')} m | **${d.weldsCount} soldas** | ${d.isWinner ? '**★ MODELO VITORIOSO**' : 'Alternativa'} |`).join('\n')}`;
 }

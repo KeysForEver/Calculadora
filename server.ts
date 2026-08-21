@@ -47,12 +47,12 @@ async function getPrioritizedGeminiModels(client: GoogleGenAI): Promise<string[]
     return cachedCandidateModels.models;
   }
 
-  // Base priority list ensuring newest flagship and reasoning models are tried FIRST
+// Base priority list ensuring newest flagship and reliable high-availability Flash models are tried FIRST
   const basePriorityOrder = [
     "gemini-3.7-flash",
-    "gemini-3.1-pro-preview",
     "gemini-flash-latest",
     "gemini-3.1-flash-lite",
+    "gemini-3.1-pro-preview",
   ];
 
   try {
@@ -88,20 +88,18 @@ async function getPrioritizedGeminiModels(client: GoogleGenAI): Promise<string[]
     if (discoveredModels.length > 0) {
       console.log("[Gemini Dynamic Discovery] Available candidate models from Google API:", discoveredModels);
 
-      // Score models so the newest versions (3.7+, 3.1-pro, etc.) are at the top
+      // Score models so high-availability flash models come before paid pro models
       const scoredModels = [...discoveredModels].sort((a, b) => {
         const score = (name: string) => {
           let s = 0;
-          if (name.includes("3.7-flash")) s += 1000;
-          else if (name.includes("3.7")) s += 950;
-          else if (name.includes("3.8") || name.includes("4.")) s += 980;
-          else if (name.includes("3.1-pro")) s += 850;
-          else if (name.includes("flash-latest")) s += 800;
-          else if (name.includes("3.1-flash")) s += 700;
-          else if (name.includes("3.")) s += 600;
+          if (name === "gemini-3.7-flash") s += 1000;
+          else if (name.includes("3.7-flash")) s += 950;
+          else if (name === "gemini-flash-latest") s += 900;
+          else if (name.includes("3.1-flash-lite")) s += 850;
+          else if (name.includes("3.1-flash")) s += 800;
+          else if (name.includes("3.1-pro")) s += 600; // lower score so free-tier quota limits are avoided first
+          else if (name.includes("3.")) s += 500;
           else s += 100;
-
-          if (name.includes("lite")) s -= 60;
           return s;
         };
         return score(b) - score(a);
@@ -290,9 +288,9 @@ ${vertIntCount > 0 ? `* Colunas Internas (${profileInt.name}): **${vertIntCount}
 ---
 
 ## 4. Comparativo dos 4 Diagramas
-| Diagrama / Modelo Construtivo | Topologia Estrutural | Barras (6,00m) | Metragem Linear | Aproveitamento | Pontos de Solda | Classificação |
-| :---------------------------- | :------------------: | :------------: | :-------------: | :------------: | :-------------: | :-----------: |
-${diagrams.map(d => `| **${d.shortTitle}** | ${d.topologyName} | **${d.totalBars} barras** | ${d.totalMetragemLinear.toLocaleString("pt-BR")} m | ${d.aproveitamentoPct.toLocaleString("pt-BR")}% | **${d.weldsCount} soldas** | ${d.isWinner ? '**★ MODELO VITORIOSO**' : 'Alternativa'} |`).join('\n')}
+| Diagrama / Modelo Construtivo | Topologia Estrutural | Barras (6,00m) | Metragem Linear | Pontos de Solda | Classificação |
+| :---------------------------- | :------------------: | :------------: | :-------------: | :-------------: | :-----------: |
+${diagrams.map(d => `| **${d.shortTitle}** | ${d.topologyName} | **${d.totalBars} barras** | ${d.totalMetragemLinear.toLocaleString("pt-BR")} m | **${d.weldsCount} soldas** | ${d.isWinner ? '**★ MODELO VITORIOSO**' : 'Alternativa'} |`).join('\n')}
 
 CRÍTICO: NÃO INCLUA NENHUM TEXTO APÓS A TABELA DA SEÇÃO 4. O relatório em Markdown termina rigorosamente com a tabela da Seção 4.
 `;
@@ -328,27 +326,32 @@ CRÍTICO: NÃO INCLUA NENHUM TEXTO APÓS A TABELA DA SEÇÃO 4. O relatório em 
     let successfulModel: string | null = null;
 
     for (const modelName of candidateModels) {
-      try {
-        console.log(`[Gemini Request] Generating calculation report with model: ${modelName}`);
-        const response = await geminiInfo.client.models.generateContent({
-          model: modelName,
-          contents: prompt,
-          config: {
-            temperature: 0.1,
-            systemInstruction: `Você é um especialista em serralheria e cálculo de estruturas de metalon. Calcule com extrema precisão os vãos, linhas, colunas, metragens lineares e barras de 6 metros respeitando estritamente o vão máximo horizontal de ${vaoMaxHorizCm} cm (colunas) e vão máximo vertical de ${vaoMaxVertCm} cm (linhas) configurados pelo usuário. CRÍTICO E OBRIGATÓRIO: Na tabela da Seção 4, NUNCA INCLUA a coluna 'Metragem Comprada' nem 'Avaliação de Custo'. O relatório de texto termina rigorosamente após a Seção 4. Responda rigorosamente no formato especificado em Markdown.`,
-          },
-        });
+      let attempts = 0;
+      const maxAttempts = modelName === "gemini-3.7-flash" ? 2 : 1;
 
-        if (response && response.text) {
-          let draftText = response.text;
-          draftText = draftText.replace(/\|\s*Metragem Comprada[^\n|]*/gi, '');
-          draftText = draftText.replace(/\|\s*Avalia[çc][ãa]o de Custo[^\n|]*/gi, '');
-          draftText = draftText.replace(/(?:---|##)\s*#*\s*[567]\..*$/si, '').trim();
+      while (attempts < maxAttempts) {
+        attempts++;
+        try {
+          console.log(`[Gemini Request] Generating calculation report with model: ${modelName} (attempt ${attempts}/${maxAttempts})`);
+          const response = await geminiInfo.client.models.generateContent({
+            model: modelName,
+            contents: prompt,
+            config: {
+              temperature: 0.1,
+              systemInstruction: `Você é um especialista em serralheria e cálculo de estruturas de metalon. Calcule com extrema precisão os vãos, linhas, colunas, metragens lineares e barras de 6 metros respeitando estritamente o vão máximo horizontal de ${vaoMaxHorizCm} cm (colunas) e vão máximo vertical de ${vaoMaxVertCm} cm (linhas) configurados pelo usuário. CRÍTICO E OBRIGATÓRIO: Na tabela da Seção 4, NUNCA INCLUA a coluna 'Metragem Comprada' nem 'Avaliação de Custo'. O relatório de texto termina rigorosamente após a Seção 4. Responda rigorosamente no formato especificado em Markdown.`,
+            },
+          });
 
-          console.log(`[Gemini Pass 1] Initial draft generated with ${modelName}. Running Pass 2 (Auditoria e Dupla Verificação de Coerência)...`);
+          if (response && response.text) {
+            let draftText = response.text;
+            draftText = draftText.replace(/\|\s*Metragem Comprada[^\n|]*/gi, '');
+            draftText = draftText.replace(/\|\s*Avalia[çc][ãa]o de Custo[^\n|]*/gi, '');
+            draftText = draftText.replace(/(?:---|##)\s*#*\s*[567]\..*$/si, '').trim();
 
-          // PASS 2: AUDITORIA E DUPLA VERIFICAÇÃO DE COERÊNCIA (Reflective Double-Check)
-          const auditPrompt = `Atue como um Engenheiro e Auditor Chefe de Estruturas Metálicas e Qualidade Técnica.
+            console.log(`[Gemini Pass 1] Initial draft generated with ${modelName}. Running Pass 2 (Auditoria e Dupla Verificação de Coerência)...`);
+
+            // PASS 2: AUDITORIA E DUPLA VERIFICAÇÃO DE COERÊNCIA (Reflective Double-Check)
+            const auditPrompt = `Atue como um Engenheiro e Auditor Chefe de Estruturas Metálicas e Qualidade Técnica.
 Sua missão é realizar uma REAVALIAÇÃO E DUPLA VERIFICAÇÃO CRÍTICA do rascunho de relatório técnico abaixo antes da sua emissão final ao cliente.
 
 GABARITO MATEMÁTICO E REGRAS OFICIAIS DE AUDITORIA:
@@ -380,61 +383,71 @@ ${draftText}
 
 Retorne exclusivamente o RELATÓRIO TÉCNICO FINAL CORRIGIDO E AUDITADO em formato Markdown:`;
 
-          let finalText = draftText;
-          try {
-            const auditResponse = await geminiInfo.client.models.generateContent({
-              model: modelName,
-              contents: auditPrompt,
-              config: {
-                temperature: 0.1,
-                systemInstruction: `Você é um auditor sênior de engenharia e serralheria. Audite, confira e corrija o relatório para garantir 100% de precisão matemática e técnica. Responda em Markdown limpo terminando estritamente após a Seção 4.`,
-              },
-            });
+            let finalText = draftText;
+            try {
+              const auditResponse = await geminiInfo.client.models.generateContent({
+                model: modelName,
+                contents: auditPrompt,
+                config: {
+                  temperature: 0.1,
+                  systemInstruction: `Você é um auditor sênior de engenharia e serralheria. Audite, confira e corrija o relatório para garantir 100% de precisão matemática e técnica. Responda em Markdown limpo terminando estritamente após a Seção 4.`,
+                },
+              });
 
-            if (auditResponse && auditResponse.text) {
-              let verifiedText = auditResponse.text;
-              verifiedText = verifiedText.replace(/\|\s*Metragem Comprada[^\n|]*/gi, '');
-              verifiedText = verifiedText.replace(/\|\s*Avalia[çc][ãa]o de Custo[^\n|]*/gi, '');
-              verifiedText = verifiedText.replace(/(?:---|##)\s*#*\s*[567]\..*$/si, '').trim();
-              finalText = verifiedText;
-              console.log(`[Gemini Pass 2] Double verification and audit completed successfully!`);
+              if (auditResponse && auditResponse.text) {
+                let verifiedText = auditResponse.text;
+                verifiedText = verifiedText.replace(/\|\s*Metragem Comprada[^\n|]*/gi, '');
+                verifiedText = verifiedText.replace(/\|\s*Avalia[çc][ãa]o de Custo[^\n|]*/gi, '');
+                verifiedText = verifiedText.replace(/(?:---|##)\s*#*\s*[567]\..*$/si, '').trim();
+                finalText = verifiedText;
+                console.log(`[Gemini Pass 2] Double verification and audit completed successfully!`);
+              }
+            } catch (auditErr) {
+              console.warn(`[Gemini Pass 2] Audit pass skipped (using Pass 1 draft):`, auditErr);
             }
-          } catch (auditErr) {
-            console.warn(`[Gemini Pass 2] Audit pass skipped due to high demand, using verified Pass 1 draft:`, auditErr);
+
+            const canonicalSection4Table = `| Diagrama / Modelo Construtivo | Topologia Estrutural | Barras (6,00m) | Metragem Linear | Pontos de Solda | Classificação |
+| :---------------------------- | :------------------: | :------------: | :-------------: | :-------------: | :-----------: |
+${diagrams.map(d => `| **${d.shortTitle}** | ${d.topologyName} | **${d.totalBars} barras** | ${d.totalMetragemLinear.toLocaleString("pt-BR")} m | **${d.weldsCount} soldas** | ${d.isWinner ? '**★ MODELO VITORIOSO**' : 'Alternativa'} |`).join('\n')}`;
+
+            // Post-processing: Remove Considerações Técnicas if generated, remove forbidden sections & columns
+            finalText = finalText.replace(/(?:^|\n)#*\s*Considera[çc][õo]es\s+T[ée]cnicas[^\n]*(?:\n[\s\S]*?)?(?=\n#*\s*1[\.\s])/si, '').trim();
+            finalText = finalText.replace(/(?:---|##)\s*#*\s*[567]\..*$/si, '').trim();
+            
+            // Replace Section 4 with canonical verified table only
+            if (finalText.search(/(?:^|\n)##\s*4[\.\s]/i) >= 0) {
+              finalText = finalText.replace(
+                /(?:^|\n)(##\s*4[\.\s][^\n]*\n+)[\s\S]*$/i,
+                `\n\n## 4. Comparativo dos 4 Diagramas\n\n${canonicalSection4Table}`
+              ).trim();
+            } else {
+              finalText = `${finalText}\n\n---\n\n## 4. Comparativo dos 4 Diagramas\n\n${canonicalSection4Table}`;
+            }
+
+            successfulModel = modelName;
+            console.log(`[Gemini Success] Successfully emitted verified report using model: ${modelName}`);
+            return res.json({
+              markdown: finalText,
+              source: "gemini",
+              modelUsed: successfulModel,
+              date: dateFormatted,
+              geminiStatus: "success",
+              doubleCheckVerified: true
+            });
           }
-
-          const canonicalSection4Table = `| Diagrama / Modelo Construtivo | Topologia Estrutural | Barras (6,00m) | Metragem Linear | Aproveitamento | Pontos de Solda | Classificação |
-| :---------------------------- | :------------------: | :------------: | :-------------: | :------------: | :-------------: | :-----------: |
-${diagrams.map(d => `| **${d.shortTitle}** | ${d.topologyName} | **${d.totalBars} barras** | ${d.totalMetragemLinear.toLocaleString("pt-BR")} m | ${d.aproveitamentoPct.toLocaleString("pt-BR")}% | **${d.weldsCount} soldas** | ${d.isWinner ? '**★ MODELO VITORIOSO**' : 'Alternativa'} |`).join('\n')}`;
-
-          // Post-processing: Remove Considerações Técnicas if generated, remove forbidden sections & columns
-          finalText = finalText.replace(/(?:^|\n)#*\s*Considera[çc][õo]es\s+T[ée]cnicas[^\n]*(?:\n[\s\S]*?)?(?=\n#*\s*1[\.\s])/si, '').trim();
-          finalText = finalText.replace(/(?:---|##)\s*#*\s*[567]\..*$/si, '').trim();
+        } catch (geminiErr: any) {
+          lastGeminiError = geminiErr?.message || String(geminiErr);
+          const isDemandError = lastGeminiError.includes("503") || lastGeminiError.includes("high demand") || lastGeminiError.includes("UNAVAILABLE");
           
-          // Replace Section 4 with canonical verified table only
-          if (finalText.search(/(?:^|\n)##\s*4[\.\s]/i) >= 0) {
-            finalText = finalText.replace(
-              /(?:^|\n)(##\s*4[\.\s][^\n]*\n+)[\s\S]*$/i,
-              `\n\n## 4. Comparativo dos 4 Diagramas\n\n${canonicalSection4Table}`
-            ).trim();
-          } else {
-            finalText = `${finalText}\n\n---\n\n## 4. Comparativo dos 4 Diagramas\n\n${canonicalSection4Table}`;
+          if (isDemandError && attempts < maxAttempts) {
+            console.warn(`[Gemini Retry] Model ${modelName} returned 503 high demand. Retrying in 400ms...`);
+            await new Promise((r) => setTimeout(r, 400));
+            continue;
           }
 
-          successfulModel = modelName;
-          console.log(`[Gemini Success] Successfully emitted verified report using model: ${modelName}`);
-          return res.json({
-            markdown: finalText,
-            source: "gemini",
-            modelUsed: successfulModel,
-            date: dateFormatted,
-            geminiStatus: "success",
-            doubleCheckVerified: true
-          });
+          console.warn(`[Gemini Model Switch] Model ${modelName} unavailable (${isDemandError ? 'high demand 503' : 'quota or error'}). Switching to next candidate in queue...`);
+          break;
         }
-      } catch (geminiErr: any) {
-        lastGeminiError = geminiErr?.message || String(geminiErr);
-        console.warn(`[Gemini Fallback] Model ${modelName} returned error (${lastGeminiError}). Switching to next model in pool immediately...`);
       }
     }
 

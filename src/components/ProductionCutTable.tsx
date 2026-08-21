@@ -1,6 +1,10 @@
 import React from 'react';
 import { MetalonInput } from '../types';
-import { calculateMetalonStructure, PieceToCut, TABLE_ROWS_PER_PAGE } from '../utils/calculator';
+import {
+  calculateMetalonStructure,
+  UniquePieceItem,
+  calculateProductionTablePagesCount,
+} from '../utils/calculator';
 import { ReportHeader, ReportFooter } from './ReportViewer';
 
 export interface ProductionCutTableProps {
@@ -11,21 +15,12 @@ export interface ProductionCutTableProps {
   totalPages?: number;
 }
 
-export interface AllocatedBar {
-  barNumber: number;
-  profileName: string;
-  initialLength: number;
-  usedLength: number;
-  remainingLength: number;
-  pieces: PieceToCut[];
-}
-
 interface TablePageChunk {
   pageIndex: number;
   totalChunks: number;
   isFirst: boolean;
   isLast: boolean;
-  bars: AllocatedBar[];
+  pieces: UniquePieceItem[];
 }
 
 export const ProductionCutTable: React.FC<ProductionCutTableProps> = ({
@@ -65,36 +60,40 @@ export const ProductionCutTable: React.FC<ProductionCutTableProps> = ({
     input.profundidadeInternoMm,
   ]);
 
-  const allBars = calcResult.allocatedBarsDetailed;
+  const uniquePieces = calcResult.uniquePiecesSummary;
 
-  // Divide bars into clean full pages (24 bars per page fills the A4 page height)
-  const rowsPerPage = TABLE_ROWS_PER_PAGE;
+  const totalPiecesCount = React.useMemo(() => {
+    return uniquePieces.reduce((sum, item) => sum + item.quantity, 0);
+  }, [uniquePieces]);
+
+  const totalPiecesMetragem = React.useMemo(() => {
+    return uniquePieces.reduce((sum, item) => sum + item.totalLength, 0);
+  }, [uniquePieces]);
+
+  // Consumo de Fita VHB (9 mm de largura com rolos de 33 m) e Primer (0,6 ml por metro de fita)
+  const totalFitaVhbMetros = totalPiecesMetragem;
+  const rolosFitaVhb = Math.ceil(totalFitaVhbMetros / 33);
+  const totalPrimerMl = totalFitaVhbMetros * 0.6;
+
+  const rowsPerPage = 18;
   const chunks: TablePageChunk[] = React.useMemo(() => {
     const result: TablePageChunk[] = [];
-    const totalChunks = Math.ceil(allBars.length / rowsPerPage) || 1;
+    const totalChunks = calculateProductionTablePagesCount(uniquePieces.length);
 
     for (let p = 0; p < totalChunks; p++) {
-      const start = p * rowsPerPage;
-      const end = start + rowsPerPage;
+      const sliceStart = p * rowsPerPage;
+      const sliceEnd = sliceStart + rowsPerPage;
       result.push({
         pageIndex: p,
         totalChunks,
         isFirst: p === 0,
         isLast: p === totalChunks - 1,
-        bars: allBars.slice(start, end),
+        pieces: uniquePieces.slice(sliceStart, sliceEnd),
       });
     }
 
     return result;
-  }, [allBars, rowsPerPage]);
-
-  const totalUsoGeral = React.useMemo(() => {
-    return allBars.reduce((sum, bar) => sum + bar.usedLength, 0);
-  }, [allBars]);
-
-  const totalSobraGeral = React.useMemo(() => {
-    return allBars.reduce((sum, bar) => sum + bar.remainingLength, 0);
-  }, [allBars]);
+  }, [uniquePieces]);
 
   return (
     <>
@@ -104,20 +103,21 @@ export const ProductionCutTable: React.FC<ProductionCutTableProps> = ({
         return (
           <div
             key={`chunk-page-${cIdx}`}
+            id={`production-table-page-${cIdx + 1}`}
             className="pdf-page latex-document font-serif bg-white pt-6 mt-10 border-t border-slate-200 flex flex-col justify-between min-h-[960px] sm:min-h-[1000px] break-before-page page-break-before-always"
             style={{ pageBreakBefore: 'always', breakBefore: 'page' }}
           >
             {/* Top Container */}
             <div className="flex-1 flex flex-col justify-start">
-              {/* LaTeX Header */}
+              {/* Header */}
               <ReportHeader dateStr={dateStr} source={source} />
 
-              <div className="space-y-2 my-1 flex-1 font-serif">
-                {/* Section Title */}
+              <div className="space-y-4 my-1 flex-1 font-serif">
+                {/* Main Section Header */}
                 <div className="border-b border-slate-700 pb-1 flex items-center justify-between">
                   <h3 className="text-base font-bold text-slate-900 font-serif flex items-center gap-2">
                     <span>7.</span>
-                    Tabela de Corte de Barras para a Produção
+                    Tabela Resumida de Corte de Peças para a Produção
                     {chunk.totalChunks > 1 && (
                       <span className="text-xs font-normal text-slate-600 font-serif">
                         (Folha {chunk.pageIndex + 1} de {chunk.totalChunks})
@@ -125,65 +125,116 @@ export const ProductionCutTable: React.FC<ProductionCutTableProps> = ({
                     )}
                   </h3>
                   <span className="text-[11px] font-medium text-slate-700 font-serif">
-                    Barras {chunk.bars[0]?.barNumber} a {chunk.bars[chunk.bars.length - 1]?.barNumber} de {allBars.length}
+                    {totalPiecesCount} Peças • {calcResult.totalBarrasOtimizado} Barras de 6,00 m
                   </span>
                 </div>
 
-                {/* Main Table for Production - LaTeX Booktabs Design */}
-                <div className="overflow-x-auto my-1">
+                {/* Subtitle description */}
+                <div className="text-xs text-slate-700 font-serif leading-relaxed">
+                  Lista consolidada e agrupada por comprimento exclusivo de corte para guia direta do operador de corte na serralheria:
+                </div>
+
+                {/* TABLE OF PIECES */}
+                <div className="overflow-x-auto">
                   <table className="booktabs-table w-full text-left text-xs font-serif">
                     <thead>
                       <tr>
-                        <th className="w-20 text-center">N° Barra</th>
+                        <th className="w-12 text-center">Item</th>
+                        <th className="w-16 text-center font-bold text-slate-900">Qtd</th>
+                        <th className="w-36 text-left font-bold text-slate-900">Comprimento de Corte</th>
+                        <th className="text-left">Descrição da Peça / Identificação no Gabarito</th>
                         <th className="w-36 text-left">Perfil Metalon</th>
-                        <th className="text-left">Peças a Cortar / Gabarito</th>
-                        <th className="w-24 text-right">Uso Total</th>
-                        <th className="w-24 text-right">Sobra Restante</th>
+                        <th className="w-28 text-right">Metragem Total</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {chunk.bars.map((bar) => {
-                        const pecasTexto = bar.pieces
-                          .map((p) => `1× ${p.description} (${p.length.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} m)`)
-                          .join(' + ');
-
-                        const usoFormatado = `${bar.usedLength.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} m`;
-                        const sobraFormatada = bar.remainingLength > 0.001
-                          ? `${bar.remainingLength.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} m`
-                          : '0,00 m';
-
-                        return (
-                          <tr key={`bar-${bar.barNumber}`}>
-                            <td className="text-center font-medium text-slate-900 font-mono text-[11px]">
-                              Barra {String(bar.barNumber).padStart(2, '0')}
-                            </td>
-                            <td className="text-slate-900 font-serif">
-                              {bar.profileName}
-                            </td>
-                            <td className="text-slate-800 font-serif">
-                              {pecasTexto}
-                            </td>
-                            <td className="text-right font-medium text-slate-900 font-serif">
-                              {usoFormatado}
-                            </td>
-                            <td className="text-right text-slate-700 font-serif">
-                              {sobraFormatada}
-                            </td>
-                          </tr>
-                        );
-                      })}
+                      {chunk.pieces.map((item) => (
+                        <tr key={item.id}>
+                          <td className="text-center font-mono text-[11px] text-slate-700">
+                            {item.itemNumber}
+                          </td>
+                          <td className="text-center font-bold text-slate-950 text-[12px] bg-slate-50/50">
+                            {item.quantity}×
+                          </td>
+                          <td className="text-left font-bold text-slate-900 font-mono text-[11px]">
+                            {item.lengthFormatted}
+                            <span className="text-[10px] text-slate-500 font-normal ml-1">
+                              ({item.lengthCmFormatted})
+                            </span>
+                          </td>
+                          <td className="text-slate-800">
+                            <div className="font-medium text-slate-900">{item.description}</div>
+                            <div className="text-[10px] text-slate-600 italic leading-tight">
+                              {item.elementsSummary}
+                            </div>
+                          </td>
+                          <td className="text-slate-800 text-[11px]">
+                            {item.profileName}
+                          </td>
+                          <td className="text-right font-medium text-slate-900 font-mono text-[11px]">
+                            {item.totalLengthFormatted}
+                          </td>
+                        </tr>
+                      ))}
                     </tbody>
                     {chunk.isLast && (
                       <tfoot>
-                        <tr className="border-t border-slate-700 font-bold text-slate-900 font-serif">
-                          <td colSpan={3} className="text-right uppercase tracking-wider text-[11px] font-serif pt-2 pb-2">
-                            TOTAL GERAL ({allBars.length} {allBars.length === 1 ? 'Barra' : 'Barras'} de 6,00 m = {(allBars.length * 6).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} m):
+                        {/* Linha 1: Soma da Metragem Efetiva de Corte */}
+                        <tr className="border-t border-slate-700 font-bold text-slate-900 text-[11px]">
+                          <td colSpan={2} className="text-center bg-slate-50 py-2 font-bold">
+                            {totalPiecesCount} PEÇAS
                           </td>
-                          <td className="text-right font-bold text-slate-900 font-serif pt-2 pb-2">
-                            {totalUsoGeral.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} m
+                          <td colSpan={3} className="text-right uppercase tracking-wider py-2">
+                            SOMA DA METRAGEM EFETIVA DE CORTE:
                           </td>
-                          <td className="text-right font-bold text-slate-900 font-serif pt-2 pb-2">
-                            {totalSobraGeral.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} m
+                          <td className="text-right font-bold py-2 font-mono">
+                            {totalPiecesMetragem.toLocaleString('pt-BR', {
+                              minimumFractionDigits: 2,
+                              maximumFractionDigits: 2,
+                            })}{' '}
+                            m
+                          </td>
+                        </tr>
+
+                        {/* Linha 2: Total de Fita VHB de 9 mm de largura (Rolos de 33 m) */}
+                        <tr className="border-t border-slate-300 font-medium text-slate-900 text-[11px] bg-slate-50/50">
+                          <td colSpan={2} className="text-center text-slate-700 font-bold py-1.5">
+                            FITA VHB
+                          </td>
+                          <td colSpan={3} className="text-right uppercase tracking-wider py-1.5 text-slate-800">
+                            TOTAL DE FITA VHB 9 mm (ROLOS DE 33 m × 9 mm):
+                          </td>
+                          <td className="text-right font-bold py-1.5 font-mono text-slate-900">
+                            {rolosFitaVhb} {rolosFitaVhb === 1 ? 'rolo' : 'rolos'}
+                            <span className="text-[10px] text-slate-600 font-normal ml-1 block">
+                              ({totalFitaVhbMetros.toLocaleString('pt-BR', {
+                                minimumFractionDigits: 2,
+                                maximumFractionDigits: 2,
+                              })}{' '}
+                              m)
+                            </span>
+                          </td>
+                        </tr>
+
+                        {/* Linha 3: Total de Primer (0,6 ml por metro de fita) */}
+                        <tr className="border-t border-slate-300 font-medium text-slate-900 text-[11px] bg-slate-50/50">
+                          <td colSpan={2} className="text-center text-slate-700 font-bold py-1.5">
+                            PRIMER
+                          </td>
+                          <td colSpan={3} className="text-right uppercase tracking-wider py-1.5 text-slate-800">
+                            TOTAL DE PRIMER ESTIMADO (0,6 ml / METRO DE FITA):
+                          </td>
+                          <td className="text-right font-bold py-1.5 font-mono text-slate-900">
+                            {totalPrimerMl.toLocaleString('pt-BR', {
+                              minimumFractionDigits: 1,
+                              maximumFractionDigits: 1,
+                            })}{' '}
+                            ml
+                            {totalPrimerMl >= 1000 && (
+                              <span className="text-[10px] text-slate-500 font-normal ml-1 block">
+                                ({(totalPrimerMl / 1000).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} L)
+                              </span>
+                            )}
                           </td>
                         </tr>
                       </tfoot>
