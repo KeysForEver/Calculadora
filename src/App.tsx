@@ -18,6 +18,7 @@ import {
 
 import { MetalonInput, CalculationResult, CalculatorPage } from './types';
 import { ReportViewer } from './components/ReportViewer';
+import { ProfileSelector } from './components/ProfileSelector';
 import { LedCalculatorPlaceholder } from './components/LedCalculatorPlaceholder';
 import { MdfCalculatorPlaceholder } from './components/MdfCalculatorPlaceholder';
 import { generatePDFFromElement } from './utils/pdfGenerator';
@@ -415,32 +416,30 @@ export default function App() {
 
               {/* Perfil Metalon Externo */}
               <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                  <Square className="w-4 h-4 text-[#707579]" />
-                  Perfil Metalon Externo (Borda)
-                </label>
-                <input
-                  type="text"
-                  placeholder="Ex: 50 x 30 mm"
+                <ProfileSelector
+                  id="perfil-externo-input"
+                  label="Perfil Metalon Externo (Borda)"
+                  sublabel="Quadro Perimetral"
+                  placeholder="Ex: 50 x 30 mm ou selecione"
                   value={perfilExterno}
-                  onChange={(e) => setPerfilExterno(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-slate-900 font-semibold focus:outline-none focus:ring-2 focus:ring-[#707579] focus:bg-white transition"
+                  onChange={(val) => setPerfilExterno(val)}
                   required
+                  context="borda"
+                  icon={<Square className="w-4 h-4 text-[#707579]" />}
                 />
               </div>
 
               {/* Perfil Metalon Interno */}
               <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                  <Square className="w-4 h-4 text-[#707579]" />
-                  Perfil Metalon Interno (Travessas)
-                </label>
-                <input
-                  type="text"
-                  placeholder="Ex: 30 x 30 mm"
+                <ProfileSelector
+                  id="perfil-interno-input"
+                  label="Perfil Metalon Interno (Travessas)"
+                  sublabel="Grade interna"
+                  placeholder="Ex: 30 x 30 mm ou selecione"
                   value={perfilInterno}
-                  onChange={(e) => setPerfilInterno(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-slate-900 font-semibold focus:outline-none focus:ring-2 focus:ring-[#707579] focus:bg-white transition"
+                  onChange={(val) => setPerfilInterno(val)}
+                  context="travessa"
+                  icon={<Square className="w-4 h-4 text-[#707579]" />}
                 />
               </div>
 
