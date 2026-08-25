@@ -124,8 +124,8 @@ export const ProductionCutTable: React.FC<ProductionCutTableProps> = ({
                       </span>
                     )}
                   </h3>
-                  <span className="text-[11px] font-medium text-slate-700 font-serif">
-                    {totalPiecesCount} Peças • {calcResult.totalBarrasOtimizado} Barras de 6,00 m
+                  <span className="text-[11px] font-semibold text-slate-800 bg-slate-100 px-2.5 py-0.5 rounded border border-slate-300 font-serif">
+                    {calcResult.totalBarrasOtimizado} Barras de 6,00 m ({totalPiecesCount} Peças de Corte)
                   </span>
                 </div>
 
@@ -179,13 +179,29 @@ export const ProductionCutTable: React.FC<ProductionCutTableProps> = ({
                     </tbody>
                     {chunk.isLast && (
                       <tfoot>
-                        {/* Linha 1: Soma da Metragem Efetiva de Corte */}
-                        <tr className="border-t border-slate-700 font-bold text-slate-900 text-[11px]">
-                          <td colSpan={2} className="text-center bg-slate-50 py-2 font-bold">
+                        {/* Linha 1: Total Geral de Barras Comerciais de 6,00 m */}
+                        <tr className="border-t-2 border-slate-700 font-bold text-slate-900 text-[11px] bg-slate-100/60">
+                          <td colSpan={2} className="text-center py-2 font-bold text-slate-900">
+                            {calcResult.totalBarrasOtimizado} BARRAS DE 6,00 m
+                          </td>
+                          <td colSpan={3} className="text-right uppercase tracking-wider py-2 text-slate-900 font-bold">
+                            TOTAL DE BARRAS COMERCIAIS DE 6,00 m (A COMPRAR):
+                          </td>
+                          <td className="text-right font-bold py-2 font-mono text-slate-900">
+                            {calcResult.totalBarrasOtimizado} barras
+                            <span className="text-[10px] text-slate-600 font-normal block font-sans">
+                              ({(calcResult.totalBarrasOtimizado * 6).toLocaleString('pt-BR')} m brutos • {calcResult.aproveitamentoPct}% aprov.)
+                            </span>
+                          </td>
+                        </tr>
+
+                        {/* Linha 2: Soma da Metragem Efetiva de Corte */}
+                        <tr className="border-t border-slate-300 font-bold text-slate-900 text-[11px]">
+                          <td colSpan={2} className="text-center bg-slate-50 py-2 font-bold text-slate-800">
                             {totalPiecesCount} PEÇAS
                           </td>
-                          <td colSpan={3} className="text-right uppercase tracking-wider py-2">
-                            SOMA DA METRAGEM EFETIVA DE CORTE:
+                          <td colSpan={3} className="text-right uppercase tracking-wider py-2 text-slate-700">
+                            SOMA DA METRAGEM EFETIVA DE CORTE (PEÇAS PRONTAS):
                           </td>
                           <td className="text-right font-bold py-2 font-mono">
                             {totalPiecesMetragem.toLocaleString('pt-BR', {

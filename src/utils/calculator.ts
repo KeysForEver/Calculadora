@@ -814,7 +814,7 @@ export function calculateMetalonStructure(params: {
   });
 
   rawDiagrams[winnerIndex].isWinner = true;
-  rawDiagrams[winnerIndex].winnerBadge = '★ MODELO VITORIOSO (RECOMENDADO PARA PRODUÇÃO)';
+  rawDiagrams[winnerIndex].winnerBadge = '★ Melhor custo/benefício (RECOMENDADO PARA PRODUÇÃO)';
   rawDiagrams[winnerIndex].winnerReason = `Quantidade mínima de nós de solda (${rawDiagrams[winnerIndex].weldsCount} soldas) com consumo eficiente de material (${rawDiagrams[winnerIndex].totalBars} barras de 6,00 m).`;
 
   const winnerDiagram = rawDiagrams[winnerIndex];
@@ -1078,7 +1078,7 @@ ${vertIntCount > 0 ? `* Colunas Internas (${profileInt.name}): **${vertIntCount}
 ### 3.1 Priorização Técnica: Mínimo de Solda e Eficiência Estrutural
 Na fabricação de painéis em serralheria industrial, a quantidade de nós de solda e o aproveitamento de barras representam os critérios determinantes. Para cada um dos 4 esquemas construtivos (Diagramas 1 a 4), calculou-se a demanda exata de barras comerciais de 6,00 m, metragem linear, aproveitamento e pontos de solda:
 - **Critério de Seleção:** Prioridade para o modelo que minimiza a quantidade de pontos de solda, mantendo um consumo de barras comercialmente eficiente e seguro.
-- **Modelo Vitorioso Eleito:** **${winnerDiagram.title}** (${winnerDiagram.shortTitle}), totalizando **${winnerDiagram.totalBars} barras de 6,00 m** e **${winnerDiagram.weldsCount} pontos de solda**.
+- **Melhor Custo/Benefício Eleito:** **${winnerDiagram.title}** (${winnerDiagram.shortTitle}), totalizando **${winnerDiagram.totalBars} barras de 6,00 m** e **${winnerDiagram.weldsCount} pontos de solda**.
 
 ### 3.2 Gabarito de Transporte (Caminhão 4,30 m × 2,00 m)
 - **Status de Transporte:** ${transportLogistics.statusText}
@@ -1089,5 +1089,5 @@ Na fabricação de painéis em serralheria industrial, a quantidade de nós de s
 ## 4. Comparativo dos 4 Diagramas
 | Diagrama / Modelo Construtivo | Topologia Estrutural | Barras (6,00m) | Metragem Linear | Pontos de Solda | Classificação |
 | :---------------------------- | :------------------: | :------------: | :-------------: | :-------------: | :-----------: |
-${diagrams.map(d => `| **${d.shortTitle}** | ${d.topologyName} | **${d.totalBars} barras** | ${d.totalMetragemLinear.toLocaleString('pt-BR')} m | **${d.weldsCount} soldas** | ${d.isWinner ? '**★ MODELO VITORIOSO**' : 'Alternativa'} |`).join('\n')}`;
+${diagrams.map(d => `| **${d.shortTitle}** | ${d.topologyName} | **${d.totalBars} barras** | ${d.totalMetragemLinear.toLocaleString('pt-BR')} m | **${d.weldsCount} soldas** | ${d.isWinner ? '**★ Melhor custo/benefício**' : 'Alternativa'} |`).join('\n')}`;
 }

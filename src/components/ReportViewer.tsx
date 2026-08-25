@@ -87,7 +87,7 @@ function splitMarkdownIntoPages(markdown: string, calcResult: ReturnType<typeof 
   // 4. Enforce Section 4 with only the 4-Diagram Summary Table
   const canonicalSection4Table = `| Diagrama / Modelo Construtivo | Topologia Estrutural | Barras (6,00m) | Metragem Linear | Pontos de Solda | Classificação |
 | :---------------------------- | :------------------: | :------------: | :-------------: | :-------------: | :-----------: |
-${calcResult.diagrams.map(d => `| **${d.shortTitle}** | ${d.topologyName} | **${d.totalBars} barras** | ${d.totalMetragemLinear.toLocaleString('pt-BR')} m | **${d.weldsCount} soldas** | ${d.isWinner ? '**★ MODELO VITORIOSO**' : 'Alternativa'} |`).join('\n')}`;
+${calcResult.diagrams.map(d => `| **${d.shortTitle}** | ${d.topologyName} | **${d.totalBars} barras** | ${d.totalMetragemLinear.toLocaleString('pt-BR')} m | **${d.weldsCount} soldas** | ${d.isWinner ? '**★ Melhor custo/benefício**' : 'Alternativa'} |`).join('\n')}`;
 
   if (textWithout567.search(/(?:^|\n)##\s*4[\.\s]/i) >= 0) {
     textWithout567 = textWithout567.replace(
@@ -256,7 +256,7 @@ export const ReportViewer: React.FC<ReportViewerProps> = ({
                         : Array.isArray(children) 
                           ? children.map(c => (typeof c === 'string' ? c : '')).join('') 
                           : '';
-                      const isWinnerRow = textContent.includes('★') || textContent.includes('VITORIOSO');
+                      const isWinnerRow = textContent.includes('★') || textContent.includes('VITORIOSO') || textContent.toLowerCase().includes('custo/benefício') || textContent.toLowerCase().includes('melhor custo');
                       return (
                         <td
                           className={`py-2 px-3 border-b border-r border-slate-200 last:border-r-0 text-center ${

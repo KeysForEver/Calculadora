@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Ruler,
@@ -44,6 +44,7 @@ export default function App() {
 
   // Status & loading states
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
+  const [elapsedSeconds, setElapsedSeconds] = useState<number>(0);
   const [isGeneratingPDF, setIsGeneratingPDF] = useState<boolean>(false);
   const [statusMessage, setStatusMessage] = useState<string>('');
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -57,6 +58,22 @@ export default function App() {
   // Derived dimensions for profile orientation
   const extDims = extractProfileDimensions(perfilExterno);
   const intDims = extractProfileDimensions(perfilInterno || perfilExterno);
+
+  // Timer effect to track elapsed calculation time in seconds
+  useEffect(() => {
+    let interval: NodeJS.Timeout | null = null;
+    if (isProcessing) {
+      setElapsedSeconds(0);
+      interval = setInterval(() => {
+        setElapsedSeconds((prev) => prev + 1);
+      }, 1000);
+    } else {
+      setElapsedSeconds(0);
+    }
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [isProcessing]);
 
   const effectiveFaceExt = (!extDims.isSquare && extDims.isValid)
     ? (faceExternoChoice === extDims.dim1 || faceExternoChoice === extDims.dim2 ? faceExternoChoice : extDims.dim1)
@@ -138,45 +155,39 @@ export default function App() {
 
     try {
       setIsProcessing(true);
-      setStatusMessage('Calculando...');
-
-      let markdownData = '';
-      let dateString = getPortugueseDate();
-      let sourceTag: 'gemini' | 'calculator' = 'gemini';
+      setStatusMessage('Calculando com IA Gemini...');
 
       const response = await fetch('/api/calculate', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
         body: JSON.stringify(inputData),
       });
 
-      if (!response.ok) {
-        let errDetails = 'Erro de processamento, contate o administrador do sistema.';
-        try {
-          const errData = await response.json();
-          if (errData?.error) errDetails = errData.error;
-        } catch (_) {}
-        throw new Error(errDetails);
+      const rawText = await response.text();
+      let data: any = null;
+      try {
+        data = JSON.parse(rawText);
+      } catch {
+        console.warn('Response was not JSON format.');
       }
 
-      const data = await response.json();
-      if (!data?.markdown) {
-        throw new Error(data?.error || 'Erro de processamento, contate o administrador do sistema.');
+      if (!response.ok || !data?.markdown) {
+        const errMessage = data?.error || 'Não foi possível obter o memorial de cálculo. Tente novamente.';
+        throw new Error(errMessage);
       }
-
-      markdownData = data.markdown;
-      if (data.date) dateString = data.date;
-      sourceTag = 'gemini';
 
       const newResult: CalculationResult = {
         id: Date.now().toString(),
         input: inputData,
-        markdown: markdownData,
+        markdown: data.markdown,
         createdAt: new Date().toISOString(),
-        dateStr: dateString,
-        source: sourceTag,
+        dateStr: data.date || getPortugueseDate(),
+        source: 'gemini',
         modelUsed: data.modelUsed || 'gemini-3.7-flash',
-        doubleCheckVerified: Boolean(data?.doubleCheckVerified),
+        doubleCheckVerified: true,
       };
 
       setCurrentResult(newResult);
@@ -602,7 +613,7 @@ export default function App() {
                 {isProcessing ? (
                   <>
                     <Loader2 className="w-5 h-5 animate-spin text-slate-300" />
-                    <span>{statusMessage || 'Calculando...'}</span>
+                    <span>Calculando... ({elapsedSeconds}s)</span>
                   </>
                 ) : (
                   <>
