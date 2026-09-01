@@ -71,9 +71,12 @@ export const ProductionCutTable: React.FC<ProductionCutTableProps> = ({
   }, [uniquePieces]);
 
   // Consumo de Fita VHB (9 mm de largura com rolos de 33 m) e Primer (0,6 ml por metro de fita)
-  const totalFitaVhbMetros = totalPiecesMetragem;
-  const rolosFitaVhb = Math.ceil(totalFitaVhbMetros / 33);
-  const totalPrimerMl = totalFitaVhbMetros * 0.6;
+  const totalFitaVhbMetros = calcResult.totalFitaVhbMetros ?? totalPiecesMetragem;
+  const rolosFitaVhb = calcResult.rolosFitaVhb ?? Math.ceil(totalFitaVhbMetros / 33);
+  const totalPrimerMl = calcResult.totalPrimerMl ?? totalFitaVhbMetros * 0.6;
+  const valorPrevistoFitaVhb = calcResult.valorPrevistoFitaVhb ?? (totalFitaVhbMetros * (91.0 / 33.0));
+  const valorPrevistoPrimer = calcResult.valorPrevistoPrimer ?? (totalPrimerMl * (166.2 / 940.0));
+  const valorPrevistoTotalInsumos = calcResult.valorPrevistoTotalInsumos ?? (valorPrevistoFitaVhb + valorPrevistoPrimer);
 
   const rowsPerPage = 18;
   const chunks: TablePageChunk[] = React.useMemo(() => {
@@ -212,45 +215,72 @@ export const ProductionCutTable: React.FC<ProductionCutTableProps> = ({
                           </td>
                         </tr>
 
-                        {/* Linha 2: Total de Fita VHB de 9 mm de largura (Rolos de 33 m) */}
+                        {/* Linha 3: Total de Fita VHB de 9 mm de largura com Valor Previsto Proporcional */}
                         <tr className="border-t border-slate-300 font-medium text-slate-900 text-[11px] bg-slate-50/50">
                           <td colSpan={2} className="text-center text-slate-700 font-bold py-1.5">
                             FITA VHB
                           </td>
                           <td colSpan={3} className="text-right uppercase tracking-wider py-1.5 text-slate-800">
-                            TOTAL DE FITA VHB 9 mm (ROLOS DE 33 m × 9 mm):
+                            CONSUMO DE FITA VHB 9 mm (VALOR PREVISTO PROPORCIONAL AO USO):
                           </td>
                           <td className="text-right font-bold py-1.5 font-mono text-slate-900">
-                            {rolosFitaVhb} {rolosFitaVhb === 1 ? 'rolo' : 'rolos'}
-                            <span className="text-[10px] text-slate-600 font-normal ml-1 block">
+                            R$ {valorPrevistoFitaVhb.toLocaleString('pt-BR', {
+                              minimumFractionDigits: 2,
+                              maximumFractionDigits: 2,
+                            })}
+                            <span className="text-[10px] text-slate-600 font-normal ml-1 block font-sans">
                               ({totalFitaVhbMetros.toLocaleString('pt-BR', {
                                 minimumFractionDigits: 2,
                                 maximumFractionDigits: 2,
                               })}{' '}
-                              m)
+                              m de fita • {rolosFitaVhb} {rolosFitaVhb === 1 ? 'rolo' : 'rolos'})
                             </span>
                           </td>
                         </tr>
 
-                        {/* Linha 3: Total de Primer (0,6 ml por metro de fita) */}
+                        {/* Linha 4: Total de Primer com Valor Previsto Proporcional */}
                         <tr className="border-t border-slate-300 font-medium text-slate-900 text-[11px] bg-slate-50/50">
                           <td colSpan={2} className="text-center text-slate-700 font-bold py-1.5">
                             PRIMER
                           </td>
                           <td colSpan={3} className="text-right uppercase tracking-wider py-1.5 text-slate-800">
-                            TOTAL DE PRIMER ESTIMADO (0,6 ml / METRO DE FITA):
+                            CONSUMO DE PRIMER ESTIMADO (0,6 ml/m • VALOR PREVISTO PROPORCIONAL AO USO):
                           </td>
                           <td className="text-right font-bold py-1.5 font-mono text-slate-900">
-                            {totalPrimerMl.toLocaleString('pt-BR', {
-                              minimumFractionDigits: 1,
-                              maximumFractionDigits: 1,
-                            })}{' '}
-                            ml
-                            {totalPrimerMl >= 1000 && (
-                              <span className="text-[10px] text-slate-500 font-normal ml-1 block">
-                                ({(totalPrimerMl / 1000).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} L)
-                              </span>
-                            )}
+                            R$ {valorPrevistoPrimer.toLocaleString('pt-BR', {
+                              minimumFractionDigits: 2,
+                              maximumFractionDigits: 2,
+                            })}
+                            <span className="text-[10px] text-slate-600 font-normal ml-1 block font-sans">
+                              ({totalPrimerMl.toLocaleString('pt-BR', {
+                                minimumFractionDigits: 1,
+                                maximumFractionDigits: 1,
+                              })}{' '}
+                              ml
+                              {totalPrimerMl >= 1000 && (
+                                <> • {(totalPrimerMl / 1000).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} L</>
+                              )}
+                              )
+                            </span>
+                          </td>
+                        </tr>
+
+                        {/* Linha 5: Total Geral de Insumos de Fixação */}
+                        <tr className="border-t border-slate-300 font-bold text-slate-900 text-[11px] bg-slate-100/70">
+                          <td colSpan={2} className="text-center text-slate-800 font-bold py-1.5">
+                            TOTAL INSUMOS
+                          </td>
+                          <td colSpan={3} className="text-right uppercase tracking-wider py-1.5 text-slate-900 font-bold">
+                            SOMA PREVISTA DOS INSUMOS DE FIXAÇÃO (FITA VHB + PRIMER):
+                          </td>
+                          <td className="text-right font-bold py-1.5 font-mono text-slate-950">
+                            R$ {valorPrevistoTotalInsumos.toLocaleString('pt-BR', {
+                              minimumFractionDigits: 2,
+                              maximumFractionDigits: 2,
+                            })}
+                            <span className="text-[10px] text-slate-600 font-normal block font-sans">
+                              (calculado sobre a proporção real de consumo)
+                            </span>
                           </td>
                         </tr>
                       </tfoot>

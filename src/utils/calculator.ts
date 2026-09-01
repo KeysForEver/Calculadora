@@ -1,3 +1,5 @@
+import { optimizeBarCuttingStock, BinPackingResult } from './binPacking';
+
 export interface ProfileInfo {
   name: string;
   widthM: number;        // width in meters (e.g. 0.05m)
@@ -514,6 +516,13 @@ export interface CalculationResult {
   transportLogistics: TransportLogisticsInfo;
   diagrams: DiagramSpecification[];
   winnerDiagram: DiagramSpecification;
+  totalFitaVhbMetros: number;
+  rolosFitaVhb: number;
+  valorPrevistoFitaVhb: number;
+  totalPrimerMl: number;
+  valorPrevistoPrimer: number;
+  valorPrevistoTotalInsumos: number;
+  binPackingResult: BinPackingResult;
 }
 
 export function calculateMetalonStructure(params: {
@@ -833,6 +842,33 @@ export function calculateMetalonStructure(params: {
   const transportLogistics = calculateTransportLogistics(largura, altura);
   const uniquePiecesSummary = calculateUniquePiecesSummary(allocatedBarsDetailed, profileExt.name);
 
+  // Consumo e Valores Previstos de Insumos de Fixação
+  // Fita VHB 9 mm × 33 m (Preço ref. R$ 91,00 por rolo de 33 m => R$ 2,7575... / m)
+  // Primer 940 ml (Preço ref. R$ 166,20 por frasco de 940 ml => R$ 0,1768... / ml; taxa 0,6 ml / m)
+  const totalMetragemEfetivaCorte = uniquePiecesSummary.reduce((sum, item) => sum + item.totalLength, 0);
+  const totalFitaVhbMetros = totalMetragemEfetivaCorte > 0 ? totalMetragemEfetivaCorte : totalMetragemLinear;
+  const rolosFitaVhb = Math.ceil(totalFitaVhbMetros / 33.0);
+  const valorPrevistoFitaVhb = totalFitaVhbMetros * (91.0 / 33.0);
+
+  const totalPrimerMl = totalFitaVhbMetros * 0.6;
+  const valorPrevistoPrimer = totalPrimerMl * (166.2 / 940.0);
+  const valorPrevistoTotalInsumos = valorPrevistoFitaVhb + valorPrevistoPrimer;
+
+  // Otimização Gráfica de Corte (Bin Packing 1D nas Barras de 6,00 m)
+  const binPackingPieces = winnerDiagram.pieces.map((p, idx) => ({
+    id: `p-win-${idx + 1}`,
+    length: p.length,
+    description: p.description,
+    type: p.type,
+    profileName: profileExt.name,
+    quantity: 1,
+  }));
+  const binPackingResult = optimizeBarCuttingStock(binPackingPieces, {
+    barLengthM: 6.0,
+    kerfMm: 0,
+    profileName: profileExt.name,
+  });
+
   return {
     largura,
     altura,
@@ -876,6 +912,13 @@ export function calculateMetalonStructure(params: {
     transportLogistics,
     diagrams,
     winnerDiagram,
+    totalFitaVhbMetros,
+    rolosFitaVhb,
+    valorPrevistoFitaVhb,
+    totalPrimerMl,
+    valorPrevistoPrimer,
+    valorPrevistoTotalInsumos,
+    binPackingResult,
   };
 }
 
