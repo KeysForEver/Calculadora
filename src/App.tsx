@@ -20,7 +20,7 @@ import { MetalonInput, CalculationResult, CalculatorPage } from './types';
 import { ReportViewer } from './components/ReportViewer';
 import { ProfileSelector } from './components/ProfileSelector';
 import { LedCalculatorPlaceholder } from './components/LedCalculatorPlaceholder';
-import { MdfCalculatorPlaceholder } from './components/MdfCalculatorPlaceholder';
+import { MdfCalculator } from './components/MdfCalculator';
 import { generatePDFFromElement } from './utils/pdfGenerator';
 import { Analytics } from '@vercel/analytics/react';
 import { SpeedInsights } from '@vercel/speed-insights/react';
@@ -289,7 +289,7 @@ export default function App() {
                     : 'text-slate-300 hover:text-white hover:bg-slate-700/50'
                 }`}
               >
-                Painel &amp; Front Light
+                PAINEL &amp; FRONT LIGHT
               </button>
 
               <button
@@ -312,18 +312,13 @@ export default function App() {
               <button
                 type="button"
                 onClick={() => setActivePage('mdf')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition whitespace-nowrap cursor-pointer ${
+                className={`px-3.5 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition whitespace-nowrap cursor-pointer ${
                   activePage === 'mdf'
                     ? 'bg-white text-slate-900 shadow-sm font-bold'
                     : 'text-slate-300 hover:text-white hover:bg-slate-700/50'
                 }`}
               >
-                <span>MDF</span>
-                <span className={`text-[9px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded ${
-                  activePage === 'mdf' ? 'bg-emerald-100 text-emerald-800' : 'bg-emerald-500/20 text-emerald-300'
-                }`}>
-                  Em breve
-                </span>
+                MDF
               </button>
             </nav>
           </div>
@@ -334,15 +329,15 @@ export default function App() {
       </header>
 
       {/* Main Content Area */}
-      <main className={`max-w-6xl w-full mx-auto px-4 py-8 flex-1 flex flex-col ${(!currentResult || activePage !== 'painel') ? 'justify-center' : ''}`}>
+      <main className={`max-w-6xl w-full mx-auto px-4 py-8 flex-1 flex flex-col ${(activePage === 'painel' && !currentResult) || activePage === 'led' ? 'justify-center' : ''}`}>
         {/* Render LED Page Placeholder */}
         {activePage === 'led' && (
           <LedCalculatorPlaceholder onBackToPainel={() => setActivePage('painel')} />
         )}
 
-        {/* Render MDF Page Placeholder */}
+        {/* Render MDF Calculator */}
         {activePage === 'mdf' && (
-          <MdfCalculatorPlaceholder onBackToPainel={() => setActivePage('painel')} />
+          <MdfCalculator onBackToPainel={() => setActivePage('painel')} />
         )}
 
         {/* Render Painel & Front Light Calculator */}

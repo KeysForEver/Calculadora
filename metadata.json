@@ -1,6 +1,6 @@
 {
   "name": "SkyCalc",
-  "description": "Cálculo de quantidade de barras de metalon para estruturas metálicas com geração automática de relatório em PDF via IA.",
+  "description": "Cálculo de estruturas metálicas em metalon e chapas de MDF com paginação de fachadas e plano de corte otimizado.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }
