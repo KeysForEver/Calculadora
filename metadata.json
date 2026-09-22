@@ -1,6 +1,6 @@
 {
   "name": "SkyCalc",
-  "description": "Cálculo de estruturas metálicas em metalon e chapas de MDF com paginação de fachadas e plano de corte otimizado.",
+  "description": "Cálculo de estruturas metálicas em metalon, plano de corte de MDF e orçamentos de comunicação visual e fachadas em ACM.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

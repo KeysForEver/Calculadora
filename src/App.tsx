@@ -21,6 +21,7 @@ import { ReportViewer } from './components/ReportViewer';
 import { ProfileSelector } from './components/ProfileSelector';
 import { LedCalculatorPlaceholder } from './components/LedCalculatorPlaceholder';
 import { MdfCalculator } from './components/MdfCalculator';
+import { BudgetCalculator } from './components/BudgetCalculator';
 import { generatePDFFromElement } from './utils/pdfGenerator';
 import { Analytics } from '@vercel/analytics/react';
 import { SpeedInsights } from '@vercel/speed-insights/react';
@@ -294,19 +295,14 @@ export default function App() {
 
               <button
                 type="button"
-                onClick={() => setActivePage('led')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition whitespace-nowrap cursor-pointer ${
-                  activePage === 'led'
+                onClick={() => setActivePage('orcamento')}
+                className={`px-3.5 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition whitespace-nowrap cursor-pointer ${
+                  activePage === 'orcamento'
                     ? 'bg-white text-slate-900 shadow-sm font-bold'
                     : 'text-slate-300 hover:text-white hover:bg-slate-700/50'
                 }`}
               >
-                <span>LED</span>
-                <span className={`text-[9px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded ${
-                  activePage === 'led' ? 'bg-amber-100 text-amber-800' : 'bg-amber-500/20 text-amber-300'
-                }`}>
-                  Em breve
-                </span>
+                ORÇAMENTO
               </button>
 
               <button
@@ -330,7 +326,12 @@ export default function App() {
 
       {/* Main Content Area */}
       <main className={`max-w-6xl w-full mx-auto px-4 py-8 flex-1 flex flex-col ${(activePage === 'painel' && !currentResult) || activePage === 'led' ? 'justify-center' : ''}`}>
-        {/* Render LED Page Placeholder */}
+        {/* Render Orçamento Calculator */}
+        {activePage === 'orcamento' && (
+          <BudgetCalculator onBackToPainel={() => setActivePage('painel')} />
+        )}
+
+        {/* Render LED Page Placeholder (fallback) */}
         {activePage === 'led' && (
           <LedCalculatorPlaceholder onBackToPainel={() => setActivePage('painel')} />
         )}

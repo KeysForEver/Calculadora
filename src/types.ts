@@ -1,4 +1,4 @@
-export type CalculatorPage = 'painel' | 'led' | 'mdf';
+export type CalculatorPage = 'painel' | 'orcamento' | 'mdf' | 'led';
 
 export interface MetalonInput {
   altura: number; // em metros
