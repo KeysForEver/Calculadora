@@ -5,6 +5,8 @@ export interface BudgetCatalogSubItem {
   code: string;
   nome: string;
   defaultUnit: BudgetUnit;
+  hasSpecificUnit?: boolean;
+  rawUnitText?: string;
   suggestedPrice?: number;
   descricaoSugestao?: string;
 }
@@ -14,6 +16,10 @@ export interface BudgetCatalogGroup {
   code: string;
   nome: string;
   descricao?: string;
+  defaultUnit?: BudgetUnit;
+  hasSpecificUnit?: boolean;
+  rawUnitText?: string;
+  suggestedPrice?: number;
   subItems: BudgetCatalogSubItem[];
 }
 

@@ -10,6 +10,7 @@ import {
   Layers,
   Sliders,
   X,
+  Search,
 } from 'lucide-react';
 import { BUDGET_CATALOG_GROUPS } from '../data/budgetCatalog';
 import { BudgetItem, BudgetUnit } from '../types/budget';
@@ -20,17 +21,40 @@ interface BudgetCalculatorProps {
 }
 
 export function BudgetCalculator({ onBackToPainel }: BudgetCalculatorProps) {
+  // Lista de grupos do catálogo (carregados a partir do CSV em src/data/tabela_precos.csv)
+  const catalogGroups = BUDGET_CATALOG_GROUPS;
+
+  // Busca e filtro
+  const [searchFilter, setSearchFilter] = useState<string>('');
+
   // Estado de seleção do catálogo
-  const [selectedGroupId, setSelectedGroupId] = useState<string>('grp-1');
-  const [selectedSubItemId, setSelectedSubItemId] = useState<string>('1.1');
+  const [selectedGroupId, setSelectedGroupId] = useState<string>(
+    BUDGET_CATALOG_GROUPS[0]?.id || 'grp-1'
+  );
+  const [selectedSubItemId, setSelectedSubItemId] = useState<string>(
+    BUDGET_CATALOG_GROUPS[0]?.subItems[0]?.id || ''
+  );
+
+  // Grupo e subitem selecionados
+  const currentGroup =
+    catalogGroups.find((g) => g.id === selectedGroupId) || catalogGroups[0];
+  const currentSubItem =
+    currentGroup?.subItems.find((s) => s.id === selectedSubItemId) ||
+    currentGroup?.subItems[0];
 
   // Estado dos inputs do item atual
-  const [unitMode, setUnitMode] = useState<BudgetUnit>('m2');
+  const [unitMode, setUnitMode] = useState<BudgetUnit>(
+    currentSubItem?.defaultUnit || 'm2'
+  );
   const [larguraM, setLarguraM] = useState<string>('');
   const [alturaM, setAlturaM] = useState<string>('');
   const [comprimentoM, setComprimentoM] = useState<string>('');
   const [quantidade, setQuantidade] = useState<string>('1');
-  const [precoUnitario, setPrecoUnitario] = useState<string>('380');
+  const [precoUnitario, setPrecoUnitario] = useState<string>(
+    currentSubItem?.suggestedPrice && currentSubItem.suggestedPrice > 0
+      ? String(currentSubItem.suggestedPrice)
+      : ''
+  );
   const [itemObs, setItemObs] = useState<string>('');
 
   // Lista de itens do orçamento
@@ -54,38 +78,42 @@ export function BudgetCalculator({ onBackToPainel }: BudgetCalculatorProps) {
     setTimeout(() => setToastMessage(null), 3500);
   };
 
-  // Grupo e subitem selecionados
-  const currentGroup = BUDGET_CATALOG_GROUPS.find((g) => g.id === selectedGroupId) || BUDGET_CATALOG_GROUPS[0];
-  const currentSubItem = currentGroup.subItems.find((s) => s.id === selectedSubItemId) || currentGroup.subItems[0];
-
   // Quando o usuário troca de grupo
   const handleSelectGroup = (groupId: string) => {
     setSelectedGroupId(groupId);
-    const grp = BUDGET_CATALOG_GROUPS.find((g) => g.id === groupId);
+    const grp = catalogGroups.find((g) => g.id === groupId);
     if (grp && grp.subItems.length > 0) {
       const firstSub = grp.subItems[0];
       setSelectedSubItemId(firstSub.id);
-      setUnitMode(firstSub.defaultUnit);
-      setPrecoUnitario(String(firstSub.suggestedPrice || 0));
+      setUnitMode(firstSub.defaultUnit || 'm2');
+      setPrecoUnitario(
+        firstSub.suggestedPrice && firstSub.suggestedPrice > 0
+          ? String(firstSub.suggestedPrice)
+          : ''
+      );
     }
   };
 
   // Quando o usuário troca de subitem
   const handleSelectSubItem = (subId: string) => {
     setSelectedSubItemId(subId);
-    const sub = currentGroup.subItems.find((s) => s.id === subId);
+    const sub = currentGroup?.subItems.find((s) => s.id === subId);
     if (sub) {
-      setUnitMode(sub.defaultUnit);
-      setPrecoUnitario(String(sub.suggestedPrice || 0));
+      setUnitMode(sub.defaultUnit || 'm2');
+      setPrecoUnitario(
+        sub.suggestedPrice && sub.suggestedPrice > 0
+          ? String(sub.suggestedPrice)
+          : ''
+      );
     }
   };
 
   // Cálculo da medida do item em edição
-  const parsedLargura = parseFloat(larguraM) || 0;
-  const parsedAltura = parseFloat(alturaM) || 0;
-  const parsedComprimento = parseFloat(comprimentoM) || 0;
+  const parsedLargura = parseFloat(larguraM.replace(',', '.')) || 0;
+  const parsedAltura = parseFloat(alturaM.replace(',', '.')) || 0;
+  const parsedComprimento = parseFloat(comprimentoM.replace(',', '.')) || 0;
   const parsedQtd = Math.max(1, parseInt(quantidade, 10) || 1);
-  const parsedPrecoUnit = parseFloat(precoUnitario) || 0;
+  const parsedPrecoUnit = parseFloat(precoUnitario.replace(',', '.')) || 0;
 
   const currentAreaM2 = parsedLargura * parsedAltura;
 
@@ -107,6 +135,11 @@ export function BudgetCalculator({ onBackToPainel }: BudgetCalculatorProps) {
   // Adicionar item ao orçamento
   const handleAddItem = (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!currentGroup || !currentSubItem) {
+      showToast('Selecione um grupo e uma opção antes de adicionar.');
+      return;
+    }
 
     let computedTotal = 0;
     if (unitMode === 'm2') {
@@ -139,7 +172,7 @@ export function BudgetCalculator({ onBackToPainel }: BudgetCalculatorProps) {
 
     setItems((prev) => [...prev, newItem]);
     setItemObs('');
-    showToast(`"${currentSubItem.nome}" adicionado com sucesso!`);
+    showToast(`"${currentSubItem.nome}" adicionado ao orçamento!`);
   };
 
   // Remover item
@@ -160,38 +193,14 @@ export function BudgetCalculator({ onBackToPainel }: BudgetCalculatorProps) {
     }
   };
 
-  // Atualizar campo inline de item
-  const handleUpdateItem = (id: string, field: keyof BudgetItem, val: any) => {
-    setItems((prev) =>
-      prev.map((item) => {
-        if (item.id !== id) return item;
-        const updated = { ...item, [field]: val };
-
-        // Recalcula total se mudar qtd ou preço
-        if (field === 'quantidade' || field === 'precoUnitario') {
-          const q = field === 'quantidade' ? Math.max(1, Number(val) || 1) : item.quantidade;
-          const p = field === 'precoUnitario' ? Number(val) || 0 : item.precoUnitario;
-          if (item.unit === 'm2' && item.areaM2) {
-            updated.total = item.areaM2 * q * p;
-          } else if (item.unit === 'linear' && item.comprimentoM) {
-            updated.total = item.comprimentoM * q * p;
-          } else {
-            updated.total = q * p;
-          }
-        }
-        return updated;
-      })
-    );
-  };
-
   // Totais do orçamento
   const subtotal = items.reduce((acc, it) => acc + it.total, 0);
 
-  const parsedDesconto = parseFloat(descontoValor) || 0;
+  const parsedDesconto = parseFloat(descontoValor.replace(',', '.')) || 0;
   const valorDesconto =
     descontoTipo === 'percent' ? (subtotal * parsedDesconto) / 100 : parsedDesconto;
 
-  const valorInstalacao = parseFloat(taxaInstalacao) || 0;
+  const valorInstalacao = parseFloat(taxaInstalacao.replace(',', '.')) || 0;
   const valorTotalFinal = Math.max(0, subtotal - valorDesconto + valorInstalacao);
 
   // Formatação em Real brasileiro
@@ -222,6 +231,30 @@ export function BudgetCalculator({ onBackToPainel }: BudgetCalculatorProps) {
     window.print();
   };
 
+  // Filtragem de catálogo (por texto de busca)
+  const normalizedSearch = searchFilter.trim().toLowerCase();
+  const filteredGroups = catalogGroups.filter((grp) => {
+    if (!normalizedSearch) return true;
+    const matchGroupName = grp.nome.toLowerCase().includes(normalizedSearch);
+    const matchGroupCode = grp.code.toLowerCase().includes(normalizedSearch);
+    const hasSubItemMatch = grp.subItems.some(
+      (s) =>
+        s.nome.toLowerCase().includes(normalizedSearch) ||
+        s.code.toLowerCase().includes(normalizedSearch)
+    );
+    return matchGroupName || matchGroupCode || hasSubItemMatch;
+  });
+
+  // Itens do grupo atual que batem com o filtro (se houver)
+  const currentGroupSubItems = (currentGroup?.subItems || []).filter((sub) => {
+    if (!normalizedSearch) return true;
+    return (
+      sub.nome.toLowerCase().includes(normalizedSearch) ||
+      sub.code.toLowerCase().includes(normalizedSearch) ||
+      currentGroup.nome.toLowerCase().includes(normalizedSearch)
+    );
+  });
+
   return (
     <div className="space-y-6 w-full max-w-6xl mx-auto">
       {/* Toast de Feedback */}
@@ -237,266 +270,372 @@ export function BudgetCalculator({ onBackToPainel }: BudgetCalculatorProps) {
         {/* Painel de Adicionar Item (Colunas 1 a 7) */}
         <div className="lg:col-span-7 space-y-6">
           <div className="bg-white rounded-2xl p-6 shadow-xl border border-slate-200/80">
-            <h2 className="text-sm font-bold uppercase tracking-wider text-slate-700 flex items-center gap-2 border-b border-slate-100 pb-3 mb-4">
-              <Layers className="w-4 h-4 text-emerald-600" />
-              <span>1. Escolha o Grupo Primário</span>
-            </h2>
+            {/* Barra Superior do Catálogo: Busca e Botão CSV */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3 mb-4">
+              <h2 className="text-sm font-bold uppercase tracking-wider text-slate-700 flex items-center gap-2">
+                <Layers className="w-4 h-4 text-emerald-600" />
+                <span>1. Escolha o Grupo Primário</span>
+              </h2>
 
-            {/* Grupos Primários */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-6">
-              {BUDGET_CATALOG_GROUPS.map((grp) => {
-                const isSelected = selectedGroupId === grp.id;
-                return (
-                  <button
-                    key={grp.id}
-                    type="button"
-                    onClick={() => handleSelectGroup(grp.id)}
-                    className={`text-left p-3 rounded-xl border transition-all cursor-pointer ${
-                      isSelected
-                        ? 'bg-slate-900 text-white border-slate-900 shadow-md ring-2 ring-emerald-500/40'
-                        : 'bg-slate-50 text-slate-800 border-slate-200 hover:border-slate-300 hover:bg-slate-100/80'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="font-mono text-xs font-bold opacity-75">{grp.code}</span>
-                      {isSelected && <span className="w-2 h-2 rounded-full bg-emerald-400"></span>}
-                    </div>
-                    <span className="block text-xs font-bold mt-1 line-clamp-1">{grp.nome}</span>
-                  </button>
-                );
-              })}
+              <div className="flex items-center gap-2">
+                <div className="relative">
+                  <Search className="w-3.5 h-3.5 absolute left-2.5 top-2.5 text-slate-400" />
+                  <input
+                    type="text"
+                    placeholder="Filtrar grupos ou itens..."
+                    value={searchFilter}
+                    onChange={(e) => setSearchFilter(e.target.value)}
+                    className="pl-8 pr-3 py-1 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-emerald-500 w-44 sm:w-56"
+                  />
+                  {searchFilter && (
+                    <button
+                      type="button"
+                      onClick={() => setSearchFilter('')}
+                      className="absolute right-2 top-2 text-slate-400 hover:text-slate-600"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Grupos Primários Carregados do CSV */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-56 overflow-y-auto pr-1 mb-6">
+              {filteredGroups.length === 0 ? (
+                <div className="col-span-2 text-center py-6 text-slate-400 text-xs">
+                  Nenhum grupo encontrado para "{searchFilter}".
+                </div>
+              ) : (
+                filteredGroups.map((grp) => {
+                  const isSelected = selectedGroupId === grp.id;
+                  return (
+                    <button
+                      key={grp.id}
+                      type="button"
+                      onClick={() => handleSelectGroup(grp.id)}
+                      className={`text-left p-3 rounded-xl border transition-all cursor-pointer ${
+                        isSelected
+                          ? 'bg-slate-900 text-white border-slate-900 shadow-md ring-2 ring-emerald-500/40'
+                          : 'bg-slate-50 text-slate-800 border-slate-200 hover:border-slate-300 hover:bg-slate-100/80'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="font-mono text-xs font-bold opacity-75">{grp.code}</span>
+                        <div className="flex items-center gap-1.5">
+                          <span className={`text-[10px] px-1.5 py-0.2 rounded font-medium ${
+                            isSelected ? 'bg-slate-800 text-emerald-300' : 'bg-slate-200/80 text-slate-600'
+                          }`}>
+                            {grp.subItems.length} {grp.subItems.length === 1 ? 'opção' : 'opções'}
+                          </span>
+                          {isSelected && <span className="w-2 h-2 rounded-full bg-emerald-400"></span>}
+                        </div>
+                      </div>
+                      <span className="block text-xs font-bold mt-1 line-clamp-1">{grp.nome}</span>
+                    </button>
+                  );
+                })
+              )}
             </div>
 
             {/* Subitens Dinâmicos do Grupo Selecionado */}
-            <h2 className="text-sm font-bold uppercase tracking-wider text-slate-700 flex items-center gap-2 border-b border-slate-100 pb-3 mb-4">
-              <Sliders className="w-4 h-4 text-emerald-600" />
-              <span>2. Selecione a Opção ({currentGroup.subItems.length} opções disponíveis)</span>
-            </h2>
-
-            <div className="space-y-2 max-h-60 overflow-y-auto pr-1 mb-6">
-              {currentGroup.subItems.map((sub) => {
-                const isSelected = selectedSubItemId === sub.id;
-                return (
-                  <div
-                    key={sub.id}
-                    onClick={() => handleSelectSubItem(sub.id)}
-                    className={`p-3 rounded-xl border text-xs cursor-pointer transition flex items-start justify-between gap-3 ${
-                      isSelected
-                        ? 'bg-emerald-50/80 border-emerald-500 text-emerald-950 font-semibold shadow-xs'
-                        : 'bg-white border-slate-200 hover:border-slate-300 hover:bg-slate-50 text-slate-700'
-                    }`}
-                  >
-                    <div className="space-y-0.5">
-                      <div className="flex items-center gap-2">
-                        <span className="font-mono font-bold text-[11px] text-slate-500">{sub.code}</span>
-                        <span className="font-bold text-slate-900">{sub.nome}</span>
-                      </div>
-                      {sub.descricaoSugestao && (
-                        <p className="text-[11px] text-slate-500 line-clamp-1">{sub.descricaoSugestao}</p>
-                      )}
-                    </div>
-
-                    <div className="text-right shrink-0">
-                      <span className="text-[10px] uppercase font-bold text-slate-400 block">
-                        Base ({sub.defaultUnit === 'm2' ? 'm²' : sub.defaultUnit === 'linear' ? 'm' : 'un'})
-                      </span>
-                      <span className="font-mono font-bold text-slate-700">
-                        {sub.suggestedPrice ? formatBRL(sub.suggestedPrice) : 'Sob Consulta'}
-                      </span>
-                    </div>
+            {currentGroup && (
+              <>
+                <h2 className="text-sm font-bold uppercase tracking-wider text-slate-700 flex items-center justify-between border-b border-slate-100 pb-3 mb-4">
+                  <div className="flex items-center gap-2">
+                    <Sliders className="w-4 h-4 text-emerald-600" />
+                    <span>2. Selecione a Opção ({currentGroup.nome})</span>
                   </div>
-                );
-              })}
-            </div>
+                  <span className="text-xs text-slate-400 font-normal">
+                    {currentGroupSubItems.length} opções disponíveis
+                  </span>
+                </h2>
+
+                <div className="space-y-2 max-h-64 overflow-y-auto pr-1 mb-6">
+                  {currentGroupSubItems.length === 0 ? (
+                    <div className="text-center py-6 text-slate-400 text-xs">
+                      Nenhuma opção encontrada com o termo "{searchFilter}".
+                    </div>
+                  ) : (
+                    currentGroupSubItems.map((sub) => {
+                      const isSelected = selectedSubItemId === sub.id;
+                      return (
+                        <div
+                          key={sub.id}
+                          onClick={() => handleSelectSubItem(sub.id)}
+                          className={`p-3 rounded-xl border text-xs cursor-pointer transition flex items-start justify-between gap-3 ${
+                            isSelected
+                              ? 'bg-emerald-50/80 border-emerald-500 text-emerald-950 font-semibold shadow-xs'
+                              : 'bg-white border-slate-200 hover:border-slate-300 hover:bg-slate-50 text-slate-700'
+                          }`}
+                        >
+                          <div className="space-y-0.5">
+                            <div className="flex items-center gap-2">
+                              <span className="font-mono font-bold text-[11px] text-slate-500">{sub.code}</span>
+                              <span className="font-bold text-slate-900">{sub.nome}</span>
+                            </div>
+                            <div className="flex items-center gap-2 mt-1">
+                              {sub.hasSpecificUnit ? (
+                                <span className="inline-block text-[10px] font-bold px-1.5 py-0.5 rounded bg-emerald-100/70 text-emerald-800 border border-emerald-200">
+                                  Unidade: {sub.rawUnitText || (sub.defaultUnit === 'm2' ? 'm²' : sub.defaultUnit === 'linear' ? 'm linear' : 'un')}
+                                </span>
+                              ) : (
+                                <span className="inline-block text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-100/80 text-amber-900 border border-amber-300">
+                                  Unidade livre (m², linear ou un)
+                                </span>
+                              )}
+                              {sub.descricaoSugestao && (
+                                <span className="text-[10px] text-slate-400 line-clamp-1">{sub.descricaoSugestao}</span>
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="text-right shrink-0">
+                            <span className="text-[10px] uppercase font-bold text-slate-400 block">
+                              Preço Base
+                            </span>
+                            <span className="font-mono font-bold text-slate-800">
+                              {sub.suggestedPrice && sub.suggestedPrice > 0
+                                ? formatBRL(sub.suggestedPrice)
+                                : 'Sob Consulta'}
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </>
+            )}
 
             {/* Formulário de Medidas, Quantidade e Preço */}
-            <form onSubmit={handleAddItem} className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-4">
-              <div className="flex items-center justify-between border-b border-slate-200/80 pb-2">
-                <span className="text-xs font-bold text-slate-800">
-                  Configuração de Medidas &amp; Valores
-                </span>
+            {currentSubItem && (
+              <form onSubmit={handleAddItem} className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-4">
+                {/* Seleção de Unidade:
+                    - Se estiver em branco no CSV (!currentSubItem.hasSpecificUnit), exibe com destaque para o usuário escolher entre Área (m²), Metro Linear (m) ou Unidade (un).
+                    - Se tiver unidade pré-definida no CSV, exibe o aviso com a unidade padrão configurada. */}
+                {!currentSubItem.hasSpecificUnit ? (
+                  <div className="bg-amber-50/80 border border-amber-200 p-3 rounded-lg space-y-2">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                      <div>
+                        <span className="text-xs font-bold text-amber-950 flex items-center gap-1.5">
+                          <Sliders className="w-3.5 h-3.5 text-amber-600" />
+                          <span>Selecione a Unidade de Cobrança:</span>
+                        </span>
+                        <span className="text-[11px] text-amber-800 block">
+                          Item com unidade em branco no catálogo. Escolha como calcular este produto:
+                        </span>
+                      </div>
 
-                {/* Seleção de Unidade */}
-                <div className="flex items-center gap-1 bg-white p-1 rounded-lg border border-slate-200">
-                  <button
-                    type="button"
-                    onClick={() => setUnitMode('m2')}
-                    className={`px-2.5 py-1 text-[11px] font-bold rounded-md transition cursor-pointer ${
-                      unitMode === 'm2' ? 'bg-slate-900 text-white' : 'text-slate-600 hover:text-slate-900'
-                    }`}
-                  >
-                    Área (m²)
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setUnitMode('linear')}
-                    className={`px-2.5 py-1 text-[11px] font-bold rounded-md transition cursor-pointer ${
-                      unitMode === 'linear' ? 'bg-slate-900 text-white' : 'text-slate-600 hover:text-slate-900'
-                    }`}
-                  >
-                    Metro Linear (m)
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setUnitMode('un')}
-                    className={`px-2.5 py-1 text-[11px] font-bold rounded-md transition cursor-pointer ${
-                      unitMode === 'un' ? 'bg-slate-900 text-white' : 'text-slate-600 hover:text-slate-900'
-                    }`}
-                  >
-                    Unidade (un)
-                  </button>
-                </div>
-              </div>
+                      {/* 3 Opções de Unidade Solicitadas */}
+                      <div className="flex items-center gap-1 bg-white p-1 rounded-lg border border-amber-300 shadow-xs">
+                        <button
+                          type="button"
+                          onClick={() => setUnitMode('m2')}
+                          className={`px-3 py-1.5 text-xs font-bold rounded-md transition cursor-pointer ${
+                            unitMode === 'm2'
+                              ? 'bg-amber-600 text-white shadow-xs'
+                              : 'text-slate-700 hover:text-slate-900 hover:bg-slate-100'
+                          }`}
+                        >
+                          Área (m²)
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setUnitMode('linear')}
+                          className={`px-3 py-1.5 text-xs font-bold rounded-md transition cursor-pointer ${
+                            unitMode === 'linear'
+                              ? 'bg-amber-600 text-white shadow-xs'
+                              : 'text-slate-700 hover:text-slate-900 hover:bg-slate-100'
+                          }`}
+                        >
+                          Metro Linear (m)
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setUnitMode('un')}
+                          className={`px-3 py-1.5 text-xs font-bold rounded-md transition cursor-pointer ${
+                            unitMode === 'un'
+                              ? 'bg-amber-600 text-white shadow-xs'
+                              : 'text-slate-700 hover:text-slate-900 hover:bg-slate-100'
+                          }`}
+                        >
+                          Unidade (un)
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-200/80 pb-3">
+                    <div>
+                      <span className="text-xs font-bold text-slate-800 block">
+                        Configuração de Medidas &amp; Valores
+                      </span>
+                      <span className="text-[11px] text-slate-500">
+                        Unidade definida na opção selecionada (bloqueada para alteração):
+                      </span>
+                    </div>
 
-              {/* Campos condicionais por Unidade de Medida */}
-              {unitMode === 'm2' && (
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    {/* Exibe exclusivamente a unidade definida no item, sem permitir troca */}
+                    <div className="inline-flex items-center gap-2 bg-emerald-50 border border-emerald-300 text-emerald-900 px-3.5 py-1.5 rounded-lg text-xs font-bold shadow-xs">
+                      <span className="text-[10px] uppercase font-bold text-emerald-700">Unidade Fixa:</span>
+                      <span className="uppercase font-extrabold text-emerald-950">
+                        {currentSubItem.rawUnitText || (currentSubItem.defaultUnit === 'm2' ? 'Área (m²)' : currentSubItem.defaultUnit === 'linear' ? 'Metro Linear (m)' : 'Unidade (un)')}
+                      </span>
+                    </div>
+                  </div>
+                )}
+
+                {/* Campos condicionais por Unidade de Medida */}
+                {unitMode === 'm2' && (
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">
+                        Largura (metros)
+                      </label>
+                      <div className="relative">
+                        <input
+                          type="number"
+                          step="0.01"
+                          min="0.01"
+                          placeholder="Ex: 3.50"
+                          value={larguraM}
+                          onChange={(e) => setLarguraM(e.target.value)}
+                          className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-xs font-mono font-bold text-slate-900 focus:ring-2 focus:ring-emerald-500"
+                          required
+                        />
+                        <span className="absolute right-2.5 top-2.5 text-[11px] font-semibold text-slate-400">m</span>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">
+                        Altura (metros)
+                      </label>
+                      <div className="relative">
+                        <input
+                          type="number"
+                          step="0.01"
+                          min="0.01"
+                          placeholder="Ex: 1.20"
+                          value={alturaM}
+                          onChange={(e) => setAlturaM(e.target.value)}
+                          className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-xs font-mono font-bold text-slate-900 focus:ring-2 focus:ring-emerald-500"
+                          required
+                        />
+                        <span className="absolute right-2.5 top-2.5 text-[11px] font-semibold text-slate-400">m</span>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">
+                        Área Calculada
+                      </label>
+                      <div className="w-full bg-slate-200/60 border border-slate-300 rounded-lg px-3 py-2 text-xs font-mono font-bold text-slate-800 flex items-center justify-between">
+                        <span>{currentAreaM2 > 0 ? currentAreaM2.toFixed(2) : '0.00'}</span>
+                        <span className="text-[11px] font-semibold text-slate-500">m²</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {unitMode === 'linear' && (
                   <div>
                     <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">
-                      Largura (metros)
+                      Comprimento Total (metros lineares)
                     </label>
                     <div className="relative">
                       <input
                         type="number"
                         step="0.01"
                         min="0.01"
-                        placeholder="Ex: 3.50"
-                        value={larguraM}
-                        onChange={(e) => setLarguraM(e.target.value)}
+                        placeholder="Ex: 6.50"
+                        value={comprimentoM}
+                        onChange={(e) => setComprimentoM(e.target.value)}
                         className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-xs font-mono font-bold text-slate-900 focus:ring-2 focus:ring-emerald-500"
                         required
                       />
-                      <span className="absolute right-2.5 top-2.5 text-[11px] font-semibold text-slate-400">m</span>
+                      <span className="absolute right-2.5 top-2.5 text-[11px] font-semibold text-slate-400">m linear</span>
                     </div>
                   </div>
+                )}
 
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {/* Quantidade */}
                   <div>
                     <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">
-                      Altura (metros)
+                      Quantidade de Peças
                     </label>
-                    <div className="relative">
-                      <input
-                        type="number"
-                        step="0.01"
-                        min="0.01"
-                        placeholder="Ex: 1.20"
-                        value={alturaM}
-                        onChange={(e) => setAlturaM(e.target.value)}
-                        className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-xs font-mono font-bold text-slate-900 focus:ring-2 focus:ring-emerald-500"
-                        required
-                      />
-                      <span className="absolute right-2.5 top-2.5 text-[11px] font-semibold text-slate-400">m</span>
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">
-                      Área Calculada
-                    </label>
-                    <div className="w-full bg-slate-200/60 border border-slate-300 rounded-lg px-3 py-2 text-xs font-mono font-bold text-slate-800 flex items-center justify-between">
-                      <span>{currentAreaM2 > 0 ? currentAreaM2.toFixed(2) : '0.00'}</span>
-                      <span className="text-[11px] font-semibold text-slate-500">m²</span>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {unitMode === 'linear' && (
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">
-                    Comprimento Total (metros lineares)
-                  </label>
-                  <div className="relative">
                     <input
                       type="number"
-                      step="0.01"
-                      min="0.01"
-                      placeholder="Ex: 6.50"
-                      value={comprimentoM}
-                      onChange={(e) => setComprimentoM(e.target.value)}
+                      min="1"
+                      value={quantidade}
+                      onChange={(e) => setQuantidade(e.target.value)}
                       className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-xs font-mono font-bold text-slate-900 focus:ring-2 focus:ring-emerald-500"
                       required
                     />
-                    <span className="absolute right-2.5 top-2.5 text-[11px] font-semibold text-slate-400">m linear</span>
+                  </div>
+
+                  {/* Preço Unitário Editável */}
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">
+                      Preço Unitário (R$ / {unitMode === 'm2' ? 'm²' : unitMode === 'linear' ? 'm' : 'un'})
+                    </label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-2 text-xs font-bold text-slate-400">R$</span>
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        placeholder="0,00"
+                        value={precoUnitario}
+                        onChange={(e) => setPrecoUnitario(e.target.value)}
+                        className="w-full bg-white border border-slate-300 rounded-lg pl-9 pr-3 py-2 text-xs font-mono font-bold text-slate-900 focus:ring-2 focus:ring-emerald-500"
+                        required
+                      />
+                    </div>
                   </div>
                 </div>
-              )}
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {/* Quantidade */}
+                {/* Observações Opcionais do Item */}
                 <div>
                   <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">
-                    Quantidade de Peças
+                    Observações do Item (Opcional)
                   </label>
                   <input
-                    type="number"
-                    min="1"
-                    value={quantidade}
-                    onChange={(e) => setQuantidade(e.target.value)}
-                    className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-xs font-mono font-bold text-slate-900 focus:ring-2 focus:ring-emerald-500"
-                    required
+                    type="text"
+                    placeholder="Ex: Cor preta fosca, aplicação externa com andaime"
+                    value={itemObs}
+                    onChange={(e) => setItemObs(e.target.value)}
+                    className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-xs text-slate-800 focus:ring-2 focus:ring-emerald-500"
                   />
                 </div>
 
-                {/* Preço Unitário Editável */}
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">
-                    Preço Unitário (R$ / {unitMode === 'm2' ? 'm²' : unitMode === 'linear' ? 'm' : 'un'})
-                  </label>
-                  <div className="relative">
-                    <span className="absolute left-3 top-2 text-xs font-bold text-slate-400">R$</span>
-                    <input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      value={precoUnitario}
-                      onChange={(e) => setPrecoUnitario(e.target.value)}
-                      className="w-full bg-white border border-slate-300 rounded-lg pl-9 pr-3 py-2 text-xs font-mono font-bold text-slate-900 focus:ring-2 focus:ring-emerald-500"
-                      required
-                    />
+                {/* Prévia do Item e Botão Adicionar */}
+                <div className="pt-2 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-3">
+                  <div className="text-left w-full sm:w-auto">
+                    <span className="text-[10px] uppercase font-bold text-slate-400 block">Total Deste Item:</span>
+                    <span className="text-base font-black text-slate-900 font-mono">
+                      {formatBRL(currentItemPreviewTotal)}
+                    </span>
                   </div>
+
+                  <button
+                    type="submit"
+                    className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-slate-900 hover:bg-slate-800 text-white px-5 py-2.5 rounded-xl font-bold text-xs shadow-md transition cursor-pointer"
+                  >
+                    <Plus className="w-4 h-4 text-emerald-400" />
+                    <span>Adicionar Item ao Orçamento</span>
+                  </button>
                 </div>
-              </div>
-
-              {/* Observações do Item */}
-              <div>
-                <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">
-                  Observações / Acabamento do Item (Opcional)
-                </label>
-                <input
-                  type="text"
-                  placeholder="Ex: ACM cor Preto Brilho, lona com bainha e ilhós a cada 30cm, etc."
-                  value={itemObs}
-                  onChange={(e) => setItemObs(e.target.value)}
-                  className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-xs text-slate-800 focus:ring-2 focus:ring-emerald-500"
-                />
-              </div>
-
-              {/* Barra de Subtotal do Item e Botão Adicionar */}
-              <div className="pt-2 flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-t border-slate-200">
-                <div>
-                  <span className="text-[10px] uppercase font-bold text-slate-400 block">Total Previsto deste Item</span>
-                  <span className="text-base font-black text-slate-900">
-                    {formatBRL(currentItemPreviewTotal)}
-                  </span>
-                </div>
-
-                <button
-                  type="submit"
-                  className="inline-flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2.5 rounded-xl font-bold text-xs shadow-md transition cursor-pointer"
-                >
-                  <Plus className="w-4 h-4" />
-                  <span>Adicionar ao Orçamento</span>
-                </button>
-              </div>
-            </form>
+              </form>
+            )}
           </div>
         </div>
 
-        {/* Tabela de Itens e Resumo Financeiro (Colunas 8 a 12) */}
+        {/* Resumo do Orçamento e Botão de Gerar PDF no Final (Colunas 8 a 12) */}
         <div className="lg:col-span-5 space-y-6">
-          {/* Lista de Itens Adicionados */}
-          <div className="bg-white rounded-2xl p-5 shadow-xl border border-slate-200/80">
+          <div className="bg-white rounded-2xl p-6 shadow-xl border border-slate-200/80 flex flex-col">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3 mb-3">
               <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
                 <FileText className="w-4 h-4 text-emerald-600" />
@@ -515,14 +654,14 @@ export function BudgetCalculator({ onBackToPainel }: BudgetCalculatorProps) {
             </div>
 
             {items.length === 0 ? (
-              <div className="py-10 text-center text-slate-400">
+              <div className="py-12 text-center text-slate-400">
                 <p className="text-xs font-medium text-slate-500">Nenhum item adicionado ainda.</p>
                 <p className="text-[11px] text-slate-400 mt-1 max-w-xs mx-auto">
                   Escolha um grupo primário e subopção ao lado para adicionar o primeiro item ao orçamento.
                 </p>
               </div>
             ) : (
-              <div className="space-y-2.5 max-h-72 overflow-y-auto pr-1">
+              <div className="space-y-2.5 max-h-80 overflow-y-auto pr-1">
                 {items.map((it, idx) => (
                   <div
                     key={it.id}
@@ -572,7 +711,7 @@ export function BudgetCalculator({ onBackToPainel }: BudgetCalculatorProps) {
                         <span>Qtd: <strong>{it.quantidade}</strong></span>
                       </div>
 
-                      <span className="font-bold text-slate-900 text-xs">
+                      <span className="font-bold text-slate-900 text-xs font-mono">
                         {formatBRL(it.total)}
                       </span>
                     </div>
@@ -654,10 +793,11 @@ export function BudgetCalculator({ onBackToPainel }: BudgetCalculatorProps) {
                   </div>
                 </div>
 
+                {/* Botão de Gerar PDF no Final da Coluna Direita */}
                 <button
                   type="button"
                   onClick={() => setShowPreviewModal(true)}
-                  className="w-full flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white py-3 rounded-xl font-bold text-xs sm:text-sm shadow-md transition cursor-pointer"
+                  className="w-full flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white py-3 rounded-xl font-bold text-xs sm:text-sm shadow-md transition cursor-pointer mt-3"
                 >
                   <Printer className="w-4 h-4" />
                   <span>Visualizar Proposta &amp; Gerar PDF</span>

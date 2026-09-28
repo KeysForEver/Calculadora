@@ -1,428 +1,331 @@
-import { BudgetCatalogGroup } from '../types/budget';
+import { BudgetCatalogGroup, BudgetCatalogSubItem, BudgetUnit } from '../types/budget';
+import tabelaPrecosRaw from './tabela_precos.csv?raw';
 
-export const BUDGET_CATALOG_GROUPS: BudgetCatalogGroup[] = [
-  {
-    id: 'grp-1',
-    code: '1.',
-    nome: 'FACHADA DE ACM',
-    descricao: 'Revestimento e painéis em chapas de ACM estruturadas',
-    subItems: [
-      {
-        id: '1.1',
+/**
+ * CSV padrão embutido para contingência ou restauração caso o arquivo seja corrompido.
+ */
+export const DEFAULT_TABELA_CSV = `DESCRICAO;UNIDADE;VALOR
+1. IMPRESSÃO;M2; R$ -
+1.1 Impressão 3D;M2; R$ -
+1.2 Impressão Digital vinil leitoso;M2; R$ 140,00
+1.3 Impressão Digital em vinil Jateado;M2; R$ 170,00
+1.4 Impressão Digital em Vinil Transparente Calçado de branco;M2; R$ 165,00
+1.5 Impressão Digital com recorte ;M2; R$ 170,00
+1.6 Impressão Digital em vinil transparente calçado com recorte;M2; R$ 195,00
+1.7 Impressões digitais utilizando vinil premium acrescer 38%;M2;
+1.8 Vinil calandrado recorte ;M2; R$ 160,00
+1.9 Vinil calandrado premium recorte ;M2; R$ 190,00
+2.0 Vinil calandrado importado recorte;M2; R$ 337,14
+2.1 Vinil calandrado refletivo recorte;M2; R$ 235,63
+2.2 Vinil Fotoluminescente recorte;M2; R$ 1.123,80
+2.2 Impressão Digital vinil leitoso com laminação;M2; R$ 195,00
+2.2 Gabarito Instalação;; R$ -
+2.6 Router ACM;; R$ -
+2.7 Acrílico;; R$ -
+2.9 Laser Acrílico;; R$ -
+2.10 Router MDF;; R$ -
+3. SOLDAS;; R$ -
+3.1 Branca;; R$ -
+3.2 Eletrodo;; R$ -
+3.3 MIG;; R$ -
+3.4 TIG;; R$ -
+4. ACABAMENTO GROSSO;; R$ -
+4.1 Desbaste;; R$ -
+4.2 Fino;; R$ -
+5. PINTURA;; R$ 225,00
+5.1 Automotiva;; R$ -
+5.2 Acetinado / Semi-Brilho;; R$ -
+5.3 Laca;; R$ -
+5.4 Eletrostática;; R$ -
+5.5 Brilhante;; R$ -
+5.6 Poliéster;; R$ -
+5.7 Fosco;; R$ -
+5.8 PU;; R$ -
+6. ACABAMENTO FINAL;; R$ -
+6.1 ACM;; R$ 253,76
+ACM CORES ;; R$ 253,76
+ACM CORES ESPECIAIS ;; R$ 290,00
+6.2 Lixamento / Preparação;; R$ -
+6.3 Acrílico;; R$ -
+6.4 MDF;; R$ -
+6.5 Adesivo;; R$ -
+6.6 Pintura;; R$ -
+6.7 Impressão;; R$ -
+7. ILUMINAÇÃO;; R$ -
+7.1 Fita LED;; R$ -
+7.2 LED / Soldagem / Fiação;; R$ -
+7.3 RGB;; R$ -
+7.4 Haste;; R$ -
+7.5 Módulo LED;; R$ -
+7.6 Lâmpada Tubular / Fiação;; R$ -
+7.7 Refletor / Fiação;; R$ -
+8. ACESSÓRIOS;; R$ -
+8.1 Barra Roscada;; R$ -
+8.2 Cantoneiras;; R$ -
+8.3 Fita VHB;; R$ -
+8.4 Parabolt;; R$ -
+8.5 Pino Fixador;; R$ -
+8.6 Sikadur;; R$ -
+8.7 Bucha;; R$ -
+8.8 Fiação;; R$ -
+8.9 Fonte;; R$ -
+8.10 Parafuso;; R$ -
+8.11 Prolongador;; R$ -
+8.12 Vidros;; R$ -
+8.13 Canaleta de LED;; R$ -
+8.14 Interruptor LD;; R$ -
+8.15 Mão Amiga;; R$ -
+8.16 Perfil Alumínio;; R$ -
+8.17 Sapata Regulável;; R$ -
+9. COLAGEM;; R$ -
+9.1 ACM;; R$ -
+9.2 Módulo de LED;; R$ -
+9.3 Acrílico;; R$ -
+9.4 Primmer;; R$ -
+9.5 Cola / Cianocrilato;; R$ -
+9.6 Silicone / Vedação;; R$ -
+9.7 Fita de Borda;; R$ -
+10. FACHADA DE ACM;; R$ -
+11. PLACA FACHADA  DE ACM ADESIVADA ;; R$ -
+11.1. PLACA FACHADA DE ACM COM LETRA CAIXA EM AÇO SEM ILUMINAÇÃO;; R$ -
+11.2. PLACA FACHADA DE ACM COM LETRA CAIXA EM AÇO COM ILUMINAÇÃO;; R$ -
+11.3. PLACA FACHADA DE ACM COM LETRA CAIXA EM PVC SEM ILUMINAÇÃO;; R$ -
+11.4. PLACA FACHADA DE ACM COM LETRA CAIXA EM PVC COM ILUMINAÇÃO;; R$ -
+11.5. PLACA FACHADA DE ACM COM LETRA CAIXA EM ACRILICO COM ILUMINAÇÃO;; R$ -
+11.6. PLACA FACHADA DE ACM COM LETRA CAIXA EM ACRILICO SEM ILUMINAÇÃO;; R$ -
+11.7. PLACA FACHADA LONA FRONT;; R$ -
+11.8. PLACA FACHADA LONA BACK;; R$ -
+12. PLACA DE SINALIZAÇÃO PVC ADESIVADO;; R$ -
+12.1. PLACA DE SINALIZAÇÃO ACRILICO ADESIVADO;; R$ -
+12.2. PLACA DE SINALIZAÇÃO AÇO ADESICADO;; R$ -
+12.3. PLACA DE SINALIZAÇÃO PVC PINTADA COM VINIL RECORTADO;; R$ -
+12.4. PLACA DE SINALIZAÇÃO PVC PINTADA COM ACRILICO RECORTADO;; R$ -
+12.5. PLACA DE SINALIZAÇÃO ACRILICO PINTADO COM RECORTE;; R$ -
+12.6. PLACA DE SINALIZAÇÃO ACRILICO PINTADO COM ACRILICO RECORTADO;; R$ -
+12.7. PLACA DE SINALIZAÇÃO AÇO PINTADO COM VINIL RECORTADO;; R$ -
+12.8. PLACA DE SINALIZAÇÃO AÇO PINTADO COM ACRILICO RECORTADO;; R$ -
+12.9. PLACA DE SINALIZAÇÃO ACRILICO CRISTAL COM VINIL CALÇADO;; R$ -
+12.10. PLACA DE SINALIZAÇÃO ACRILICO CRISTAL CALÇADO E RECORTE;; R$ -
+12.11. PLACA DE SINALIZAÇÃO ACRILICO CRISTLA CALÇADO E ACRILICO RECORTADO;; R$ -
+12.12. PLACA DE SINALIZAÇÃO PSID COM ADESIVO;; R$ -
+12.13. PLACA DE SINALIZAÇÃO PSID COM ADESICO E ACRILICO RECORTADO;; R$ -
+12.14. PLACA DE SINALIZAÇÃO VIDRO COM ADESIVO IMPRESSO CALÇADO ;; R$ -
+12.15. PLACA DE SINALIZAÇÃO VIDRO COM ADESIVO IMPRESSO CALÇADO  E ACRILICO RECORTADO;; R$ -
+12.16. PLACA DE SINALIZAÇÃO INOX PINTADO COM RECORTE;; R$ -
+12.17. PLACA DE SINALIZAÇÃO INOX PINTADO COM ACRILICO RECORTADO;; R$ -
+12.18. PLACA DE SINALIZAÇÃO ACM PINTADO COM RECORTE;; R$ -
+12.19. PLACA DE SINALIZAÇÃO ACM PINTADO COM ACRILICO RECORTADO;; R$ -
+12.20. PLACA DE SINALIZAÇÃO EM ACM COM VINIL IMPRESSO;; R$ -
+12.21. PLACA DE SINALIZAÇÃO EM ACM COM VINIL RECORTADO;; R$ -
+12.22. PLACA DE SINALIZAÇÃO EM ACM COM ACRILICO RECORTADO;; R$ -
+13. LETREIRO EM AÇO GALVANIZADO SEM ILUMINAÇÃO;; R$ -
+13.1. LETREIRO EM AÇO GALVANIZADO COM ILUMINAÇÃO;; R$ -
+13.2. LETREIRO EM AÇO INOX SEM ILUMINAÇÃO;; R$ -
+13.3. LETREIRO EM AÇO INOX COM ILUMNAÇÃO;; R$ -
+13.4. LETREIRO EM PVC EXPANDIDO SEM ILUMINAÇÃO;; R$ -
+13.5. LETREIRO EM PVC EXPANDIDO COM ILUMINAÇÃO;; R$ -
+13.6. LETREIRO EM ACRILICO PINTADO;; R$ -
+14. ADESIVO IMPRESSO;; R$ -
+14.1. ADESIVO RECORTE;; R$ -
+14.2. ADESIVO IMPRESSO COM RECORTE;; R$ -
+14.3. ADESIVO IMPRESSO COM CALÇO;; R$ -
+14.4. GRAVAÇÃO LASER ;; R$ -
+14.5. LONA IMPRESSA SIMPLES ;; R$ -
+14.6. LONA IMPRESSA COM ACABAMENTO;; R$ -
+14.7. BANNER;; R$ -`;
+
+/**
+ * Converte string de preço (ex: "R$ 140,00", "R$ 1.123,80", "R$ -") para number ou undefined
+ */
+export function parseCsvPrice(valStr: string): number | undefined {
+  if (!valStr) return undefined;
+  const clean = valStr.replace(/R\$/i, '').trim();
+  if (!clean || clean === '-' || clean === 'sob consulta') return undefined;
+
+  // Trata formato brasileiro (1.123,80 -> 1123.80)
+  if (clean.includes(',')) {
+    const standardized = clean.replace(/\./g, '').replace(',', '.');
+    const parsed = parseFloat(standardized);
+    return isNaN(parsed) || parsed < 0 ? undefined : parsed;
+  }
+
+  const parsed = parseFloat(clean);
+  return isNaN(parsed) || parsed < 0 ? undefined : parsed;
+}
+
+/**
+ * Identifica a unidade de medida configurada no CSV.
+ * Se estiver em branco, retorna hasSpecificUnit = false para o usuário escolher livremente.
+ */
+export function parseCsvUnit(unitStr: string): {
+  unit: BudgetUnit;
+  hasSpecificUnit: boolean;
+  rawText: string;
+} {
+  const trimmed = (unitStr || '').trim();
+  if (!trimmed || trimmed === '-') {
+    return {
+      unit: 'm2',
+      hasSpecificUnit: false,
+      rawText: '',
+    };
+  }
+
+  const upper = trimmed.toUpperCase();
+  if (upper.includes('M2') || upper.includes('M²')) {
+    return { unit: 'm2', hasSpecificUnit: true, rawText: 'm²' };
+  }
+  if (upper.includes('ML') || upper.includes('LINEAR') || upper === 'M' || upper.includes('METRO')) {
+    return { unit: 'linear', hasSpecificUnit: true, rawText: 'metro linear' };
+  }
+  if (upper.includes('UN') || upper.includes('UND') || upper.includes('PC') || upper.includes('PEÇA') || upper.includes('PECA')) {
+    return { unit: 'un', hasSpecificUnit: true, rawText: 'unidade' };
+  }
+
+  return { unit: 'un', hasSpecificUnit: true, rawText: trimmed };
+}
+
+/**
+ * Analisa e transforma o conteúdo do arquivo CSV na estrutura hierárquica de Grupos e Sub-opções.
+ */
+export function parseBudgetCsv(csvContent: string): BudgetCatalogGroup[] {
+  const text = csvContent && csvContent.trim().length > 0 ? csvContent : DEFAULT_TABELA_CSV;
+  const lines = text.split(/\r?\n/).map((l) => l.trim()).filter((l) => l.length > 0);
+
+  const groups: BudgetCatalogGroup[] = [];
+  let currentGroup: BudgetCatalogGroup | null = null;
+  let subIndexInGroup = 0;
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+
+    // Ignora cabeçalho
+    if (line.toUpperCase().startsWith('DESCRICAO') || line.toUpperCase().startsWith('DESCRIÇÃO')) {
+      continue;
+    }
+
+    // Identifica separador (; ou ,)
+    const delimiter = line.includes(';') ? ';' : ',';
+    const parts = line.split(delimiter).map((p) => p.trim());
+    const rawDesc = parts[0] || '';
+    const rawUnit = parts[1] || '';
+    const rawPrice = parts[2] || '';
+
+    if (!rawDesc) continue;
+
+    const parsedPrice = parseCsvPrice(rawPrice);
+    const parsedUnitInfo = parseCsvUnit(rawUnit);
+
+    // Regex para identificar sub-itens numerados (ex: "1.1 Impressão", "2.10 Router", "11.1. PLACA...")
+    // Note que sub-itens possuem ponto no meio dos números (ex: 1.1 ou 11.2.)
+    const subItemMatch = rawDesc.match(/^(\d+\.\d+)\.?\s*(.*)$/);
+
+    // Regex para grupos primários (ex: "1. IMPRESSÃO", "3. SOLDAS", "10. FACHADA DE ACM")
+    const groupMatch = !subItemMatch ? rawDesc.match(/^(\d+)\.\s*(.*)$/) : null;
+
+    if (groupMatch) {
+      // Salva grupo anterior
+      if (currentGroup) {
+        // Se o grupo não possuía nenhum subitem, gera um item default com seus dados
+        if (currentGroup.subItems.length === 0) {
+          currentGroup.subItems.push({
+            id: `${currentGroup.id}-item-1`,
+            code: currentGroup.code,
+            nome: currentGroup.nome,
+            defaultUnit: currentGroup.defaultUnit || 'm2',
+            hasSpecificUnit: currentGroup.hasSpecificUnit,
+            rawUnitText: currentGroup.rawUnitText,
+            suggestedPrice: currentGroup.suggestedPrice,
+            descricaoSugestao: `Item principal: ${currentGroup.nome}`,
+          });
+        }
+        groups.push(currentGroup);
+      }
+
+      const grpNum = groupMatch[1];
+      const grpNome = groupMatch[2] || rawDesc;
+
+      subIndexInGroup = 0;
+      currentGroup = {
+        id: `grp-${grpNum}`,
+        code: `${grpNum}.`,
+        nome: grpNome,
+        descricao: `Opções e itens do grupo ${grpNome}`,
+        defaultUnit: parsedUnitInfo.unit,
+        hasSpecificUnit: parsedUnitInfo.hasSpecificUnit,
+        rawUnitText: parsedUnitInfo.rawText,
+        suggestedPrice: parsedPrice,
+        subItems: [],
+      };
+      continue;
+    }
+
+    // Se é um sub-item numerado ou se é uma linha filha (ex: "ACM CORES")
+    if (currentGroup) {
+      subIndexInGroup++;
+      let itemCode = '';
+      let itemNome = '';
+
+      if (subItemMatch) {
+        itemCode = subItemMatch[1];
+        itemNome = subItemMatch[2] || rawDesc;
+      } else {
+        itemCode = `${currentGroup.code.replace('.', '')}.${subIndexInGroup}`;
+        itemNome = rawDesc;
+      }
+
+      currentGroup.subItems.push({
+        id: `${currentGroup.id}-sub-${itemCode.replace(/\./g, '_')}-${subIndexInGroup}`,
+        code: itemCode,
+        nome: itemNome,
+        defaultUnit: parsedUnitInfo.hasSpecificUnit ? parsedUnitInfo.unit : (currentGroup.defaultUnit || 'm2'),
+        hasSpecificUnit: parsedUnitInfo.hasSpecificUnit,
+        rawUnitText: parsedUnitInfo.rawText,
+        suggestedPrice: parsedPrice !== undefined ? parsedPrice : currentGroup.suggestedPrice,
+        descricaoSugestao: `${currentGroup.nome} - ${itemNome}`,
+      });
+    } else {
+      // Caso a primeira linha do arquivo seja um item sem grupo explícito
+      const grpId = 'grp-1';
+      currentGroup = {
+        id: grpId,
+        code: '1.',
+        nome: 'GERAL',
+        subItems: [],
+      };
+      currentGroup.subItems.push({
+        id: `${grpId}-sub-1`,
         code: '1.1',
-        nome: 'FACHADA DE ACM',
-        defaultUnit: 'm2',
-        suggestedPrice: 380,
-        descricaoSugestao: 'Painel e revestimento completo em chapa de ACM',
-      },
-    ],
-  },
-  {
-    id: 'grp-2',
-    code: '2.',
-    nome: 'PLACA FACHADA DE ACM ADESIVADA',
-    descricao: 'Placas de fachada em ACM com letras caixa, iluminação ou lona',
-    subItems: [
-      {
-        id: '2.0',
-        code: '2.0',
-        nome: 'PLACA FACHADA DE ACM ADESIVADA',
-        defaultUnit: 'm2',
-        suggestedPrice: 420,
-        descricaoSugestao: 'Placa em ACM com aplicação de adesivo vinil',
-      },
-      {
-        id: '2.1',
-        code: '2.1',
-        nome: 'PLACA FACHADA DE ACM COM LETRA CAIXA EM AÇO SEM ILUMINAÇÃO',
-        defaultUnit: 'm2',
-        suggestedPrice: 650,
-        descricaoSugestao: 'Painel em ACM com aplicação de letras em chapa de aço galvanizado',
-      },
-      {
-        id: '2.2',
-        code: '2.2',
-        nome: 'PLACA FACHADA DE ACM COM LETRA CAIXA EM AÇO COM ILUMINAÇÃO',
-        defaultUnit: 'm2',
-        suggestedPrice: 850,
-        descricaoSugestao: 'Painel em ACM com letras bloco de aço e módulos LED internos',
-      },
-      {
-        id: '2.3',
-        code: '2.3',
-        nome: 'PLACA FACHADA DE ACM COM LETRA CAIXA EM PVC SEM ILUMINAÇÃO',
-        defaultUnit: 'm2',
-        suggestedPrice: 520,
-        descricaoSugestao: 'Painel em ACM com letras usinadas em PVC expandido',
-      },
-      {
-        id: '2.4',
-        code: '2.4',
-        nome: 'PLACA FACHADA DE ACM COM LETRA CAIXA EM PVC COM ILUMINAÇÃO',
-        defaultUnit: 'm2',
-        suggestedPrice: 720,
-        descricaoSugestao: 'Painel em ACM com letras em PVC e retroiluminação backlight',
-      },
-      {
-        id: '2.5',
-        code: '2.5',
-        nome: 'PLACA FACHADA DE ACM COM LETRA CAIXA EM ACRILICO COM ILUMINAÇÃO',
-        defaultUnit: 'm2',
-        suggestedPrice: 950,
-        descricaoSugestao: 'Painel em ACM com letras caixa frontlight em acrílico cast e LED',
-      },
-      {
-        id: '2.6',
-        code: '2.6',
-        nome: 'PLACA FACHADA DE ACM COM LETRA CAIXA EM ACRILICO SEM ILUMINAÇÃO',
-        defaultUnit: 'm2',
-        suggestedPrice: 680,
-        descricaoSugestao: 'Painel em ACM com aplique de letras em acrílico recortado a laser',
-      },
-      {
-        id: '2.7',
-        code: '2.7',
-        nome: 'PLACA FACHADA LONA FRONT',
-        defaultUnit: 'm2',
-        suggestedPrice: 220,
-        descricaoSugestao: 'Estrutura metálica com lona vinílica frontlight impressa',
-      },
-      {
-        id: '2.8',
-        code: '2.8',
-        nome: 'PLACA FACHADA LONA BACK',
-        defaultUnit: 'm2',
-        suggestedPrice: 350,
-        descricaoSugestao: 'Luminoso tipo backlight com lona translúcida e iluminação interna',
-      },
-    ],
-  },
-  {
-    id: 'grp-3',
-    code: '3.',
-    nome: 'PLACA DE SINALIZAÇÃO PVC ADESIVADO',
-    descricao: 'Sinalização predial, comercial e industrial em diversos substratos',
-    subItems: [
-      {
-        id: '3.0',
-        code: '3.0',
-        nome: 'PLACA DE SINALIZAÇÃO PVC ADESIVADO',
-        defaultUnit: 'un',
-        suggestedPrice: 85,
-        descricaoSugestao: 'Placa em PVC expandido com adesivo vinil aplicado',
-      },
-      {
-        id: '3.1',
-        code: '3.1',
-        nome: 'PLACA DE SINALIZAÇÃO ACRILICO ADESIVADO',
-        defaultUnit: 'un',
-        suggestedPrice: 130,
-        descricaoSugestao: 'Placa em acrílico com vinil adesivo de alta durabilidade',
-      },
-      {
-        id: '3.2',
-        code: '3.2',
-        nome: 'PLACA DE SINALIZAÇÃO AÇO ADESIVADO',
-        defaultUnit: 'un',
-        suggestedPrice: 150,
-        descricaoSugestao: 'Chapa de aço galvanizado adesivada para sinalização externa',
-      },
-      {
-        id: '3.3',
-        code: '3.3',
-        nome: 'PLACA DE SINALIZAÇÃO PVC PINTADA COM VINIL RECORTADO',
-        defaultUnit: 'un',
-        suggestedPrice: 120,
-        descricaoSugestao: 'PVC com pintura automotiva e máscara de vinil recortado',
-      },
-      {
-        id: '3.4',
-        code: '3.4',
-        nome: 'PLACA DE SINALIZAÇÃO PVC PINTADA COM ACRILICO RECORTADO',
-        defaultUnit: 'un',
-        suggestedPrice: 170,
-        descricaoSugestao: 'PVC com pintura e aplique em relevo de acrílico laser',
-      },
-      {
-        id: '3.5',
-        code: '3.5',
-        nome: 'PLACA DE SINALIZAÇÃO ACRILICO PINTADO COM RECORTE',
-        defaultUnit: 'un',
-        suggestedPrice: 160,
-        descricaoSugestao: 'Acrílico com pintura no verso e recorte computadorizado',
-      },
-      {
-        id: '3.6',
-        code: '3.6',
-        nome: 'PLACA DE SINALIZAÇÃO ACRILICO PINTADO COM ACRILICO RECORTADO',
-        defaultUnit: 'un',
-        suggestedPrice: 210,
-        descricaoSugestao: 'Base em acrílico nobre com letras em acrílico sobreposto',
-      },
-      {
-        id: '3.7',
-        code: '3.7',
-        nome: 'PLACA DE SINALIZAÇÃO AÇO PINTADO COM VINIL RECORTADO',
-        defaultUnit: 'un',
-        suggestedPrice: 180,
-        descricaoSugestao: 'Chapa de aço tratada, pintura eletrostática e vinil',
-      },
-      {
-        id: '3.8',
-        code: '3.8',
-        nome: 'PLACA DE SINALIZAÇÃO AÇO PINTADO COM ACRILICO RECORTADO',
-        defaultUnit: 'un',
-        suggestedPrice: 230,
-        descricaoSugestao: 'Aço pintado com acabamento de texto em acrílico 3D',
-      },
-      {
-        id: '3.9',
-        code: '3.9',
-        nome: 'PLACA DE SINALIZAÇÃO ACRILICO CRISTAL COM VINIL CALÇADO',
-        defaultUnit: 'un',
-        suggestedPrice: 160,
-        descricaoSugestao: 'Acrílico cristal transparente com vinil branco calçado no verso',
-      },
-      {
-        id: '3.10',
-        code: '3.10',
-        nome: 'PLACA DE SINALIZAÇÃO ACRILICO CRISTAL CALÇADO E RECORTE',
-        defaultUnit: 'un',
-        suggestedPrice: 190,
-        descricaoSugestao: 'Acrílico cristal com calço e elementos em recorte fino',
-      },
-      {
-        id: '3.11',
-        code: '3.11',
-        nome: 'PLACA DE SINALIZAÇÃO ACRILICO CRISTAL CALÇADO E ACRILICO RECORTADO',
-        defaultUnit: 'un',
-        suggestedPrice: 250,
-        descricaoSugestao: 'Acrílico cristal com calço branco e acrílico sobreposto',
-      },
-      {
-        id: '3.12',
-        code: '3.12',
-        nome: 'PLACA DE SINALIZAÇÃO PSID COM ADESIVO',
-        defaultUnit: 'un',
-        suggestedPrice: 70,
-        descricaoSugestao: 'Chapa de Poliestireno de Alto Impacto (PS) adesivada',
-      },
-      {
-        id: '3.13',
-        code: '3.13',
-        nome: 'PLACA DE SINALIZAÇÃO PSID COM ADESIVO E ACRILICO RECORTADO',
-        defaultUnit: 'un',
-        suggestedPrice: 135,
-        descricaoSugestao: 'Base PSID com grafismo em adesivo e elementos em acrílico',
-      },
-      {
-        id: '3.14',
-        code: '3.14',
-        nome: 'PLACA DE SINALIZAÇÃO VIDRO COM ADESIVO IMPRESSO CALÇADO',
-        defaultUnit: 'un',
-        suggestedPrice: 260,
-        descricaoSugestao: 'Vidro temperado lapidado com impressão calçada e prolongadores inox',
-      },
-      {
-        id: '3.15',
-        code: '3.15',
-        nome: 'PLACA DE SINALIZAÇÃO VIDRO COM ADESIVO IMPRESSO CALÇADO E ACRILICO RECORTADO',
-        defaultUnit: 'un',
-        suggestedPrice: 320,
-        descricaoSugestao: 'Vidro nobre com impressão verso calçada e aplique frontal de acrílico',
-      },
-      {
-        id: '3.16',
-        code: '3.16',
-        nome: 'PLACA DE SINALIZAÇÃO INOX PINTADO COM RECORTE',
-        defaultUnit: 'un',
-        suggestedPrice: 280,
-        descricaoSugestao: 'Aço inox escovado/polido com pintura localizada em recorte',
-      },
-      {
-        id: '3.17',
-        code: '3.17',
-        nome: 'PLACA DE SINALIZAÇÃO INOX PINTADO COM ACRILICO RECORTADO',
-        defaultUnit: 'un',
-        suggestedPrice: 340,
-        descricaoSugestao: 'Aço inox escovado de alto padrão com letras em acrílico',
-      },
-      {
-        id: '3.18',
-        code: '3.18',
-        nome: 'PLACA DE SINALIZAÇÃO ACM PINTADO COM RECORTE',
-        defaultUnit: 'un',
-        suggestedPrice: 140,
-        descricaoSugestao: 'Placa em ACM com pintura e máscara de recorte',
-      },
-      {
-        id: '3.19',
-        code: '3.19',
-        nome: 'PLACA DE SINALIZAÇÃO ACM PINTADO COM ACRILICO RECORTADO',
-        defaultUnit: 'un',
-        suggestedPrice: 195,
-        descricaoSugestao: 'ACM com fundo pintado e texto em acrílico recortado',
-      },
-      {
-        id: '3.20',
-        code: '3.20',
-        nome: 'PLACA DE SINALIZAÇÃO EM ACM COM VINIL IMPRESSO',
-        defaultUnit: 'un',
-        suggestedPrice: 110,
-        descricaoSugestao: 'ACM estruturado com adesivo vinil fotográfico laminado',
-      },
-      {
-        id: '3.21',
-        code: '3.21',
-        nome: 'PLACA DE SINALIZAÇÃO EM ACM COM VINIL RECORTADO',
-        defaultUnit: 'un',
-        suggestedPrice: 125,
-        descricaoSugestao: 'ACM com aplicação de adesivo vinil polimérico recortado em plotter',
-      },
-      {
-        id: '3.22',
-        code: '3.22',
-        nome: 'PLACA DE SINALIZAÇÃO EM ACM COM ACRILICO RECORTADO',
-        defaultUnit: 'un',
-        suggestedPrice: 185,
-        descricaoSugestao: 'Base ACM moderna com logotipo/letras em acrílico 3mm/5mm',
-      },
-    ],
-  },
-  {
-    id: 'grp-4',
-    code: '4.',
-    nome: 'LETREIRO EM AÇO GALVANIZADO SEM ILUMINAÇÃO',
-    descricao: 'Letras caixa e blocos metálicos, PVC ou acrílico para fachadas e recepções',
-    subItems: [
-      {
-        id: '4.1',
-        code: '4.1',
-        nome: 'LETREIRO EM AÇO GALVANIZADO SEM ILUMINAÇÃO',
-        defaultUnit: 'linear',
-        suggestedPrice: 180,
-        descricaoSugestao: 'Letras bloco em chapa galvanizada tratada com pintura automotiva',
-      },
-      {
-        id: '4.2',
-        code: '4.2',
-        nome: 'LETREIRO EM AÇO GALVANIZADO COM ILUMINAÇÃO',
-        defaultUnit: 'linear',
-        suggestedPrice: 280,
-        descricaoSugestao: 'Letras bloco em aço galvanizado com iluminação indireta halo/backlight',
-      },
-      {
-        id: '4.3',
-        code: '4.3',
-        nome: 'LETREIRO EM AÇO INOX SEM ILUMINAÇÃO',
-        defaultUnit: 'linear',
-        suggestedPrice: 320,
-        descricaoSugestao: 'Letras caixa em aço inox escovado ou polido de alta nobreza',
-      },
-      {
-        id: '4.4',
-        code: '4.4',
-        nome: 'LETREIRO EM AÇO INOX COM ILUMINAÇÃO',
-        defaultUnit: 'linear',
-        suggestedPrice: 420,
-        descricaoSugestao: 'Letras caixa em aço inox com módulos LED de alta luminosidade',
-      },
-      {
-        id: '4.5',
-        code: '4.5',
-        nome: 'LETREIRO EM PVC EXPANDIDO SEM ILUMINAÇÃO',
-        defaultUnit: 'linear',
-        suggestedPrice: 130,
-        descricaoSugestao: 'Letras usinadas em PVC expandido 10mm/15mm/20mm com pintura',
-      },
-      {
-        id: '4.6',
-        code: '4.6',
-        nome: 'LETREIRO EM PVC EXPANDIDO COM ILUMINAÇÃO',
-        defaultUnit: 'linear',
-        suggestedPrice: 220,
-        descricaoSugestao: 'Letras em PVC expandido com espaçadores e fitas LED traseiras',
-      },
-      {
-        id: '4.7',
-        code: '4.7',
-        nome: 'LETREIRO EM ACRILICO PINTADO',
-        defaultUnit: 'linear',
-        suggestedPrice: 190,
-        descricaoSugestao: 'Letras em acrílico recortado a laser com pintura sob medida',
-      },
-    ],
-  },
-  {
-    id: 'grp-5',
-    code: '5.',
-    nome: 'ADESIVO IMPRESSO',
-    descricao: 'Impressão digital, lonas, banners, gravação a laser e recortes especiais',
-    subItems: [
-      {
-        id: '5.0',
-        code: '5.0',
-        nome: 'ADESIVO IMPRESSO',
-        defaultUnit: 'm2',
-        suggestedPrice: 65,
-        descricaoSugestao: 'Impressão digital de alta resolução em vinil adesivo',
-      },
-      {
-        id: '5.1',
-        code: '5.1',
-        nome: 'ADESIVO RECORTE',
-        defaultUnit: 'm2',
-        suggestedPrice: 75,
-        descricaoSugestao: 'Vinil adesivo colorido com corte eletrônico em plotter',
-      },
-      {
-        id: '5.2',
-        code: '5.2',
-        nome: 'ADESIVO IMPRESSO COM RECORTE',
-        defaultUnit: 'm2',
-        suggestedPrice: 90,
-        descricaoSugestao: 'Impressão digital com recorte de contorno personalizado',
-      },
-      {
-        id: '5.3',
-        code: '5.3',
-        nome: 'ADESIVO IMPRESSO COM CALÇO',
-        defaultUnit: 'm2',
-        suggestedPrice: 110,
-        descricaoSugestao: 'Adesivo transparente impresso com tinta/calço branco para vidro',
-      },
-      {
-        id: '5.4',
-        code: '5.4',
-        nome: 'GRAVAÇÃO LASER',
-        defaultUnit: 'un',
-        suggestedPrice: 45,
-        descricaoSugestao: 'Gravação e corte de precisão a laser em metal, acrílico ou madeira',
-      },
-      {
-        id: '5.5',
-        code: '5.5',
-        nome: 'LONA IMPRESSA SIMPLES',
-        defaultUnit: 'm2',
-        suggestedPrice: 55,
-        descricaoSugestao: 'Lona vinílica 440g fosca/brilho sem acabamento de solda',
-      },
-      {
-        id: '5.6',
-        code: '5.6',
-        nome: 'LONA IMPRESSA COM ACABAMENTO',
-        defaultUnit: 'm2',
-        suggestedPrice: 75,
-        descricaoSugestao: 'Lona vinílica reforçada com bainha soldada e ilhoses metálicos',
-      },
-      {
-        id: '5.7',
-        code: '5.7',
-        nome: 'BANNER',
-        defaultUnit: 'un',
-        suggestedPrice: 60,
-        descricaoSugestao: 'Banner promocional com acabamento de madeira, ponteiras e cordão',
-      },
-    ],
-  },
-];
+        nome: rawDesc,
+        defaultUnit: parsedUnitInfo.unit,
+        hasSpecificUnit: parsedUnitInfo.hasSpecificUnit,
+        rawUnitText: parsedUnitInfo.rawText,
+        suggestedPrice: parsedPrice,
+      });
+    }
+  }
+
+  // Adiciona o último grupo processado
+  if (currentGroup) {
+    if (currentGroup.subItems.length === 0) {
+      currentGroup.subItems.push({
+        id: `${currentGroup.id}-item-1`,
+        code: currentGroup.code,
+        nome: currentGroup.nome,
+        defaultUnit: currentGroup.defaultUnit || 'm2',
+        hasSpecificUnit: currentGroup.hasSpecificUnit,
+        rawUnitText: currentGroup.rawUnitText,
+        suggestedPrice: currentGroup.suggestedPrice,
+        descricaoSugestao: `Item principal: ${currentGroup.nome}`,
+      });
+    }
+    groups.push(currentGroup);
+  }
+
+  return groups;
+}
+
+// Carrega o catálogo padrão importado do arquivo CSV /src/data/tabela_precos.csv
+export const BUDGET_CATALOG_GROUPS: BudgetCatalogGroup[] = parseBudgetCsv(
+  tabelaPrecosRaw || DEFAULT_TABELA_CSV
+);
