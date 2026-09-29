@@ -2,147 +2,117 @@ import { BudgetCatalogGroup, BudgetCatalogSubItem, BudgetUnit } from '../types/b
 import tabelaPrecosRaw from './tabela_precos.csv?raw';
 
 /**
- * CSV padrão embutido para contingência ou restauração caso o arquivo seja corrompido.
+ * CSV padrão embutido para contingência caso o arquivo seja corrompido.
  */
-export const DEFAULT_TABELA_CSV = `DESCRICAO;UNIDADE;VALOR
-1. IMPRESSÃO;M2; R$ -
-1.1 Impressão 3D;M2; R$ -
-1.2 Impressão Digital vinil leitoso;M2; R$ 140,00
-1.3 Impressão Digital em vinil Jateado;M2; R$ 170,00
-1.4 Impressão Digital em Vinil Transparente Calçado de branco;M2; R$ 165,00
-1.5 Impressão Digital com recorte ;M2; R$ 170,00
-1.6 Impressão Digital em vinil transparente calçado com recorte;M2; R$ 195,00
-1.7 Impressões digitais utilizando vinil premium acrescer 38%;M2;
-1.8 Vinil calandrado recorte ;M2; R$ 160,00
-1.9 Vinil calandrado premium recorte ;M2; R$ 190,00
-2.0 Vinil calandrado importado recorte;M2; R$ 337,14
-2.1 Vinil calandrado refletivo recorte;M2; R$ 235,63
-2.2 Vinil Fotoluminescente recorte;M2; R$ 1.123,80
-2.2 Impressão Digital vinil leitoso com laminação;M2; R$ 195,00
-2.2 Gabarito Instalação;; R$ -
-2.6 Router ACM;; R$ -
-2.7 Acrílico;; R$ -
-2.9 Laser Acrílico;; R$ -
-2.10 Router MDF;; R$ -
-3. SOLDAS;; R$ -
-3.1 Branca;; R$ -
-3.2 Eletrodo;; R$ -
-3.3 MIG;; R$ -
-3.4 TIG;; R$ -
-4. ACABAMENTO GROSSO;; R$ -
-4.1 Desbaste;; R$ -
-4.2 Fino;; R$ -
-5. PINTURA;; R$ 225,00
-5.1 Automotiva;; R$ -
-5.2 Acetinado / Semi-Brilho;; R$ -
-5.3 Laca;; R$ -
-5.4 Eletrostática;; R$ -
-5.5 Brilhante;; R$ -
-5.6 Poliéster;; R$ -
-5.7 Fosco;; R$ -
-5.8 PU;; R$ -
-6. ACABAMENTO FINAL;; R$ -
-6.1 ACM;; R$ 253,76
-ACM CORES ;; R$ 253,76
-ACM CORES ESPECIAIS ;; R$ 290,00
-6.2 Lixamento / Preparação;; R$ -
-6.3 Acrílico;; R$ -
-6.4 MDF;; R$ -
-6.5 Adesivo;; R$ -
-6.6 Pintura;; R$ -
-6.7 Impressão;; R$ -
-7. ILUMINAÇÃO;; R$ -
-7.1 Fita LED;; R$ -
-7.2 LED / Soldagem / Fiação;; R$ -
-7.3 RGB;; R$ -
-7.4 Haste;; R$ -
-7.5 Módulo LED;; R$ -
-7.6 Lâmpada Tubular / Fiação;; R$ -
-7.7 Refletor / Fiação;; R$ -
-8. ACESSÓRIOS;; R$ -
-8.1 Barra Roscada;; R$ -
-8.2 Cantoneiras;; R$ -
-8.3 Fita VHB;; R$ -
-8.4 Parabolt;; R$ -
-8.5 Pino Fixador;; R$ -
-8.6 Sikadur;; R$ -
-8.7 Bucha;; R$ -
-8.8 Fiação;; R$ -
-8.9 Fonte;; R$ -
-8.10 Parafuso;; R$ -
-8.11 Prolongador;; R$ -
-8.12 Vidros;; R$ -
-8.13 Canaleta de LED;; R$ -
-8.14 Interruptor LD;; R$ -
-8.15 Mão Amiga;; R$ -
-8.16 Perfil Alumínio;; R$ -
-8.17 Sapata Regulável;; R$ -
-9. COLAGEM;; R$ -
-9.1 ACM;; R$ -
-9.2 Módulo de LED;; R$ -
-9.3 Acrílico;; R$ -
-9.4 Primmer;; R$ -
-9.5 Cola / Cianocrilato;; R$ -
-9.6 Silicone / Vedação;; R$ -
-9.7 Fita de Borda;; R$ -
-10. FACHADA DE ACM;; R$ -
-11. PLACA FACHADA  DE ACM ADESIVADA ;; R$ -
-11.1. PLACA FACHADA DE ACM COM LETRA CAIXA EM AÇO SEM ILUMINAÇÃO;; R$ -
-11.2. PLACA FACHADA DE ACM COM LETRA CAIXA EM AÇO COM ILUMINAÇÃO;; R$ -
-11.3. PLACA FACHADA DE ACM COM LETRA CAIXA EM PVC SEM ILUMINAÇÃO;; R$ -
-11.4. PLACA FACHADA DE ACM COM LETRA CAIXA EM PVC COM ILUMINAÇÃO;; R$ -
-11.5. PLACA FACHADA DE ACM COM LETRA CAIXA EM ACRILICO COM ILUMINAÇÃO;; R$ -
-11.6. PLACA FACHADA DE ACM COM LETRA CAIXA EM ACRILICO SEM ILUMINAÇÃO;; R$ -
-11.7. PLACA FACHADA LONA FRONT;; R$ -
-11.8. PLACA FACHADA LONA BACK;; R$ -
-12. PLACA DE SINALIZAÇÃO PVC ADESIVADO;; R$ -
-12.1. PLACA DE SINALIZAÇÃO ACRILICO ADESIVADO;; R$ -
-12.2. PLACA DE SINALIZAÇÃO AÇO ADESICADO;; R$ -
-12.3. PLACA DE SINALIZAÇÃO PVC PINTADA COM VINIL RECORTADO;; R$ -
-12.4. PLACA DE SINALIZAÇÃO PVC PINTADA COM ACRILICO RECORTADO;; R$ -
-12.5. PLACA DE SINALIZAÇÃO ACRILICO PINTADO COM RECORTE;; R$ -
-12.6. PLACA DE SINALIZAÇÃO ACRILICO PINTADO COM ACRILICO RECORTADO;; R$ -
-12.7. PLACA DE SINALIZAÇÃO AÇO PINTADO COM VINIL RECORTADO;; R$ -
-12.8. PLACA DE SINALIZAÇÃO AÇO PINTADO COM ACRILICO RECORTADO;; R$ -
-12.9. PLACA DE SINALIZAÇÃO ACRILICO CRISTAL COM VINIL CALÇADO;; R$ -
-12.10. PLACA DE SINALIZAÇÃO ACRILICO CRISTAL CALÇADO E RECORTE;; R$ -
-12.11. PLACA DE SINALIZAÇÃO ACRILICO CRISTLA CALÇADO E ACRILICO RECORTADO;; R$ -
-12.12. PLACA DE SINALIZAÇÃO PSID COM ADESIVO;; R$ -
-12.13. PLACA DE SINALIZAÇÃO PSID COM ADESICO E ACRILICO RECORTADO;; R$ -
-12.14. PLACA DE SINALIZAÇÃO VIDRO COM ADESIVO IMPRESSO CALÇADO ;; R$ -
-12.15. PLACA DE SINALIZAÇÃO VIDRO COM ADESIVO IMPRESSO CALÇADO  E ACRILICO RECORTADO;; R$ -
-12.16. PLACA DE SINALIZAÇÃO INOX PINTADO COM RECORTE;; R$ -
-12.17. PLACA DE SINALIZAÇÃO INOX PINTADO COM ACRILICO RECORTADO;; R$ -
-12.18. PLACA DE SINALIZAÇÃO ACM PINTADO COM RECORTE;; R$ -
-12.19. PLACA DE SINALIZAÇÃO ACM PINTADO COM ACRILICO RECORTADO;; R$ -
-12.20. PLACA DE SINALIZAÇÃO EM ACM COM VINIL IMPRESSO;; R$ -
-12.21. PLACA DE SINALIZAÇÃO EM ACM COM VINIL RECORTADO;; R$ -
-12.22. PLACA DE SINALIZAÇÃO EM ACM COM ACRILICO RECORTADO;; R$ -
-13. LETREIRO EM AÇO GALVANIZADO SEM ILUMINAÇÃO;; R$ -
-13.1. LETREIRO EM AÇO GALVANIZADO COM ILUMINAÇÃO;; R$ -
-13.2. LETREIRO EM AÇO INOX SEM ILUMINAÇÃO;; R$ -
-13.3. LETREIRO EM AÇO INOX COM ILUMNAÇÃO;; R$ -
-13.4. LETREIRO EM PVC EXPANDIDO SEM ILUMINAÇÃO;; R$ -
-13.5. LETREIRO EM PVC EXPANDIDO COM ILUMINAÇÃO;; R$ -
-13.6. LETREIRO EM ACRILICO PINTADO;; R$ -
-14. ADESIVO IMPRESSO;; R$ -
-14.1. ADESIVO RECORTE;; R$ -
-14.2. ADESIVO IMPRESSO COM RECORTE;; R$ -
-14.3. ADESIVO IMPRESSO COM CALÇO;; R$ -
-14.4. GRAVAÇÃO LASER ;; R$ -
-14.5. LONA IMPRESSA SIMPLES ;; R$ -
-14.6. LONA IMPRESSA COM ACABAMENTO;; R$ -
-14.7. BANNER;; R$ -`;
+export const DEFAULT_TABELA_CSV = `CODIGO;DESCRICAO;UNIDADE;VALOR;MINIMO;MAXIMO
+1;Impressão Digital E 3D;M2;0;1,00;
+1.1;Impressão 3D;M2;0;1,00;
+1.2;Impressão Digital Em Vinil Leitoso;M2;R$ 140,01;1,00;
+1.3;Impressão Digital Em Vinil Leitoso Com Laminação;M2;R$ 195,00;1,00;
+1.4;Impressão Digital Em Vinil Jateado;M2;R$ 169,88;1,00;
+1.5;Impressão Digital Em Vinil Transparente Calçado De Branco;M2;R$ 164,98;1,00;
+1.6;Impressão Digital Com Recorte;M2;R$ 169,99;1,00;
+1.7;Impressão Digital Em Vinil Transparente Calçado Com Recorte;M2;R$ 194,96;1,00;
+1.8;Impressões Digitais Utilizando Vinil Premium;M2;0;1,00;
+2;Vinil E Recorte Eletrônico;;0;;
+2.1;Vinil Calandrado Recorte;M2;R$ 160,02;1,00;
+2.2;Vinil Calandrado Premium Recorte;M2;R$ 190,00;1,00;
+2.3;Vinil Calandrado Importado Recorte;M2;R$ 337,14;1,00;
+2.4;Vinil Calandrado Refletivo Recorte;M2;R$ 235,64;1,00;
+2.5;Vinil Fotoluminescente Recorte;M2;R$ 1.123,81;0,50;
+3;Pintura;M2;R$ 225,02;1,00;
+3.1;Pintura;M2;R$ 225,02;1,00;
+4;ACM;M2;R$ 253,76;2,50;
+4.1;ACM Cores Padrão;M2;R$ 253,76;5,00;
+4.2;ACM Cores Especiais;M2;R$ 290,02;5,00;
+5;Iluminação LED;;0;;
+5.1;LED Fita;ML;R$ 50,75;1,00;
+5.2;Módulo LED;M2;R$ 362,52;;
+5.3;LED / Soldagem / Fiação;M2;R$ 65,25;;
+6;Corte, Usinagem E Matérias-Primas;;;;
+6.1;Gabarito De Instalação;M2;R$ 29,00;0,80;
+6.2;Corte Router;MINUTO;R$ 217,51;;
+6.3;Router ACM;MINUTO;R$ 2,39;;
+6.4;Router MDF;MINUTO;R$ 2,39;;
+6.5;Acrílico 3mm Padrão;;R$ 543,78;;
+6.6;Laser Acrílico;MINUTO;R$ 2,39;;
+6.7;Corte Laser Aço;MINUTO;R$ 6,31;;
+6.8;Laser Aço;MINUTO;R$ 3,15;;
+7;Elétrica, Fixação E Acessórios;;R$ 362,52;0,33;
+7.1;Lâmpada Tubular / Fiação;;R$ 362,52;0,33;
+7.2;Fita VHB Para Placas E Letreiros;M2;R$ 39,88;;
+7.3;Fonte 5A;ML;R$ 108,39;;4,00
+7.4;Fonte 10A;ML;R$ 217,15;;8,00
+7.5;Fonte 30A;ML;R$ 325,91;;20,00
+7.6;Fonte 50A;ML;R$ 471,28;;30,00
+7.7;KIT Prolongador (04 Por Kit - 1 Kit Por Placa);PLACA;R$ 36,25;;
+7.8;Vidro Temperado 8mm;M2;R$ 797,54;;
+7.9;Canaleta De LED;ML;0;;
+7.10;Interruptor LD;PLACA;R$ 43,50;;
+8;Fachadas Em ACM E Lona;;0;;
+8.1;Placa Fachada De ACM Adesivada;;0;;
+8.2;Placa Fachada De ACM Com Letra Caixa Em Aço Sem Iluminação;;0;;
+8.3;Placa Fachada De ACM Com Letra Caixa Em Aço Com Iluminação;;0;;
+8.4;Placa Fachada De ACM Com Letra Caixa Em PVC Sem Iluminação;;0;;
+8.5;Placa Fachada De ACM Com Letra Caixa Em PVC Com Iluminação;;0;;
+8.6;Placa Fachada De ACM Com Letra Caixa Em Acrílico Com Iluminação;;0;;
+8.7;Placa Fachada De ACM Com Letra Caixa Em Acrílico Sem Iluminação;;0;;
+8.8;Placa Fachada Lona Front;;0;;
+8.9;Placa Fachada Lona Back;;0;;
+9;Placas De Sinalização;;0;;
+9.1;Placa De Sinalização PVC Adesivado;;0;;
+9.2;Placa De Sinalização Acrílico Adesivado;;0;;
+9.3;Placa De Sinalização Aço Adesivado;;0;;
+9.4;Placa De Sinalização PVC Pintada Com Vinil Recortado;;0;;
+9.5;Placa De Sinalização PVC Pintada Com Acrílico Recortado;;0;;
+9.6;Placa De Sinalização Acrílico Pintado Com Recorte;;0;;
+9.7;Placa De Sinalização Acrílico Pintado Com Acrílico Recortado;;0;;
+9.8;Placa De Sinalização Aço Pintado Com Vinil Recortado;;0;;
+9.9;Placa De Sinalização Aço Pintado Com Acrílico Recortado;;0;;
+9.10;Placa De Sinalização Acrílico Cristal Com Vinil Calçado;;0;;
+9.11;Placa De Sinalização Acrílico Cristal Calçado E Recorte;;0;;
+9.12;Placa De Sinalização Acrílico Cristal Calçado E Acrílico Recortado;;0;;
+9.13;Placa De Sinalização PSAI Com Adesivo;;0;;
+9.14;Placa De Sinalização PSAI Com Adesivo E Acrílico Recortado;;0;;
+9.15;Placa De Sinalização Vidro Com Adesivo Impresso Calçado;;0;;
+9.16;Placa De Sinalização Vidro Com Adesivo Impresso Calçado E Acrílico Recortado;;0;;
+9.17;Placa De Sinalização Inox Pintado Com Recorte;;0;;
+9.18;Placa De Sinalização Inox Pintado Com Acrílico Recortado;;0;;
+9.19;Placa De Sinalização ACM Pintado Com Recorte;;0;;
+9.20;Placa De Sinalização ACM Pintado Com Acrílico Recortado;;0;;
+9.21;Placa De Sinalização Em ACM Com Vinil Impresso;;0;;
+9.22;Placa De Sinalização Em ACM Com Vinil Recortado;;0;;
+9.23;Placa De Sinalização Em ACM Com Acrílico Recortado;;0;;
+10;Letreiros E Letra Caixa;;0;;
+10.1;Letreiro Em Aço Galvanizado Sem Iluminação;;0;;
+10.2;Letreiro Em Aço Galvanizado Com Iluminação;;0;;
+10.3;Letreiro Em Aço Inox Sem Iluminação;;0;;
+10.4;Letreiro Em Aço Inox Com Iluminação;;0;;
+10.5;Letreiro Em PVC Expandido Sem Iluminação;;0;;
+10.6;Letreiro Em PVC Expandido Com Iluminação;;0;;
+10.7;Letreiro Em Acrílico Pintado;;0;;
+11;Adesivos, Lonas E Banners;;0;;
+11.1;Adesivo Impresso;;0;;
+11.2;Adesivo Recorte;;0;;
+11.3;Adesivo Impresso Com Recorte;;0;;
+11.4;Adesivo Impresso Com Calço;;0;;
+11.5;Gravação Laser;;0;;
+11.6;Lona Impressa Simples;;0;;
+11.7;Lona Impressa Com Acabamento;;0;;
+11.8;Banner;;0;;`;
 
 /**
- * Converte string de preço (ex: "R$ 140,00", "R$ 1.123,80", "R$ -") para number ou undefined
+ * Converte string de preço (ex: "R$ 140,01", "140.01", "0", "R$ -") para number ou undefined
  */
 export function parseCsvPrice(valStr: string): number | undefined {
   if (!valStr) return undefined;
   const clean = valStr.replace(/R\$/i, '').trim();
   if (!clean || clean === '-' || clean === 'sob consulta') return undefined;
 
-  // Trata formato brasileiro (1.123,80 -> 1123.80)
+  // Se for "0"
+  if (clean === '0' || clean === '0,00' || clean === '0.00') return 0;
+
+  // Trata formato brasileiro (1.123,81 -> 1123.81)
   if (clean.includes(',')) {
     const standardized = clean.replace(/\./g, '').replace(',', '.');
     const parsed = parseFloat(standardized);
@@ -151,6 +121,21 @@ export function parseCsvPrice(valStr: string): number | undefined {
 
   const parsed = parseFloat(clean);
   return isNaN(parsed) || parsed < 0 ? undefined : parsed;
+}
+
+/**
+ * Converte valor limite (mínimo ou máximo).
+ * Zero ou vazio é considerado livre (retorna undefined).
+ */
+export function parseCsvLimit(limitStr: string): number | undefined {
+  if (!limitStr) return undefined;
+  const clean = limitStr.replace(/R\$/i, '').trim().replace(',', '.');
+  if (!clean) return undefined;
+  const val = parseFloat(clean);
+  if (isNaN(val) || val <= 0) {
+    return undefined; // 0 ou vazio = livre
+  }
+  return val;
 }
 
 /**
@@ -178,6 +163,12 @@ export function parseCsvUnit(unitStr: string): {
   if (upper.includes('ML') || upper.includes('LINEAR') || upper === 'M' || upper.includes('METRO')) {
     return { unit: 'linear', hasSpecificUnit: true, rawText: 'metro linear' };
   }
+  if (upper.includes('MINUTO') || upper.includes('MIN')) {
+    return { unit: 'minuto', hasSpecificUnit: true, rawText: 'minuto' };
+  }
+  if (upper.includes('PLACA')) {
+    return { unit: 'placa', hasSpecificUnit: true, rawText: 'placa' };
+  }
   if (upper.includes('UN') || upper.includes('UND') || upper.includes('PC') || upper.includes('PEÇA') || upper.includes('PECA')) {
     return { unit: 'un', hasSpecificUnit: true, rawText: 'unidade' };
   }
@@ -196,37 +187,89 @@ export function parseBudgetCsv(csvContent: string): BudgetCatalogGroup[] {
   let currentGroup: BudgetCatalogGroup | null = null;
   let subIndexInGroup = 0;
 
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
+  // Verifica formato do cabeçalho
+  let hasCodigoCol = false;
+  let startIndex = 0;
 
-    // Ignora cabeçalho
-    if (line.toUpperCase().startsWith('DESCRICAO') || line.toUpperCase().startsWith('DESCRIÇÃO')) {
-      continue;
+  if (lines.length > 0) {
+    const firstLine = lines[0].toUpperCase();
+    if (firstLine.startsWith('CODIGO') || firstLine.startsWith('CÓDIGO')) {
+      hasCodigoCol = true;
+      startIndex = 1;
+    } else if (firstLine.startsWith('DESCRICAO') || firstLine.startsWith('DESCRIÇÃO')) {
+      hasCodigoCol = false;
+      startIndex = 1;
     }
+  }
 
-    // Identifica separador (; ou ,)
+  for (let i = startIndex; i < lines.length; i++) {
+    const line = lines[i];
     const delimiter = line.includes(';') ? ';' : ',';
     const parts = line.split(delimiter).map((p) => p.trim());
-    const rawDesc = parts[0] || '';
-    const rawUnit = parts[1] || '';
-    const rawPrice = parts[2] || '';
 
-    if (!rawDesc) continue;
+    let rawCode = '';
+    let rawDesc = '';
+    let rawUnit = '';
+    let rawPrice = '';
+    let rawMin = '';
+    let rawMax = '';
+
+    if (hasCodigoCol) {
+      rawCode = parts[0] || '';
+      rawDesc = parts[1] || '';
+      rawUnit = parts[2] || '';
+      rawPrice = parts[3] || '';
+      rawMin = parts[4] || '';
+      rawMax = parts[5] || '';
+    } else {
+      rawDesc = parts[0] || '';
+      rawUnit = parts[1] || '';
+      rawPrice = parts[2] || '';
+      rawMin = parts[3] || '';
+      rawMax = parts[4] || '';
+    }
+
+    if (!rawDesc && !rawCode) continue;
 
     const parsedPrice = parseCsvPrice(rawPrice);
     const parsedUnitInfo = parseCsvUnit(rawUnit);
+    const parsedMinimo = parseCsvLimit(rawMin);
+    const parsedMaximo = parseCsvLimit(rawMax);
 
-    // Regex para identificar sub-itens numerados (ex: "1.1 Impressão", "2.10 Router", "11.1. PLACA...")
-    // Note que sub-itens possuem ponto no meio dos números (ex: 1.1 ou 11.2.)
-    const subItemMatch = rawDesc.match(/^(\d+\.\d+)\.?\s*(.*)$/);
+    // Determina se é subitem ou grupo principal
+    let isSubItem = false;
+    let isGroup = false;
+    let grpNum = '';
+    let itemCode = '';
+    let itemName = rawDesc;
 
-    // Regex para grupos primários (ex: "1. IMPRESSÃO", "3. SOLDAS", "10. FACHADA DE ACM")
-    const groupMatch = !subItemMatch ? rawDesc.match(/^(\d+)\.\s*(.*)$/) : null;
+    if (hasCodigoCol && rawCode) {
+      if (rawCode.includes('.')) {
+        isSubItem = true;
+        itemCode = rawCode;
+      } else {
+        isGroup = true;
+        grpNum = rawCode;
+      }
+    } else {
+      // Formato antigo sem coluna CODIGO explícita
+      const subItemMatch = rawDesc.match(/^(\d+\.\d+)\.?\s*(.*)$/);
+      const groupMatch = !subItemMatch ? rawDesc.match(/^(\d+)\.\s*(.*)$/) : null;
 
-    if (groupMatch) {
+      if (subItemMatch) {
+        isSubItem = true;
+        itemCode = subItemMatch[1];
+        itemName = subItemMatch[2] || rawDesc;
+      } else if (groupMatch) {
+        isGroup = true;
+        grpNum = groupMatch[1];
+        itemName = groupMatch[2] || rawDesc;
+      }
+    }
+
+    if (isGroup) {
       // Salva grupo anterior
       if (currentGroup) {
-        // Se o grupo não possuía nenhum subitem, gera um item default com seus dados
         if (currentGroup.subItems.length === 0) {
           currentGroup.subItems.push({
             id: `${currentGroup.id}-item-1`,
@@ -236,71 +279,67 @@ export function parseBudgetCsv(csvContent: string): BudgetCatalogGroup[] {
             hasSpecificUnit: currentGroup.hasSpecificUnit,
             rawUnitText: currentGroup.rawUnitText,
             suggestedPrice: currentGroup.suggestedPrice,
+            minimo: currentGroup.minimo,
+            maximo: currentGroup.maximo,
             descricaoSugestao: `Item principal: ${currentGroup.nome}`,
           });
         }
         groups.push(currentGroup);
       }
 
-      const grpNum = groupMatch[1];
-      const grpNome = groupMatch[2] || rawDesc;
-
       subIndexInGroup = 0;
       currentGroup = {
         id: `grp-${grpNum}`,
         code: `${grpNum}.`,
-        nome: grpNome,
-        descricao: `Opções e itens do grupo ${grpNome}`,
+        nome: itemName,
+        descricao: `Opções e itens do grupo ${itemName}`,
         defaultUnit: parsedUnitInfo.unit,
         hasSpecificUnit: parsedUnitInfo.hasSpecificUnit,
         rawUnitText: parsedUnitInfo.rawText,
         suggestedPrice: parsedPrice,
+        minimo: parsedMinimo,
+        maximo: parsedMaximo,
         subItems: [],
       };
       continue;
     }
 
-    // Se é um sub-item numerado ou se é uma linha filha (ex: "ACM CORES")
+    // Se é um sub-item
     if (currentGroup) {
       subIndexInGroup++;
-      let itemCode = '';
-      let itemNome = '';
-
-      if (subItemMatch) {
-        itemCode = subItemMatch[1];
-        itemNome = subItemMatch[2] || rawDesc;
-      } else {
-        itemCode = `${currentGroup.code.replace('.', '')}.${subIndexInGroup}`;
-        itemNome = rawDesc;
-      }
+      const finalCode = itemCode || `${currentGroup.code.replace('.', '')}.${subIndexInGroup}`;
 
       currentGroup.subItems.push({
-        id: `${currentGroup.id}-sub-${itemCode.replace(/\./g, '_')}-${subIndexInGroup}`,
-        code: itemCode,
-        nome: itemNome,
+        id: `${currentGroup.id}-sub-${finalCode.replace(/\./g, '_')}-${subIndexInGroup}`,
+        code: finalCode,
+        nome: itemName,
         defaultUnit: parsedUnitInfo.hasSpecificUnit ? parsedUnitInfo.unit : (currentGroup.defaultUnit || 'm2'),
         hasSpecificUnit: parsedUnitInfo.hasSpecificUnit,
         rawUnitText: parsedUnitInfo.rawText,
         suggestedPrice: parsedPrice !== undefined ? parsedPrice : currentGroup.suggestedPrice,
-        descricaoSugestao: `${currentGroup.nome} - ${itemNome}`,
+        minimo: parsedMinimo !== undefined ? parsedMinimo : currentGroup.minimo,
+        maximo: parsedMaximo !== undefined ? parsedMaximo : currentGroup.maximo,
+        descricaoSugestao: `${currentGroup.nome} - ${itemName}`,
       });
     } else {
-      // Caso a primeira linha do arquivo seja um item sem grupo explícito
-      const grpId = 'grp-1';
+      // Caso a primeira linha seja um item sem grupo explícito
+      const fallbackGrpId = 'grp-1';
       currentGroup = {
-        id: grpId,
+        id: fallbackGrpId,
         code: '1.',
         nome: 'GERAL',
         subItems: [],
       };
       currentGroup.subItems.push({
-        id: `${grpId}-sub-1`,
-        code: '1.1',
-        nome: rawDesc,
+        id: `${fallbackGrpId}-sub-1`,
+        code: itemCode || '1.1',
+        nome: itemName,
         defaultUnit: parsedUnitInfo.unit,
         hasSpecificUnit: parsedUnitInfo.hasSpecificUnit,
         rawUnitText: parsedUnitInfo.rawText,
         suggestedPrice: parsedPrice,
+        minimo: parsedMinimo,
+        maximo: parsedMaximo,
       });
     }
   }
@@ -316,6 +355,8 @@ export function parseBudgetCsv(csvContent: string): BudgetCatalogGroup[] {
         hasSpecificUnit: currentGroup.hasSpecificUnit,
         rawUnitText: currentGroup.rawUnitText,
         suggestedPrice: currentGroup.suggestedPrice,
+        minimo: currentGroup.minimo,
+        maximo: currentGroup.maximo,
         descricaoSugestao: `Item principal: ${currentGroup.nome}`,
       });
     }

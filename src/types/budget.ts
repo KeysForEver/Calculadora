@@ -1,4 +1,4 @@
-export type BudgetUnit = 'm2' | 'linear' | 'un';
+export type BudgetUnit = 'm2' | 'linear' | 'un' | 'minuto' | 'placa';
 
 export interface BudgetCatalogSubItem {
   id: string;
@@ -8,6 +8,8 @@ export interface BudgetCatalogSubItem {
   hasSpecificUnit?: boolean;
   rawUnitText?: string;
   suggestedPrice?: number;
+  minimo?: number;
+  maximo?: number;
   descricaoSugestao?: string;
 }
 
@@ -20,6 +22,8 @@ export interface BudgetCatalogGroup {
   hasSpecificUnit?: boolean;
   rawUnitText?: string;
   suggestedPrice?: number;
+  minimo?: number;
+  maximo?: number;
   subItems: BudgetCatalogSubItem[];
 }
 

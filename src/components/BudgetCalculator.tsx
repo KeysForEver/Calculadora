@@ -49,7 +49,9 @@ export function BudgetCalculator({ onBackToPainel }: BudgetCalculatorProps) {
   const [larguraM, setLarguraM] = useState<string>('');
   const [alturaM, setAlturaM] = useState<string>('');
   const [comprimentoM, setComprimentoM] = useState<string>('');
-  const [quantidade, setQuantidade] = useState<string>('1');
+  const [quantidade, setQuantidade] = useState<string>(
+    currentSubItem?.minimo && currentSubItem.minimo > 0 ? String(currentSubItem.minimo) : '1'
+  );
   const [precoUnitario, setPrecoUnitario] = useState<string>(
     currentSubItem?.suggestedPrice && currentSubItem.suggestedPrice > 0
       ? String(currentSubItem.suggestedPrice)
@@ -91,6 +93,7 @@ export function BudgetCalculator({ onBackToPainel }: BudgetCalculatorProps) {
           ? String(firstSub.suggestedPrice)
           : ''
       );
+      setQuantidade(firstSub.minimo && firstSub.minimo > 0 ? String(firstSub.minimo) : '1');
     }
   };
 
@@ -105,6 +108,7 @@ export function BudgetCalculator({ onBackToPainel }: BudgetCalculatorProps) {
           ? String(sub.suggestedPrice)
           : ''
       );
+      setQuantidade(sub.minimo && sub.minimo > 0 ? String(sub.minimo) : '1');
     }
   };
 
@@ -112,7 +116,7 @@ export function BudgetCalculator({ onBackToPainel }: BudgetCalculatorProps) {
   const parsedLargura = parseFloat(larguraM.replace(',', '.')) || 0;
   const parsedAltura = parseFloat(alturaM.replace(',', '.')) || 0;
   const parsedComprimento = parseFloat(comprimentoM.replace(',', '.')) || 0;
-  const parsedQtd = Math.max(1, parseInt(quantidade, 10) || 1);
+  const parsedQtd = Math.max(0, parseFloat(quantidade.replace(',', '.')) || 0);
   const parsedPrecoUnit = parseFloat(precoUnitario.replace(',', '.')) || 0;
 
   const currentAreaM2 = parsedLargura * parsedAltura;
@@ -127,6 +131,7 @@ export function BudgetCalculator({ onBackToPainel }: BudgetCalculatorProps) {
       const comp = parsedComprimento > 0 ? parsedComprimento : 1;
       return comp * parsedQtd * parsedPrecoUnit;
     }
+    // Para 'minuto', 'placa' ou 'un'
     return parsedQtd * parsedPrecoUnit;
   };
 
@@ -138,6 +143,23 @@ export function BudgetCalculator({ onBackToPainel }: BudgetCalculatorProps) {
 
     if (!currentGroup || !currentSubItem) {
       showToast('Selecione um grupo e uma opção antes de adicionar.');
+      return;
+    }
+
+    if (parsedQtd <= 0) {
+      showToast('Por favor, informe uma quantidade válida maior que zero.');
+      return;
+    }
+
+    // Validação de Mínimo
+    if (currentSubItem.minimo && currentSubItem.minimo > 0 && parsedQtd < currentSubItem.minimo) {
+      showToast(`A quantidade mínima para "${currentSubItem.nome}" é ${currentSubItem.minimo}.`);
+      return;
+    }
+
+    // Validação de Máximo
+    if (currentSubItem.maximo && currentSubItem.maximo > 0 && parsedQtd > currentSubItem.maximo) {
+      showToast(`A quantidade máxima permitida para "${currentSubItem.nome}" é ${currentSubItem.maximo}.`);
       return;
     }
 
@@ -374,14 +396,24 @@ export function BudgetCalculator({ onBackToPainel }: BudgetCalculatorProps) {
                               <span className="font-mono font-bold text-[11px] text-slate-500">{sub.code}</span>
                               <span className="font-bold text-slate-900">{sub.nome}</span>
                             </div>
-                            <div className="flex items-center gap-2 mt-1">
+                            <div className="flex items-center gap-1.5 flex-wrap mt-1">
                               {sub.hasSpecificUnit ? (
                                 <span className="inline-block text-[10px] font-bold px-1.5 py-0.5 rounded bg-emerald-100/70 text-emerald-800 border border-emerald-200">
-                                  Unidade: {sub.rawUnitText || (sub.defaultUnit === 'm2' ? 'm²' : sub.defaultUnit === 'linear' ? 'm linear' : 'un')}
+                                  Unidade: {sub.rawUnitText || (sub.defaultUnit === 'm2' ? 'm²' : sub.defaultUnit === 'linear' ? 'm linear' : sub.defaultUnit === 'minuto' ? 'minuto' : sub.defaultUnit === 'placa' ? 'placa' : 'un')}
                                 </span>
                               ) : (
                                 <span className="inline-block text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-100/80 text-amber-900 border border-amber-300">
                                   Unidade livre (m², linear ou un)
+                                </span>
+                              )}
+                              {sub.minimo !== undefined && (
+                                <span className="inline-block text-[10px] font-bold px-1.5 py-0.5 rounded bg-blue-50 text-blue-800 border border-blue-200">
+                                  Mín: {sub.minimo}
+                                </span>
+                              )}
+                              {sub.maximo !== undefined && (
+                                <span className="inline-block text-[10px] font-bold px-1.5 py-0.5 rounded bg-purple-50 text-purple-800 border border-purple-200">
+                                  Máx: {sub.maximo}
                                 </span>
                               )}
                               {sub.descricaoSugestao && (
@@ -480,7 +512,17 @@ export function BudgetCalculator({ onBackToPainel }: BudgetCalculatorProps) {
                     <div className="inline-flex items-center gap-2 bg-emerald-50 border border-emerald-300 text-emerald-900 px-3.5 py-1.5 rounded-lg text-xs font-bold shadow-xs">
                       <span className="text-[10px] uppercase font-bold text-emerald-700">Unidade Fixa:</span>
                       <span className="uppercase font-extrabold text-emerald-950">
-                        {currentSubItem.rawUnitText || (currentSubItem.defaultUnit === 'm2' ? 'Área (m²)' : currentSubItem.defaultUnit === 'linear' ? 'Metro Linear (m)' : 'Unidade (un)')}
+                        {currentSubItem.rawUnitText || (
+                          currentSubItem.defaultUnit === 'm2'
+                            ? 'Área (m²)'
+                            : currentSubItem.defaultUnit === 'linear'
+                            ? 'Metro Linear (m)'
+                            : currentSubItem.defaultUnit === 'minuto'
+                            ? 'Minuto (min)'
+                            : currentSubItem.defaultUnit === 'placa'
+                            ? 'Placa (un)'
+                            : 'Unidade (un)'
+                        )}
                       </span>
                     </div>
                   </div>
@@ -561,14 +603,35 @@ export function BudgetCalculator({ onBackToPainel }: BudgetCalculatorProps) {
                 )}
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {/* Quantidade */}
+                  {/* Quantidade com respeito a Mínimo e Máximo */}
                   <div>
-                    <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">
-                      Quantidade de Peças
-                    </label>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="text-[11px] font-bold text-slate-700 uppercase">
+                        {unitMode === 'minuto'
+                          ? 'Tempo / Minutos'
+                          : unitMode === 'placa'
+                          ? 'Quantidade de Placas'
+                          : unitMode === 'm2'
+                          ? 'Quantidade de Peças'
+                          : unitMode === 'linear'
+                          ? 'Quantidade de Barras / Vias'
+                          : 'Quantidade de Peças'}
+                      </label>
+                      {currentSubItem && (currentSubItem.minimo !== undefined || currentSubItem.maximo !== undefined) && (
+                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-50 text-amber-900 border border-amber-300">
+                          {currentSubItem.minimo !== undefined && currentSubItem.maximo !== undefined
+                            ? `Mín: ${currentSubItem.minimo} | Máx: ${currentSubItem.maximo}`
+                            : currentSubItem.minimo !== undefined
+                            ? `Mínimo: ${currentSubItem.minimo}`
+                            : `Máximo: ${currentSubItem.maximo}`}
+                        </span>
+                      )}
+                    </div>
                     <input
                       type="number"
-                      min="1"
+                      step="any"
+                      min={currentSubItem?.minimo && currentSubItem.minimo > 0 ? currentSubItem.minimo : 0.01}
+                      max={currentSubItem?.maximo && currentSubItem.maximo > 0 ? currentSubItem.maximo : undefined}
                       value={quantidade}
                       onChange={(e) => setQuantidade(e.target.value)}
                       className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-xs font-mono font-bold text-slate-900 focus:ring-2 focus:ring-emerald-500"
@@ -579,7 +642,7 @@ export function BudgetCalculator({ onBackToPainel }: BudgetCalculatorProps) {
                   {/* Preço Unitário Editável */}
                   <div>
                     <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">
-                      Preço Unitário (R$ / {unitMode === 'm2' ? 'm²' : unitMode === 'linear' ? 'm' : 'un'})
+                      Preço Unitário (R$ / {unitMode === 'm2' ? 'm²' : unitMode === 'linear' ? 'm' : unitMode === 'minuto' ? 'minuto' : unitMode === 'placa' ? 'placa' : 'un'})
                     </label>
                     <div className="relative">
                       <span className="absolute left-3 top-2 text-xs font-bold text-slate-400">R$</span>
@@ -704,6 +767,16 @@ export function BudgetCalculator({ onBackToPainel }: BudgetCalculatorProps) {
                         {it.unit === 'linear' && it.comprimentoM && (
                           <span>
                             <strong>{it.comprimentoM.toFixed(2)} m</strong> lineares
+                          </span>
+                        )}
+                        {it.unit === 'minuto' && (
+                          <span>
+                            <strong>{it.quantidade}</strong> min de usinagem
+                          </span>
+                        )}
+                        {it.unit === 'placa' && (
+                          <span>
+                            <strong>{it.quantidade}</strong> placa(s)
                           </span>
                         )}
                         {it.unit === 'un' && <span>Peça unitária</span>}
@@ -917,6 +990,12 @@ export function BudgetCalculator({ onBackToPainel }: BudgetCalculatorProps) {
                             )}
                             {it.unit === 'linear' && it.comprimentoM && (
                               <span>{it.comprimentoM.toFixed(2)} m</span>
+                            )}
+                            {it.unit === 'minuto' && (
+                              <span>{it.quantidade} min</span>
+                            )}
+                            {it.unit === 'placa' && (
+                              <span>{it.quantidade} placa(s)</span>
                             )}
                             {it.unit === 'un' && <span>Peça</span>}
                           </td>
