@@ -11,6 +11,16 @@ import {
   Sliders,
   X,
   Search,
+  Building2,
+  Phone,
+  Mail,
+  Calendar,
+  Clock,
+  CreditCard,
+  ShieldCheck,
+  Award,
+  Globe,
+  Instagram,
 } from 'lucide-react';
 import { BUDGET_CATALOG_GROUPS } from '../data/budgetCatalog';
 import { BudgetItem, BudgetUnit } from '../types/budget';
@@ -26,6 +36,18 @@ export function BudgetCalculator({ onBackToPainel }: BudgetCalculatorProps) {
 
   // Busca e filtro
   const [searchFilter, setSearchFilter] = useState<string>('');
+
+  // Dados do Cliente e Proposta Comercial (SKYMÍDIA)
+  const [clienteNome, setClienteNome] = useState<string>('Cliente Especial');
+  const [clienteEmpresa, setClienteEmpresa] = useState<string>('');
+  const [clienteTelefone, setClienteTelefone] = useState<string>('(00) 00000-0000');
+  const [clienteEmail, setClienteEmail] = useState<string>('');
+  const [clienteCidade, setClienteCidade] = useState<string>('');
+  const [validadeDias, setValidadeDias] = useState<number>(10);
+  const [prazoProducao, setPrazoProducao] = useState<string>('7 a 10 dias úteis após aprovação final e sinal');
+  const [condicoesPagamento, setCondicoesPagamento] = useState<string>('50% de entrada no aceite + 50% na conclusão / entrega');
+  const [formaPagamento, setFormaPagamento] = useState<string>('Pix, Transferência Bancária ou Cartão de Crédito');
+  const [garantiaMeses, setGarantiaMeses] = useState<string>('12 meses contra defeitos de fabricação e descolamento');
 
   // Estado de seleção do catálogo
   const [selectedGroupId, setSelectedGroupId] = useState<string>(
@@ -238,7 +260,8 @@ export function BudgetCalculator({ onBackToPainel }: BudgetCalculatorProps) {
     if (!pdfPrintRef.current) return;
     setIsExportingPDF(true);
     try {
-      const filename = `Orcamento_${new Date().toISOString().slice(0, 10)}.pdf`;
+      const sanitizedClient = clienteNome ? clienteNome.replace(/[^a-zA-Z0-9]/g, '_').slice(0, 20) : 'Cliente';
+      const filename = `Proposta_SKYMÍDIA_${sanitizedClient}_${new Date().toISOString().slice(0, 10)}.pdf`;
       await generatePDFFromElement(pdfPrintRef.current, filename);
       showToast('PDF gerado com sucesso!');
     } catch (err) {
@@ -420,17 +443,6 @@ export function BudgetCalculator({ onBackToPainel }: BudgetCalculatorProps) {
                                 <span className="text-[10px] text-slate-400 line-clamp-1">{sub.descricaoSugestao}</span>
                               )}
                             </div>
-                          </div>
-
-                          <div className="text-right shrink-0">
-                            <span className="text-[10px] uppercase font-bold text-slate-400 block">
-                              Preço Base
-                            </span>
-                            <span className="font-mono font-bold text-slate-800">
-                              {sub.suggestedPrice && sub.suggestedPrice > 0
-                                ? formatBRL(sub.suggestedPrice)
-                                : 'Sob Consulta'}
-                            </span>
                           </div>
                         </div>
                       );
@@ -638,26 +650,6 @@ export function BudgetCalculator({ onBackToPainel }: BudgetCalculatorProps) {
                       required
                     />
                   </div>
-
-                  {/* Preço Unitário Editável */}
-                  <div>
-                    <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">
-                      Preço Unitário (R$ / {unitMode === 'm2' ? 'm²' : unitMode === 'linear' ? 'm' : unitMode === 'minuto' ? 'minuto' : unitMode === 'placa' ? 'placa' : 'un'})
-                    </label>
-                    <div className="relative">
-                      <span className="absolute left-3 top-2 text-xs font-bold text-slate-400">R$</span>
-                      <input
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        placeholder="0,00"
-                        value={precoUnitario}
-                        onChange={(e) => setPrecoUnitario(e.target.value)}
-                        className="w-full bg-white border border-slate-300 rounded-lg pl-9 pr-3 py-2 text-xs font-mono font-bold text-slate-900 focus:ring-2 focus:ring-emerald-500"
-                        required
-                      />
-                    </div>
-                  </div>
                 </div>
 
                 {/* Observações Opcionais do Item */}
@@ -674,15 +666,8 @@ export function BudgetCalculator({ onBackToPainel }: BudgetCalculatorProps) {
                   />
                 </div>
 
-                {/* Prévia do Item e Botão Adicionar */}
-                <div className="pt-2 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-3">
-                  <div className="text-left w-full sm:w-auto">
-                    <span className="text-[10px] uppercase font-bold text-slate-400 block">Total Deste Item:</span>
-                    <span className="text-base font-black text-slate-900 font-mono">
-                      {formatBRL(currentItemPreviewTotal)}
-                    </span>
-                  </div>
-
+                {/* Botão Adicionar Item */}
+                <div className="pt-2 border-t border-slate-200 flex items-center justify-end">
                   <button
                     type="submit"
                     className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-slate-900 hover:bg-slate-800 text-white px-5 py-2.5 rounded-xl font-bold text-xs shadow-md transition cursor-pointer"
@@ -783,10 +768,6 @@ export function BudgetCalculator({ onBackToPainel }: BudgetCalculatorProps) {
                         <span className="mx-1.5 text-slate-300">|</span>
                         <span>Qtd: <strong>{it.quantidade}</strong></span>
                       </div>
-
-                      <span className="font-bold text-slate-900 text-xs font-mono">
-                        {formatBRL(it.total)}
-                      </span>
                     </div>
 
                     {it.observacoes && (
@@ -884,21 +865,33 @@ export function BudgetCalculator({ onBackToPainel }: BudgetCalculatorProps) {
       {/* Modal / Visualização de Proposta Comercial Pronta para Impressão */}
       {showPreviewModal && (
         <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-xs flex items-center justify-center p-3 sm:p-6 overflow-y-auto">
-          <div className="bg-white rounded-2xl w-full max-w-4xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[92vh]">
-            {/* Header da Modal */}
-            <div className="p-4 bg-slate-900 text-white flex items-center justify-between shrink-0">
-              <div className="flex items-center gap-2">
-                <FileText className="w-5 h-5 text-emerald-400" />
-                <h3 className="text-sm font-bold">Proposta Comercial / Visualização do Orçamento</h3>
+          <div className="bg-white rounded-2xl w-full max-w-5xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[95vh]">
+            {/* Header da Modal com Ações e Edição Rápida de Dados da Proposta */}
+            <div className="p-4 bg-slate-900 text-white flex flex-col sm:flex-row sm:items-center justify-between gap-3 shrink-0">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center">
+                  <Award className="w-4 h-4 text-emerald-400" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-black tracking-wide flex items-center gap-2">
+                    <span>SKYMÍDIA</span>
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                      Proposta Comercial
+                    </span>
+                  </h3>
+                  <p className="text-[11px] text-slate-400">
+                    Documento profissional pronto para impressão ou exportação em PDF
+                  </p>
+                </div>
               </div>
 
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 self-end sm:self-auto">
                 <button
                   type="button"
                   onClick={handleNativePrint}
                   className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold rounded-lg transition cursor-pointer"
                 >
-                  <Printer className="w-3.5 h-3.5" />
+                  <Printer className="w-3.5 h-3.5 text-slate-300" />
                   <span>Imprimir</span>
                 </button>
 
@@ -906,72 +899,234 @@ export function BudgetCalculator({ onBackToPainel }: BudgetCalculatorProps) {
                   type="button"
                   disabled={isExportingPDF}
                   onClick={handleExportPDF}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-lg transition cursor-pointer disabled:opacity-50"
+                  className="inline-flex items-center gap-1.5 px-4 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-lg transition cursor-pointer disabled:opacity-50 shadow-sm"
                 >
                   <FileDown className="w-3.5 h-3.5" />
-                  <span>{isExportingPDF ? 'Gerando...' : 'Baixar PDF'}</span>
+                  <span>{isExportingPDF ? 'Gerando PDF...' : 'Baixar PDF'}</span>
                 </button>
 
                 <button
                   type="button"
                   onClick={() => setShowPreviewModal(false)}
-                  className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition cursor-pointer ml-2"
+                  className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition cursor-pointer ml-1"
                 >
                   <X className="w-5 h-5" />
                 </button>
               </div>
             </div>
 
-            {/* Conteúdo da Folha A4 timbrada para Impressão / PDF */}
-            <div className="overflow-y-auto p-6 sm:p-10 bg-slate-100 flex justify-center">
-              <div
-                ref={pdfPrintRef}
-                className="bg-white w-full max-w-[794px] min-h-[1050px] p-8 sm:p-12 shadow-md border border-slate-200 text-slate-900 text-xs font-sans space-y-6"
-              >
-                {/* Cabeçalho da Proposta */}
-                <div className="flex justify-between items-start border-b-2 border-slate-900 pb-5">
+            {/* Barra de Ajuste dos Dados do Cliente & Condições Comerciais */}
+            <div className="bg-slate-50 border-b border-slate-200 px-4 py-3 shrink-0">
+              <details className="group">
+                <summary className="text-xs font-bold text-slate-700 cursor-pointer flex items-center justify-between list-none">
+                  <span className="flex items-center gap-2">
+                    <Building2 className="w-3.5 h-3.5 text-emerald-600" />
+                    <span>Personalizar Dados do Cliente &amp; Condições da Proposta (Clique para expandir)</span>
+                  </span>
+                  <span className="text-[10px] text-emerald-700 font-semibold group-open:hidden">
+                    Editar Dados +
+                  </span>
+                  <span className="text-[10px] text-slate-400 font-semibold hidden group-open:inline">
+                    Recolher -
+                  </span>
+                </summary>
+
+                <div className="mt-3 pt-3 border-t border-slate-200 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2.5 text-xs">
                   <div>
-                    <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
-                      PROPOSTA COMERCIAL
-                    </h1>
-                    <p className="text-xs font-bold text-slate-600 uppercase tracking-wider mt-0.5">
-                      Comunicação Visual &amp; Fachadas
-                    </p>
-                    <p className="text-[11px] text-slate-500 mt-1">
-                      Fachadas em ACM • Letras Caixa • Painéis Luminosos • Sinalização • Impressão Digital
-                    </p>
+                    <label className="block text-[10px] font-bold text-slate-500 uppercase">Nome do Cliente</label>
+                    <input
+                      type="text"
+                      value={clienteNome}
+                      onChange={(e) => setClienteNome(e.target.value)}
+                      placeholder="Ex: Carlos Oliveira"
+                      className="w-full bg-white border border-slate-300 rounded px-2 py-1 text-xs text-slate-800"
+                    />
                   </div>
 
-                  <div className="text-right">
-                    <span className="font-mono text-xs font-bold text-slate-500 block">
-                      ORÇAMENTO Nº {new Date().getFullYear()}-{String(Date.now()).slice(-4)}
-                    </span>
-                    <span className="text-[11px] text-slate-500 block mt-1">
-                      Data: <strong>{new Date().toLocaleDateString('pt-BR')}</strong>
-                    </span>
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-500 uppercase">Empresa / Razão Social</label>
+                    <input
+                      type="text"
+                      value={clienteEmpresa}
+                      onChange={(e) => setClienteEmpresa(e.target.value)}
+                      placeholder="Ex: Loja Modelo Ltda"
+                      className="w-full bg-white border border-slate-300 rounded px-2 py-1 text-xs text-slate-800"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-500 uppercase">Telefone / WhatsApp</label>
+                    <input
+                      type="text"
+                      value={clienteTelefone}
+                      onChange={(e) => setClienteTelefone(e.target.value)}
+                      placeholder="Ex: (11) 98765-4321"
+                      className="w-full bg-white border border-slate-300 rounded px-2 py-1 text-xs text-slate-800"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-500 uppercase">Cidade / UF</label>
+                    <input
+                      type="text"
+                      value={clienteCidade}
+                      onChange={(e) => setClienteCidade(e.target.value)}
+                      placeholder="Ex: São Paulo / SP"
+                      className="w-full bg-white border border-slate-300 rounded px-2 py-1 text-xs text-slate-800"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-500 uppercase">Validade da Proposta (Dias)</label>
+                    <input
+                      type="number"
+                      min="1"
+                      value={validadeDias}
+                      onChange={(e) => setValidadeDias(parseInt(e.target.value, 10) || 10)}
+                      className="w-full bg-white border border-slate-300 rounded px-2 py-1 text-xs font-mono"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-500 uppercase">Prazo de Produção</label>
+                    <input
+                      type="text"
+                      value={prazoProducao}
+                      onChange={(e) => setPrazoProducao(e.target.value)}
+                      className="w-full bg-white border border-slate-300 rounded px-2 py-1 text-xs text-slate-800"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-500 uppercase">Condições de Pagamento</label>
+                    <input
+                      type="text"
+                      value={condicoesPagamento}
+                      onChange={(e) => setCondicoesPagamento(e.target.value)}
+                      className="w-full bg-white border border-slate-300 rounded px-2 py-1 text-xs text-slate-800"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-500 uppercase">Garantia Oferecida</label>
+                    <input
+                      type="text"
+                      value={garantiaMeses}
+                      onChange={(e) => setGarantiaMeses(e.target.value)}
+                      className="w-full bg-white border border-slate-300 rounded px-2 py-1 text-xs text-slate-800"
+                    />
+                  </div>
+                </div>
+              </details>
+            </div>
+
+            {/* Conteúdo da Folha A4 timbrada para Impressão / PDF */}
+            <div className="overflow-y-auto p-4 sm:p-8 bg-slate-200/80 flex justify-center">
+              <div
+                ref={pdfPrintRef}
+                className="bg-white w-full max-w-[794px] min-h-[1050px] p-8 sm:p-10 shadow-lg border border-slate-300 text-slate-900 text-xs font-sans space-y-5"
+              >
+                {/* Cabeçalho da Proposta Timbrada SKYMÍDIA */}
+                <div className="border-b-2 border-slate-900 pb-4">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-2xl sm:text-3xl font-black text-slate-950 tracking-tight font-poppins">
+                          SKYMÍDIA
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-4 text-[11px] font-semibold text-slate-700 mt-2">
+                        <a
+                          href="https://skymidiabh.com.br/"
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center gap-1.5 hover:text-emerald-700 text-slate-700"
+                        >
+                          <Globe className="w-3.5 h-3.5 text-emerald-600" />
+                          <span>skymidiabh.com.br</span>
+                        </a>
+                        <a
+                          href="https://www.instagram.com/skymidiabh/"
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center gap-1.5 hover:text-rose-600 text-slate-700"
+                        >
+                          <Instagram className="w-3.5 h-3.5 text-rose-500" />
+                          <span>@skymidiabh</span>
+                        </a>
+                      </div>
+                    </div>
+
+                    <div className="text-right shrink-0">
+                      <div className="inline-block bg-slate-100 border border-slate-300 px-3 py-1.5 rounded-lg text-right">
+                        <span className="text-[10px] font-bold uppercase text-slate-500 block">
+                          Proposta Comercial Nº
+                        </span>
+                        <span className="font-mono text-sm font-extrabold text-slate-900">
+                          SKY-{new Date().getFullYear()}-{String(Date.now()).slice(-4)}
+                        </span>
+                      </div>
+                      <div className="text-[11px] text-slate-600 mt-1.5 space-y-0.5">
+                        <p>Data de Emissão: <strong>{new Date().toLocaleDateString('pt-BR')}</strong></p>
+                        <p className="text-emerald-700 font-semibold">
+                          Validade da Proposta: <strong>{validadeDias} dias</strong> ({
+                            new Date(Date.now() + validadeDias * 24 * 60 * 60 * 1000).toLocaleDateString('pt-BR')
+                          })
+                        </p>
+                      </div>
+                    </div>
                   </div>
                 </div>
 
-                {/* Tabela de Itens */}
-                <div>
-                  <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">
-                    Discriminação dos Produtos &amp; Serviços
-                  </h4>
+                {/* Bloco de Informações do Cliente */}
+                <div className="bg-slate-50 border border-slate-200 rounded-xl p-3.5">
+                  <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500 block mb-2">
+                    Dados do Solicitante / Cliente:
+                  </span>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+                    <div>
+                      <span className="text-[10px] text-slate-400 block">Cliente / Contato:</span>
+                      <strong className="text-slate-900">{clienteNome || 'Não informado'}</strong>
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-slate-400 block">Empresa:</span>
+                      <span className="font-medium text-slate-800">{clienteEmpresa || 'Pessoa Física / Particular'}</span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-slate-400 block">Telefone / WhatsApp:</span>
+                      <span className="font-medium text-slate-800">{clienteTelefone || 'A confirmar'}</span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-slate-400 block">Cidade / Local:</span>
+                      <span className="font-medium text-slate-800">{clienteCidade || 'Atendimento Geral'}</span>
+                    </div>
+                  </div>
+                </div>
 
-                  <table className="w-full text-left border-collapse border border-slate-200">
+                {/* Tabela de Itens Selecionados (Proteção Intelectual: Apenas descrição, dimensões e quantidade) */}
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <h4 className="text-xs font-bold uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
+                      <Layers className="w-3.5 h-3.5 text-emerald-600" />
+                      <span>Relação de Produtos &amp; Serviços Orçados ({items.length} itens)</span>
+                    </h4>
+                    <span className="text-[10px] text-slate-500 italic">
+                      Todos os itens selecionados para este projeto
+                    </span>
+                  </div>
+
+                  <table className="w-full text-left border-collapse border border-slate-300">
                     <thead>
                       <tr className="bg-slate-900 text-white text-[11px]">
-                        <th className="py-2.5 px-3 border border-slate-700 w-10 text-center">Item</th>
-                        <th className="py-2.5 px-3 border border-slate-700">Descrição Técnica</th>
-                        <th className="py-2.5 px-3 border border-slate-700 w-28 text-center">Dimensões / Medida</th>
-                        <th className="py-2.5 px-3 border border-slate-700 w-14 text-center">Qtd</th>
-                        <th className="py-2.5 px-3 border border-slate-700 w-24 text-right">Valor Unit.</th>
-                        <th className="py-2.5 px-3 border border-slate-700 w-28 text-right">Valor Total</th>
+                        <th className="py-2 px-3 border border-slate-700 w-10 text-center">Item</th>
+                        <th className="py-2 px-3 border border-slate-700">Descrição Técnica do Serviço / Produto</th>
+                        <th className="py-2 px-3 border border-slate-700 w-36 text-center">Dimensões / Medidas</th>
+                        <th className="py-2 px-3 border border-slate-700 w-20 text-center">Qtd</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-200 text-[11px]">
                       {items.map((it, idx) => (
-                        <tr key={it.id} className={idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/60'}>
+                        <tr key={it.id} className={idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/70'}>
                           <td className="py-2.5 px-3 border border-slate-200 text-center font-mono font-bold text-slate-500">
                             {idx + 1}
                           </td>
@@ -980,33 +1135,32 @@ export function BudgetCalculator({ onBackToPainel }: BudgetCalculatorProps) {
                             <span className="text-[10px] text-slate-500">{it.groupName}</span>
                             {it.observacoes && (
                               <span className="text-[10px] text-slate-600 italic block mt-0.5">
-                                • {it.observacoes}
+                                • Observação: {it.observacoes}
                               </span>
                             )}
                           </td>
                           <td className="py-2.5 px-3 border border-slate-200 text-center font-mono">
                             {it.unit === 'm2' && it.larguraM && it.alturaM && (
-                              <span>{it.larguraM.toFixed(2)} × {it.alturaM.toFixed(2)}m ({it.areaM2?.toFixed(2)} m²)</span>
+                              <span>
+                                {it.larguraM.toFixed(2)}m × {it.alturaM.toFixed(2)}m
+                                <strong className="block text-[10px] text-emerald-800">
+                                  ({it.areaM2?.toFixed(2)} m²)
+                                </strong>
+                              </span>
                             )}
                             {it.unit === 'linear' && it.comprimentoM && (
-                              <span>{it.comprimentoM.toFixed(2)} m</span>
+                              <span><strong>{it.comprimentoM.toFixed(2)} m</strong> linear</span>
                             )}
                             {it.unit === 'minuto' && (
-                              <span>{it.quantidade} min</span>
+                              <span><strong>{it.quantidade}</strong> min de corte/laser</span>
                             )}
                             {it.unit === 'placa' && (
-                              <span>{it.quantidade} placa(s)</span>
+                              <span><strong>{it.quantidade}</strong> placa(s)</span>
                             )}
-                            {it.unit === 'un' && <span>Peça</span>}
+                            {it.unit === 'un' && <span>Peça unitária</span>}
                           </td>
                           <td className="py-2.5 px-3 border border-slate-200 text-center font-bold">
                             {it.quantidade}
-                          </td>
-                          <td className="py-2.5 px-3 border border-slate-200 text-right font-mono">
-                            {formatBRL(it.precoUnitario)}
-                          </td>
-                          <td className="py-2.5 px-3 border border-slate-200 text-right font-mono font-bold text-slate-900">
-                            {formatBRL(it.total)}
                           </td>
                         </tr>
                       ))}
@@ -1014,9 +1168,9 @@ export function BudgetCalculator({ onBackToPainel }: BudgetCalculatorProps) {
                   </table>
                 </div>
 
-                {/* Quadro de Totais */}
-                <div className="flex justify-end">
-                  <div className="w-72 bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-1.5 text-xs">
+                {/* Quadro de Valores Totais do Orçamento */}
+                <div className="flex justify-end pt-1">
+                  <div className="w-80 bg-slate-50 p-4 rounded-xl border border-slate-300 space-y-2 text-xs">
                     <div className="flex justify-between text-slate-600">
                       <span>Subtotal dos Itens:</span>
                       <span className="font-mono font-bold">{formatBRL(subtotal)}</span>
@@ -1024,42 +1178,79 @@ export function BudgetCalculator({ onBackToPainel }: BudgetCalculatorProps) {
 
                     {valorDesconto > 0 && (
                       <div className="flex justify-between text-emerald-700 font-semibold">
-                        <span>Desconto Especial:</span>
+                        <span>Desconto Especial Concedido:</span>
                         <span className="font-mono">- {formatBRL(valorDesconto)}</span>
                       </div>
                     )}
 
                     {valorInstalacao > 0 && (
                       <div className="flex justify-between text-slate-700">
-                        <span>Instalação / Transporte:</span>
+                        <span>Instalação / Frete no Local:</span>
                         <span className="font-mono">+ {formatBRL(valorInstalacao)}</span>
                       </div>
                     )}
 
-                    <div className="flex justify-between text-sm font-black text-slate-900 pt-2 border-t-2 border-slate-300">
-                      <span>VALOR TOTAL:</span>
-                      <span className="text-emerald-700 font-mono">{formatBRL(valorTotalFinal)}</span>
+                    <div className="flex justify-between text-base font-black text-slate-950 pt-2.5 border-t-2 border-slate-300">
+                      <span>VALOR TOTAL DO INVESTIMENTO:</span>
+                      <span className="text-emerald-700 font-mono text-lg">{formatBRL(valorTotalFinal)}</span>
                     </div>
                   </div>
                 </div>
 
-                {/* Termos e Assinatura */}
-                <div className="pt-6 border-t border-slate-200 text-[10px] text-slate-500 space-y-4">
-                  <div>
-                    <h5 className="font-bold uppercase text-slate-700 mb-1">Termos e Condições Gerais:</h5>
-                    <p>• O prazo de produção inicia-se após a aprovação do layout final e confirmação do sinal de pagamento.</p>
-                    <p>• Orçamento válido pelo período informado. Alterações de medidas ou especificações requerem reavaliação de custos.</p>
+                {/* Condições Comerciais Padronizadas */}
+                <div className="bg-slate-50/80 border border-slate-200 rounded-xl p-3.5 space-y-2.5 text-[11px] text-slate-600">
+                  <h5 className="font-bold uppercase tracking-wider text-slate-800 text-[11px] flex items-center gap-1.5">
+                    <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+                    <span>Condições Comerciais &amp; Execução:</span>
+                  </h5>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2">
+                    <div>
+                      <strong className="text-slate-800 block">• Prazo de Produção e Entrega:</strong>
+                      <span>{prazoProducao}</span>
+                    </div>
+
+                    <div>
+                      <strong className="text-slate-800 block">• Condições de Pagamento:</strong>
+                      <span>{condicoesPagamento}</span>
+                    </div>
+
+                    <div>
+                      <strong className="text-slate-800 block">• Formas de Pagamento Aceitas:</strong>
+                      <span>{formaPagamento}</span>
+                    </div>
+
+                    <div>
+                      <strong className="text-slate-800 block">• Garantia e Qualidade:</strong>
+                      <span>{garantiaMeses}</span>
+                    </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-8 pt-8 text-center text-xs">
-                    <div className="border-t border-slate-400 pt-1.5">
-                      <span className="font-bold text-slate-800 block">Assinatura da Empresa</span>
-                      <span className="text-[10px] text-slate-500">Departamento Comercial</span>
-                    </div>
-                    <div className="border-t border-slate-400 pt-1.5">
-                      <span className="font-bold text-slate-800 block">De Acordo do Cliente</span>
-                      <span className="text-[10px] text-slate-500">Data de Aprovação: ___/___/______</span>
-                    </div>
+                  <div className="pt-2 border-t border-slate-200 text-[10px] text-slate-500 space-y-1">
+                    <p>
+                      <strong>Nota 1:</strong> A fabricação é iniciada estritamente após a aprovação formal do layout técnico e confirmação da entrada financeira.
+                    </p>
+                    <p>
+                      <strong>Nota 2:</strong> O cliente deve disponibilizar ponto de energia elétrica compatível no local caso o projeto inclua iluminação.
+                    </p>
+                    <p>
+                      <strong>Nota 3:</strong> Proposta válida por {validadeDias} dias a partir da data de emissão. Alterações de medidas ou especificações requerem reavaliação.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Assinaturas Formais de De Acordo */}
+                <div className="grid grid-cols-2 gap-10 pt-10 mt-6 text-center text-xs">
+                  <div className="border-t border-slate-400 pt-3">
+                    <span className="font-bold text-slate-900 block text-xs">SKYMÍDIA COMUNICAÇÃO VISUAL</span>
+                    <span className="text-[10px] text-slate-500 block mt-2 tracking-wide">Departamento Técnico / Comercial</span>
+                  </div>
+
+                  <div className="border-t border-slate-400 pt-3">
+                    <span className="font-bold text-slate-900 block text-xs">DE ACORDO DO CLIENTE</span>
+                    <span className="text-[10px] text-slate-500 block mt-2 tracking-wide">
+                      {clienteNome || 'Assinatura do Responsável'} • Data: ___/___/______
+                    </span>
                   </div>
                 </div>
               </div>
