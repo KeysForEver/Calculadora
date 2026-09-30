@@ -60,19 +60,15 @@ export async function generatePDFFromElement(element: HTMLElement, filename: str
       const pageClone = pageEl.cloneNode(true) as HTMLElement;
 
       // Apply clean, standardized fixed A4 page styling to the clone
+      // We respect the element's existing padding and styling rather than overriding them
       pageClone.style.width = `${standardA4WidthPx}px`;
       pageClone.style.maxWidth = `${standardA4WidthPx}px`;
       pageClone.style.minWidth = `${standardA4WidthPx}px`;
       pageClone.style.boxSizing = "border-box";
       pageClone.style.margin = "0";
-      pageClone.style.padding = "24px 32px 20px 32px";
-      pageClone.style.border = "none";
-      pageClone.style.borderTop = "none";
+      // Remove any screen-only shadow and keep the crisp white paper look
       pageClone.style.boxShadow = "none";
       pageClone.style.backgroundColor = "#ffffff";
-      pageClone.style.display = "flex";
-      pageClone.style.flexDirection = "column";
-      pageClone.style.justifyContent = "space-between";
       pageClone.style.overflow = "visible";
 
       // Clear the sandbox and insert the current clone to measure natural rendered height
@@ -80,15 +76,14 @@ export async function generatePDFFromElement(element: HTMLElement, filename: str
       sandboxContainer.appendChild(pageClone);
 
       // Brief layout tick for SVG reflow and font bounding
-      await new Promise((r) => setTimeout(r, 40));
+      await new Promise((r) => setTimeout(r, 60));
 
-      const measuredHeight = pageClone.offsetHeight || pageClone.scrollHeight || standardA4HeightPx;
+      const measuredHeight = pageClone.scrollHeight || pageClone.offsetHeight || standardA4HeightPx;
 
       // Case A: Page fits within single A4 sheet (standard behavior)
-      if (measuredHeight <= standardA4HeightPx + 15) {
-        pageClone.style.height = `${standardA4HeightPx}px`;
+      if (measuredHeight <= standardA4HeightPx + 40) {
         pageClone.style.minHeight = `${standardA4HeightPx}px`;
-        pageClone.style.maxHeight = `${standardA4HeightPx}px`;
+        pageClone.style.height = `${standardA4HeightPx}px`;
 
         const canvas = await html2canvas(pageClone, {
           scale,
@@ -108,10 +103,10 @@ export async function generatePDFFromElement(element: HTMLElement, filename: str
         }
         isFirstPage = false;
 
-        const imgData = canvas.toDataURL("image/jpeg", 0.96);
+        const imgData = canvas.toDataURL("image/jpeg", 0.98);
         pdf.addImage(imgData, "JPEG", 0, 0, a4WidthMm, a4HeightMm);
 
-        // Add clickable link annotations for standard footer/header links
+        // Add clickable link annotations for links
         const links = pageClone.querySelectorAll<HTMLAnchorElement>("a[href]");
         links.forEach((anchor) => {
           const rect = anchor.getBoundingClientRect();
@@ -131,7 +126,6 @@ export async function generatePDFFromElement(element: HTMLElement, filename: str
         });
       } else {
         // Case B: Dynamic multi-page flow if content exceeds single A4 sheet height
-        // Slices the rendered canvas across consecutive A4 pages with zero text loss
         const fullCanvas = await html2canvas(pageClone, {
           scale,
           useCORS: true,
@@ -179,7 +173,7 @@ export async function generatePDFFromElement(element: HTMLElement, filename: str
           }
           isFirstPage = false;
 
-          const sliceImgData = sliceCanvas.toDataURL("image/jpeg", 0.96);
+          const sliceImgData = sliceCanvas.toDataURL("image/jpeg", 0.98);
           pdf.addImage(sliceImgData, "JPEG", 0, 0, a4WidthMm, a4HeightMm);
         }
       }

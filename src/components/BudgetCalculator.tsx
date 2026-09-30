@@ -1024,7 +1024,7 @@ export function BudgetCalculator({ onBackToPainel }: BudgetCalculatorProps) {
             <div className="overflow-y-auto p-4 sm:p-8 bg-slate-200/80 flex justify-center">
               <div
                 ref={pdfPrintRef}
-                className="bg-white w-full max-w-[794px] min-h-[1050px] p-8 sm:p-10 shadow-lg border border-slate-300 text-slate-900 text-xs font-sans space-y-5"
+                className="print-proposal-root bg-white w-full max-w-[794px] min-h-[1050px] p-8 sm:p-10 shadow-lg border border-slate-300 text-slate-900 text-xs font-sans space-y-5"
               >
                 {/* Cabeçalho da Proposta Timbrada SKYMÍDIA */}
                 <div className="border-b-2 border-slate-900 pb-4">
